@@ -1,0 +1,14 @@
+_src_path: /Volumes/X10Pro/Work/open_source/wolverine-kit/src/wolverine_kit/templates
+_commit: null
+project_name: fast-agent-stack
+project_slug: fast-agent-stack
+command_prefix: fas
+spec_dir: spec
+unit_term: module
+unit_term_plural: modules
+surface_file: DX.md
+source_dir: src/
+test_dir: tests/
+tech_stack: Python
+agent_tool: claude
+pack: python-library
