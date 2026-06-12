@@ -1,7 +1,64 @@
-# fast-agent-stack — Non-Functional Requirements
+# Non-Functional Requirements
 
-<!-- Example:
-- Performance: CLI commands complete in <2s
-- Security: No secrets in generated files
-- Compatibility: Python 3.11+
--->
+## Performance
+
+- Framework overhead must not exceed **5ms per request** (excluding application logic, DB queries, and external calls)
+- The `FastAgentStack()` app factory must complete startup in under **2 seconds** on standard hardware with a cold database connection
+- No synchronous blocking in any async hot path (see Invariant I2)
+
+## Compatibility
+
+- **Python:** 3.11, 3.12, 3.13 — all three must pass the tox matrix on every release
+- **FastAPI:** >=0.111 (`fastapi run` CLI required by ADR-019)
+- **SQLAlchemy:** >=2.0 (async-native era)
+- **Operating systems:** Linux, macOS; Windows is best-effort
+
+## Modularity
+
+- `pip install fast-agent-stack` alone must not import or require any AI, vector, storage, or task-queue dependency
+- Each extras group must be independently installable without pulling in other extras
+- A project using only `[api]` preset must have zero AI/vector/storage deps in its lockfile
+
+## Reliability
+
+- Every backend family must have integration tests against a real service (not mocked)
+- Database migrations must be reversible (down migrations required)
+- Health check endpoints (`/health/live`, `/health/ready`) must respond within 100ms regardless of application state
+- `/health/live` must return 200 unconditionally (process is alive). `/health/ready` must perform
+  lightweight connectivity checks against every external service that is configured (database
+  `SELECT 1`, Redis `PING`, vector store `collection_exists` or equivalent). If any check fails,
+  `/health/ready` must return 503 with a body naming the failing service (see I13).
+- External service clients (LLM providers, vector stores, storage backends) must support a
+  configurable timeout. Each backend family must read a `*_timeout: float` setting from
+  `BaseSettings` (e.g. `llm_timeout`, `vector_timeout`, `storage_timeout`, `embedding_timeout`). Default: 30 seconds.
+  Requests that exceed the timeout must raise a `TimeoutError` rather than hanging indefinitely.
+
+## Maintainability
+
+- All public API must have type annotations; mypy strict must pass with zero errors
+- No module in `core/` may import from another module's internals — only from its public `__init__.py` (see I12)
+- Test coverage for `core/` must remain above 80%
+
+## Security
+
+- The development server (`fastagentstack run`) must bind to `127.0.0.1` by default. Binding to
+  `0.0.0.0` must require an explicit `--host 0.0.0.0` flag.
+- Passwords must be hashed with bcrypt (minimum cost factor 12)
+- JWT tokens must be signed; algorithm must be configurable; default RS256 or HS256
+- No secrets may appear in generated files — `.env.example` only shows key names, never values
+- Admin panel must require authentication; unauthenticated access to `/admin` must return 401/403
+- **Token revocation must be durable across all worker processes and replicas.** In-process
+  denylist storage (e.g., a plain Python `set`) is forbidden in any auth backend that exposes a
+  `revoke_token()` method. Revocation state must be stored in Redis (or equivalent shared store)
+  so that revocation in one worker is immediately visible to all others.
+- **Required secrets must be validated at startup.** An app must not start in a configuration
+  where the first authenticated request will fail due to a missing secret. Specifically:
+  `secret_key` when `auth_backend` is `"jwt"` or `"both"`; `admin_secret_key` when admin is
+  enabled without auth. Startup validation must raise `RuntimeError` with a clear message naming
+  the missing setting.
+
+## Developer Experience
+
+- `fastagentstack new` must complete in under **30 seconds** including dependency resolution
+- Generated projects must pass `mypy --strict` out of the box with zero errors
+- Every error raised by the framework must include the corrective action (e.g., which extras to install)

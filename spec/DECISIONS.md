@@ -1,11 +1,388 @@
-# fast-agent-stack — Decisions
+# Architecture Decision Records
 
-Binding architectural decision records. One per tech choice. When the fas-gatekeeper emits
-NEEDS-DECISION, record the resolution here before proceeding with implementation.
+Each decision is binding. Proposing an alternative requires adding a new ADR superseding the relevant one — not silently ignoring it.
 
-<!-- Example:
-## ADR-001: CLI Framework
-- Decision: Typer
-- Rationale: Type-hint-driven, built on Click
-- Consequences: All CLI commands use Typer decorators
--->
+---
+
+## ADR-001 — Package Naming: `fast-agent-stack` / `fast_agent_stack` / `fastagentstack`
+
+**Context:** The project has three naming surfaces that each follow different conventions: the PyPI distribution name, the Python import name, and the CLI command. `DX.md` was inconsistent, using both `fastagentstack` and `fast_agent_stack` as import names. Two conventions exist in the ecosystem: FastAPI-adjacent projects collapse multi-word names (`fastapi`, `faststream`, `fastmcp`); the broader Python ecosystem maps hyphens to underscores (`pydantic_settings`, `typing_extensions`, `langchain_core`). PEP 8 explicitly recommends underscores for multi-word package names.
+
+**Decision:**
+- **PyPI distribution name:** `fast-agent-stack` (hyphens — PyPI standard)
+- **Python import name:** `fast_agent_stack` (underscores — PEP 8; consistent with `pydantic_settings` and the broader ecosystem)
+- **CLI entry point:** `fastagentstack` (collapsed — conventional for CLI tools in this ecosystem; mirrors `fastagentstack new`, `fastagentstack run`, etc.)
+
+```python
+# install
+pip install fast-agent-stack
+
+# import
+from fast_agent_stack import FastAgentStack
+from fast_agent_stack.config import BaseSettings
+
+# CLI
+fastagentstack new myproject
+```
+
+**Consequences:**
+- Import name follows PEP 8 and matches user expectations coming from the broader Python ecosystem
+- CLI name follows FastAPI-ecosystem conventions and is short enough to type repeatedly
+- `DX.md` must use `fast_agent_stack` exclusively for all import examples
+- The package directory is `fast_agent_stack/` (not `fastagentstack/`) — update `spec/ARCHITECTURE.md` package structure accordingly
+- Rules out `fastagentstack` as the import name; rules out `fast_agent_stack` as the CLI command
+
+---
+
+## ADR-002 — ORM: SQLAlchemy Async
+
+**Context:** Python ORMs range from Django ORM to SQLAlchemy to Tortoise. The framework targets production async FastAPI apps, so the ORM must be natively async and support Alembic migrations.
+
+**Decision:** SQLAlchemy async (`sqlalchemy[asyncio]`) with Alembic.
+
+**Consequences:**
+- Most mature Python ORM; best ecosystem and community support
+- Alembic is the de-facto migration tool for SQLAlchemy — no competing choice needed
+- Rules out Django ORM, Tortoise ORM, SQLModel as the primary ORM layer
+- SQLModel may be used for Pydantic-SQLAlchemy schema bridging in user code but is not a framework dependency
+
+---
+
+## ADR-003 — Validation: Pydantic v2
+
+**Context:** FastAPI already depends on Pydantic. The framework needs schema validation and settings management.
+
+**Decision:** Pydantic v2 throughout. pydantic-settings for `BaseSettings`.
+
+**Consequences:**
+- Zero additional dependency — already in the FastAPI dep tree
+- Rust-backed core; best-in-class validation performance
+- Rules out attrs, marshmallow, cerberus as framework-level validators
+- Users on Pydantic v1 must upgrade — v1 compatibility shims are not supported
+
+---
+
+## ADR-004 — CLI: Typer
+
+**Context:** The framework needs a `manage.py`-equivalent CLI with async command support and a plugin system for user-defined commands.
+
+**Decision:** Typer (built on Click).
+
+**Consequences:**
+- Native async support via `asyncio.run()` wrappers
+- Click compatibility means the ecosystem of Click extensions is available
+- Rules out argparse, Click directly, and Fire
+- Plugin commands are registered as Typer sub-apps
+
+---
+
+## ADR-005 — Task Queue: Dramatiq + Redis/Valkey
+
+**Context:** Background task queues in Python are dominated by Celery. The framework needs a simpler, more maintainable alternative.
+
+**Decision:** Dramatiq with Redis/Valkey as the broker.
+
+**Consequences:**
+- Simpler API than Celery; less operational complexity
+- Redis/Valkey is already the session/cache dependency — no additional broker service required
+- Rules out Celery, RQ, Huey, and ARQ as the built-in task queue
+- Users who require Celery may wire it themselves; the framework will not provide Celery templates
+
+---
+
+## ADR-006 — Cache & Sessions: Valkey/Redis
+
+**Context:** Session storage, task broker, and rate limiting all need a fast in-memory store.
+
+**Decision:** Valkey (Redis-compatible) as the single in-memory backend. Redis is acceptable where Valkey is not yet available.
+
+**Consequences:**
+- One service covers sessions, task brokering, and rate limiting
+- Rules out Memcached as a session backend
+- docker-compose template includes a single `redis` service; Valkey image is preferred
+
+---
+
+## ADR-007 — Admin: SQLAdmin
+
+**Context:** The framework needs a web admin panel that integrates with FastAPI and SQLAlchemy without requiring a separate Django-style admin framework.
+
+**Decision:** SQLAdmin — purpose-built for FastAPI + SQLAlchemy.
+
+**Consequences:**
+- No additional ASGI app needed — mounts directly onto the FastAPI app
+- Auto-registration from SQLAlchemy models
+- Rules out building a custom admin, using Flask-Admin, or using Django admin
+- Admin is always optional (`include_admin` copier question)
+
+---
+
+## ADR-008 — Auth: Custom JWT + Session Backends
+
+**Context:** Auth libraries like FastAPI-Users and AuthLib exist but impose opinionated user models and flows that conflict with framework-level control.
+
+**Decision:** Custom auth implementation with a pluggable backend system (JWT, session, combined). User model owned by the framework.
+
+**Consequences:**
+- Full control over the user model, token format, and session semantics
+- Rules out FastAPI-Users, AuthLib, and Starlette-Login as drop-in auth solutions
+- Higher maintenance burden — the framework owns the auth code
+- Password hashing via passlib (bcrypt)
+- JWT token revocation (denylist) must be stored in Redis, not in-process memory — see NFR
+  Security and ADR-015 for the refresh token design that pairs with this requirement
+
+---
+
+## ADR-009 — Observability: Jaeger + OpenTelemetry
+
+**Context:** Production AI apps require distributed tracing. OpenTelemetry is the vendor-neutral standard; Jaeger is the default backend.
+
+**Decision:** Auto-instrument with OpenTelemetry SDK; Jaeger as the default tracing backend.
+
+**Consequences:**
+- OTEL instrumentation works with any OTEL-compatible backend (Datadog, Honeycomb, Tempo) — not locked to Jaeger
+- Jaeger is the default in docker-compose; users swap the exporter for other backends
+- Rules out proprietary APM SDKs as the primary instrumentation layer
+- Tracing is always optional (`tracing` copier question)
+
+---
+
+## ADR-010 — Scaffolder: Copier + Typer
+
+**Context:** Project scaffolding needs conditional file generation, template updates, and an interactive CLI — not just file copying.
+
+**Decision:** Copier for template rendering and project updates; Typer for the interactive CLI wrapper (`fastagentstack new`).
+
+**Consequences:**
+- Copier handles `fastagentstack update` (template evolution) natively
+- Jinja2 templating in all generated files
+- Rules out Cookiecutter (no update support) and custom Jinja2 runners
+- `.copier-answers.yml` is written to generated projects for future update tracking
+
+---
+
+## ADR-011 — Tooling
+
+**Context:** The framework needs a consistent, fast development toolchain.
+
+**Decision:** See `.claude/TECH.md` for the full spec. Summary: uv (package manager), ruff (lint/format), mypy strict (type checking), pytest + pytest-asyncio (tests), tox (multi-version matrix: Python 3.11, 3.12, 3.13).
+
+**Consequences:**
+- Rules out pip/pip-tools, black, flake8, unittest as primary tooling
+- Minimum Python version: 3.11
+- All CI must run the tox matrix
+
+---
+
+## ADR-012 — Custom Backend Registration: Dotted Python Path
+
+**Context:** Built-in backend families (LLM, vector store, embedding, storage) cover common providers but cannot anticipate every user need. The framework must allow users to supply their own implementations without forking or patching the package.
+
+**Decision:** All four backend factory functions accept a dotted Python path string as the settings value in addition to known aliases. If the value contains a `.`, the factory imports and instantiates the class via `importlib`. The class must fully implement the family's Protocol (Invariant I1).
+
+```python
+# settings.py — alias or dotted path both valid
+storage_backend: str = "s3"                          # built-in alias
+storage_backend: str = "myproject.backends.AzureStorage"  # custom
+```
+
+**Consequences:**
+- Users can integrate any backend without framework changes
+- The Protocol/ABC is the stable contract — custom backends must implement it fully
+- Custom backends live in the user's project; their dependencies are the user's responsibility
+- The factory's dispatch table covers known aliases first; unknown values are treated as dotted paths
+- Rules out plugin registration systems, entry-point hooks, and subclassing the factory as extension mechanisms — dotted path in settings is the one way
+
+---
+
+## ADR-013 — Documentation: Zensical
+
+**Context:** The framework needs a documentation site. MkDocs + Material for MkDocs is the historical default for FastAPI-ecosystem projects, but the Material for MkDocs team has explicitly abandoned MkDocs 2.0 compatibility and is building Zensical as its replacement. FastAPI itself migrated to Zensical. Starting on MkDocs now means a mandatory migration when MkDocs 2.0 ships.
+
+**Decision:** Zensical — static site generator built by the Material for MkDocs team. Config via `zensical.toml` (TOML). Source in `docs/`. Installed as a dev-only dependency group (`[dependency-groups] docs`), not in `project.dependencies`.
+
+**Consequences:**
+- Same design language and feature set as Material for MkDocs; no author re-learning
+- Rust-based build runtime (ZRX) — faster builds at scale
+- TOML config avoids YAML indentation pitfalls
+- Zensical is alpha software — toolchain may require occasional patching as it stabilizes
+- Rules out MkDocs, mkdocs-material standalone, and Sphinx as the docs tool
+- Docs deps are dev-only and do not affect `project.dependencies` (I5 does not apply)
+
+---
+
+## ADR-014 — Changelog Format: Keep a Changelog
+
+**Context:** The project needs a human-readable changelog that users and contributors can scan to understand what changed between releases.
+
+**Decision:** [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format. One `CHANGELOG.md` at the repo root. Sections per release: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`. An `[Unreleased]` section accumulates changes until a release is cut. Version tags follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+**Consequences:**
+- Machine-readable format allows tooling (release-drafter, changie) to assist
+- `[Unreleased]` section doubles as a pre-release review checklist
+- Rules out auto-generated changelogs from commit messages as the primary format — human-written entries are required
+- Maintainers must update `CHANGELOG.md` as part of the PR that introduces the change, not as a separate release-day commit
+
+---
+
+## ADR-015 — Auth Token Lifecycle: Access + Refresh Tokens
+
+**Context:** The JWT backend ships with a single access token and a configurable expiry. This forces a binary choice: short expiry (constant re-login, poor UX) or long expiry (revocation is meaningless because the window is too large). The session backend has sliding TTL via Redis but the JWT backend has no equivalent.
+
+**Decision:** Introduce a two-token model for the JWT backend:
+- **Access token** — short-lived JWT (default 15 min), same format as today, validated stateless
+- **Refresh token** — long-lived opaque token (`secrets.token_urlsafe(32)`), stored in Redis with a configurable TTL (default 30 days), keyed as `refresh:{token}` with value `{user_id}`
+- `POST /auth/token` returns both tokens
+- `POST /auth/refresh` accepts a refresh token, validates it against Redis, issues a new access token (and optionally rotates the refresh token)
+- `POST /auth/logout` deletes the refresh token from Redis and adds the access token's JTI to the denylist
+
+The JWT denylist is stored in Redis (key: `jwt:deny:{jti}`, TTL = remaining access token lifetime) so revocation is visible across all workers.
+
+**Consequences:**
+- Access tokens remain stateless and fast to validate (no Redis hit per request)
+- Revocation is durable: logout invalidates both the refresh token (deleted from Redis) and the current access token (JTI added to denylist)
+- Requires `redis_url` when `auth_backend` is `"jwt"` — adds a Redis dependency to the JWT path
+- Rules out purely stateless JWT architectures where no server-side state is maintained
+- The `auth-jwt` extras group must pull in `redis>=5` (currently only in `auth-session` and `rate-limit`)
+
+---
+
+## ADR-016 — Rate Limiting: Redis Fixed-Window Counter
+
+**Context:** Production AI APIs need per-client rate limiting to prevent abuse and manage LLM cost exposure. Common approaches include token bucket, leaky bucket, sliding window, and fixed window algorithms.
+
+**Decision:** Fixed-window counter implemented via a Redis Lua script for atomicity. Each request increments a key scoped to `{client_ip}:{window_start}` with a TTL equal to the window period. The Lua script performs INCR and EXPIRE atomically so no request can race between the two operations. Configurable via `rate_limit_requests` (default 100) and `rate_limit_period` (default 60 seconds). Backed by the same Redis instance as ADR-006.
+
+**Consequences:**
+- Fixed window is simpler and cheaper than sliding window — one Redis key per client per window
+- Atomic Lua script prevents the INCR/EXPIRE race condition that a pipeline approach has
+- Shares the ADR-006 Redis instance — no additional service required
+- Fixed window has a known edge case: a burst of 2× the limit can occur across a window boundary; acceptable for most AI API use cases
+- Rate limiting is optional (`include_rate_limit` copier question, default false)
+- Rules out in-process rate limiting (breaks multi-worker), token-bucket (more complex, marginal benefit), and third-party rate-limit services
+
+---
+
+## ADR-017 — Secrets Management: Cloud Secrets Backends via pydantic-settings
+
+**Context:** Production deployments store credentials in cloud secrets managers (AWS Secrets Manager, GCP Secret Manager) rather than environment variables or `.env` files. The framework uses pydantic-settings for config, which has a documented source-chain extension point (`settings_customise_sources`).
+
+**Decision:** `BaseSettings` overrides `settings_customise_sources()` to inject a cloud secrets source when `SECRETS_BACKEND` is set in the environment. Supported values:
+- `aws` — `AWSSecretsManagerSettingsSource` (requires `fast-agent-stack[secrets-aws]`); reads `SECRETS_AWS_SECRET_ID` and `SECRETS_AWS_REGION` from `os.environ`
+- `gcp` — `GoogleSecretManagerSettingsSource` (requires `fast-agent-stack[secrets-gcp]`); reads `SECRETS_GCP_PROJECT_ID` from `os.environ`
+
+The bootstrap variables (`SECRETS_BACKEND`, `SECRETS_AWS_SECRET_ID`, `SECRETS_AWS_REGION`, `SECRETS_GCP_PROJECT_ID`) are read directly from `os.environ` inside `settings_customise_sources` — not from pydantic fields — to break the chicken-and-egg dependency.
+
+**Source priority (highest → lowest):**
+1. Constructor kwargs (`init_settings`)
+2. Environment variables (`env_settings`)
+3. Cloud secrets manager (when `SECRETS_BACKEND != "none"`)
+4. `.env` file (`dotenv_settings`)
+5. File secrets (`file_secret_settings`)
+
+Env vars always override the secrets manager so local development overrides work without modifying the remote secret.
+
+**Extras:**
+- `fast-agent-stack[secrets-aws]` — installs `boto3>=1.34` (required by `AWSSecretsManagerSettingsSource`)
+- `fast-agent-stack[secrets-gcp]` — installs `google-cloud-secret-manager>=2.20` (required by `GoogleSecretManagerSettingsSource`)
+
+The `secrets_backend` copier question (default `"none"`) adds the relevant extras to the generated `pyproject.toml`. Runtime behavior is controlled entirely by environment variables, so the same generated project works across dev (`.env`), staging (env vars), and production (secrets manager) with zero code changes.
+
+**Consequences:**
+- Zero overhead when `SECRETS_BACKEND` is unset — the default source chain is unchanged
+- Missing extras produce a clear `ImportError` at settings construction time (not at first field access)
+- The AWS SM secret must be a JSON object whose keys are settings field names (without the project env prefix)
+- Rules out per-field secret references (e.g. `@app.get_secret("name")` patterns) — all settings flow through the unified pydantic-settings source chain
+
+---
+
+## ADR-018 — Email Delivery: aiosmtplib + stdlib email
+
+**Context:** Auth flows (password reset, email verification) defined in `spec/SCENARIOS.md` S11 require sending transactional emails. The framework must choose an async-compatible email library and a configuration model without pulling in a new required dependency.
+
+**Decision:** Use `aiosmtplib` as the async SMTP client. Email sending is behind an optional extra (`fast-agent-stack[email-smtp]`). Email is not a core dependency — an app without auth or without email verification does not need it. The framework does not provide a SES or SendGrid backend out of the box; users who need those point the `email_backend` setting to a dotted Python path (same pattern as ADR-012).
+
+**`BaseSettings` fields added:**
+```python
+email_backend: str = "smtp"           # "smtp" | dotted path for custom
+smtp_host: str = "localhost"
+smtp_port: int = 587
+smtp_username: str | None = None
+smtp_password: str | None = None
+smtp_use_tls: bool = True
+email_from: str = "noreply@example.com"
+email_from_name: str = "FastAgentStack"
+```
+
+**Extras:**
+- `fast-agent-stack[email-smtp]` — installs `aiosmtplib>=3`
+
+**Consequences:**
+- Async SMTP — no thread pool required; satisfies I2
+- `email_backend = "myproject.email.SESBackend"` allows custom backends via ADR-012 dotted-path pattern
+- Email sending is a fire-and-forget coroutine; failures are logged but do not abort the HTTP response
+- Rules out Django-style email backends, Celery-based queued email, and synchronous smtplib wrappers
+- The `extract-all` bundle and the base install are unaffected — `email-smtp` is its own optional extra
+
+---
+
+## ADR-019 — ASGI Server: Uvicorn via `fastapi run`
+
+**Context:** The framework needs a default ASGI server for `fastagentstack run`. Two candidates: Uvicorn (FastAPI's official default, used by `fastapi run`) and Granian (Rust-based, newer). The CLI must bind to exactly one default.
+
+**Decision:** `fastagentstack run` delegates to `fastapi run` (which uses Uvicorn internally). Uvicorn is the only server dependency.
+
+**Consequences:**
+- Aligns with FastAPI's official tooling — `fastapi run` handles reload, workers, and host/port binding
+- Single server dependency (`uvicorn[standard]`) — already pulled in by `fastapi[standard]`
+- Users who prefer Granian or Hypercorn can run them directly against the generated ASGI app; the framework does not prevent this
+- Rules out Granian as a default (less ecosystem integration, fewer debugging resources)
+
+---
+
+## ADR-020 — Scheduling: periodiq
+
+**Context:** Dramatiq (ADR-005) has no built-in periodic scheduling. A scheduler is needed to run cron-style recurring tasks. Options: APScheduler (general-purpose), periodiq (Dramatiq-native), dramatiq-crontab (Django-only), OS cron.
+
+**Decision:** periodiq — a lightweight Dramatiq-native scheduler that uses SIGALRM with zero additional dependencies beyond Dramatiq itself.
+
+```python
+from dramatiq import actor
+from periodiq import cron
+
+@actor(periodic=cron("0 */6 * * *"))
+def sync_embeddings():
+    ...
+```
+
+Run via: `fastagentstack scheduler` (starts the periodiq worker process that checks schedules and enqueues matching actors).
+
+**Consequences:**
+- No additional framework — periodic schedules are declared inline on actors via `@cron` decorator
+- Single lightweight process (`periodiq` worker) checks schedules and enqueues matching actors
+- No job store or database required — schedules are defined in code
+- `include_scheduler` copier question controls whether the periodiq dependency and CLI command are generated
+- Rules out APScheduler (heavier, separate job store, not Dramatiq-native) and OS cron (not portable)
+
+---
+
+## ADR-021 — LLM Providers: Direct SDKs Behind a Protocol
+
+**Context:** The AI module needs to support multiple LLM providers. Two approaches: (A) wrap everything through LiteLLM as a universal adapter, or (B) write thin direct SDK wrappers behind a shared protocol, with LiteLLM as just another backend option.
+
+**Decision:** Direct SDK backends behind an `LLMBackend` protocol. Each provider is an optional extra (`fast-agent-stack[bedrock]`, `[openai]`, `[anthropic]`, `[litellm]`).
+
+```python
+class LLMBackend(Protocol):
+    model_id: str
+    async def complete(self, messages: list[Message], **kwargs) -> CompletionResult: ...
+    async def stream(self, messages: list[Message], **kwargs) -> AsyncIterator[str]: ...
+    async def count_tokens(self, messages: list[Message]) -> int: ...
+```
+
+**Consequences:**
+- Minimal dependency footprint — only the SDK you use gets installed
+- Full control over each provider's features (Bedrock's converse API, OpenAI's function calling, Anthropic's tool use) without LiteLLM's abstraction leaking
+- LiteLLM available as a backend for users who want its proxy/routing features, registered via ADR-012 dotted-path
+- Custom backends follow the same ADR-012 pattern: `llm_backend = "myproject.llm.MyBackend"`
+- Rules out LiteLLM-as-sole-adapter (adds a heavy transitive dep tree, obscures provider-specific features, breaks when LiteLLM lags behind provider API changes)
