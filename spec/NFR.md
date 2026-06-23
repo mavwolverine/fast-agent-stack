@@ -18,6 +18,7 @@
 - `pip install fast-agent-stack` alone must not import or require any AI, vector, storage, or task-queue dependency
 - Each extras group must be independently installable without pulling in other extras
 - A project using only `[api]` preset must have zero AI/vector/storage deps in its lockfile
+- **ORM and migrations are not subject to the above exclusion.** `sqlalchemy[asyncio]` and `alembic` are always installed as core dependencies (ADR-025). The `db-*` extras groups contain only the async engine driver for the chosen database (e.g., `asyncpg`, `aiosqlite`); they do not re-bundle the ORM or migration tooling.
 
 ## Reliability
 

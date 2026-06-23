@@ -17,6 +17,7 @@ fast_agent_stack/
     ├── docker-compose.yml.jinja  # {% if include_docker_compose %}
     ├── Dockerfile.jinja          # {% if include_dockerfile %}
     ├── k8s/                      # {% if include_k8s %}
+    ├── frontend/                 # {% if include_frontend %} — stub for SPA build output (ADR-024)
     ├── alembic/
     │   ├── env.py.jinja
     │   └── versions/
@@ -66,7 +67,6 @@ db:
     PostgreSQL: postgres
     MySQL: mysql
     SQLite: sqlite
-    MSSQL: mssql
   default: postgres
 
 llm_provider:
@@ -143,6 +143,11 @@ include_admin:
   type: bool
   default: true
 
+include_frontend:
+  type: bool
+  default: false
+  help: Include a frontend/ stub for static SPA serving via app.frontend() — requires fastapi>=0.138.0 (ADR-024)
+
 tracing:
   type: str
   choices:
@@ -203,6 +208,7 @@ PRESETS = {
         "auth_method": "jwt",
         "include_email": False,
         "include_admin": True,
+        "include_frontend": False,
         "include_rate_limit": False,
         "secrets_backend": "none",
         "tracing": "jaeger",
@@ -221,6 +227,7 @@ PRESETS = {
         "auth_method": "jwt",
         "include_email": False,
         "include_admin": True,
+        "include_frontend": False,
         "include_rate_limit": False,
         "secrets_backend": "none",
         "tracing": "none",
@@ -238,6 +245,7 @@ PRESETS = {
         "include_auth": False,
         "include_email": False,
         "include_admin": False,
+        "include_frontend": False,
         "include_rate_limit": False,
         "secrets_backend": "none",
         "tracing": "none",

@@ -14,7 +14,6 @@ db:
         PostgreSQL: postgres
         MySQL: mysql
         SQLite: sqlite
-        MSSQL: mssql
     default: postgres
 
 llm_provider:

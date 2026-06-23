@@ -64,7 +64,7 @@ Concrete use cases that validate the framework design. Module briefs and impleme
 3. Framework factory imports and instantiates the class; treats it identically to built-ins
 4. User adds their own dependencies to their project's `pyproject.toml` — no changes to fastagentstack needed
 
-**Database:** not extensible this way — change `DATABASE_URL` to switch engines (postgres, mysql, sqlite, mssql). Swapping the ORM violates ADR-002.
+**Database:** not extensible this way — change `DATABASE_URL` to switch engines (postgres, mysql, sqlite). Swapping the ORM violates ADR-002.
 
 **What this validates:**
 - Dotted-path factory resolution works for all four families (ADR-012)

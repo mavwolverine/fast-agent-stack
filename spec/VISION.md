@@ -24,7 +24,7 @@ Architecture extracted from: `nts-rfq-backend` — a production FastAPI + AI age
 - Strands Agents (multi-agent graph/swarm)
 - RAG pipeline (Qdrant, Bedrock embeddings, PDF extraction)
 - Dramatiq + periodiq workers
-- SQLAlchemy + Alembic (MSSQL + Postgres)
+- SQLAlchemy + Alembic (Postgres, MySQL, SQLite)
 - Jaeger + OTEL observability
 - Docker + K8s + Terraform deployment
 - Pluggable backends for storage, vector, extraction, web search, web crawling

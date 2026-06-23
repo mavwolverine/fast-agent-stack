@@ -477,6 +477,8 @@ async with AsyncExitStack() as stack:
 - Any async context manager is a valid hook with zero boilerplate
 - Rules out the `on_startup / on_shutdown` callback pair — existing code using that interface must migrate to `__aenter__ / __aexit__`
 
+---
+
 ## ADR-024 — Frontend Serving: `app.frontend()` for Static SPA
 
 **Context:** AI applications typically need a user-facing frontend (chat UI, dashboard, etc.) alongside the API. Options considered:
@@ -498,3 +500,50 @@ SQLAdmin remains the admin console (server-rendered, auto-generated from models)
 - `fastagentstack new` generates a `frontend/` directory stub when enabled
 - Production deployments can optionally serve frontend via CDN instead
 - Requires `fastapi>=0.138.0`
+
+---
+
+## ADR-025 — SQLAlchemy and Alembic as Core Dependencies
+
+**Context:** ADR-002 established SQLAlchemy async and Alembic as the fixed ORM and migration tool. A separate question remained open: should `sqlalchemy[asyncio]` and `alembic` live in `project.dependencies` (always installed) or behind a `db` extras group (opt-in)? The async database drivers (`asyncpg`, `aiosqlite`, `aiomysql`) were already placed in `db-*` extras groups because they are engine-specific. The question is whether the ORM layer itself follows the same pattern.
+
+**Decision:** `sqlalchemy[asyncio]` and `alembic` belong in `project.dependencies` — always installed. The async engine drivers (`asyncpg`, `aiosqlite`, `aiomysql`) remain in optional `db-postgres`, `db-sqlite`, and `db-mysql` extras groups and must continue to be import-guarded (I3).
+
+**Rationale:**
+- The database layer is not a pluggable backend family. ADR-002 is a fixed choice: SQLAlchemy is the ORM and Alembic is the migration tool. There is no supported path to swap either of them out without violating ADR-002.
+- Because users cannot choose a different ORM, there is no scenario where fast-agent-stack is deployed without SQLAlchemy. Gating it behind an extra would create a spurious install step with no corresponding user choice.
+- The CLI commands `migrate` and `makemigrations` (Phase 2) call Alembic directly. These commands must work after `pip install fast-agent-stack` with no additional extras. Requiring `pip install fast-agent-stack[db]` before `fastagentstack migrate` can run would be confusing and undocumented behaviour.
+- NFR Modularity (lines 17–19) explicitly names AI, vector, storage, and task-queue as the categories excluded from the core install. ORM and migration tooling are conspicuously absent from that exclusion list — this is intentional.
+
+**Rejected alternatives:**
+- **`db` extras group containing `sqlalchemy[asyncio]` and `alembic`** — rejected because it implies these are optional, which they are not. It would also gate the `migrate`/`makemigrations` CLI commands behind an extras install, degrading DX from day one.
+- **`db-core` extras group separate from `db-postgres` / `db-sqlite`** — rejected for the same reason; it adds installation friction with no benefit, since neither ORM nor migrations are optional.
+
+**Consequences:**
+- `sqlalchemy[asyncio]>=2.0` and `alembic>=1.13` are present in `project.dependencies` in `pyproject.toml`. No change required — they are already there.
+- The `db-postgres`, `db-sqlite`, and `db-mysql` extras groups contain only the async engine driver for that database. They do not re-bundle SQLAlchemy or Alembic.
+- I3 (extras gate) applies to the async drivers in `db-*` extras but does not apply to SQLAlchemy or Alembic imports, which are always available after install.
+- The NFR Modularity section must explicitly note that ORM (`sqlalchemy[asyncio]`) and migrations (`alembic`) are part of the core install and are not subject to the AI/vector/storage/task-queue exclusion rule.
+- `spec/ARCHITECTURE.md` Extras Reference table must note that `db-*` extras contain drivers only, not the ORM.
+- Any future agent or reviewer must not raise a NEEDS-DECISION flag on SQLAlchemy or Alembic being in `project.dependencies` — this ADR is the decision record.
+
+## ADR-026 — App Registration: Dual Mechanism (INSTALLED_APPS + install_app)
+
+**Context:** The framework needs a way to register route modules and full app modules. Django uses `INSTALLED_APPS` for everything, but FastAPI's ecosystem typically uses `include_router()` directly. Two use cases emerged:
+
+1. **Simple route modules** — a file with a `router: APIRouter`. No models, no admin views. Just routes.
+2. **Full app modules** — provide routes, models, and admin views as a cohesive unit.
+
+A single mechanism can't serve both well: forcing the `AppModule` protocol on simple route files adds ceremony; using only string-based imports loses the ability to collect models and admin views.
+
+**Decision:** Two registration paths:
+
+- **`INSTALLED_APPS`** — a list of dotted strings (e.g., `"apps.chat.routes"`). The framework imports the module and includes its `router: APIRouter` attribute. Router-only; models and admin views are NOT auto-discovered via this path.
+- **`app.install_app(module: AppModule)`** — calls the `AppModule` protocol: `get_router()`, `get_models()`, `get_admin_views()`. Full discovery; `AdminLifespanHook` collects admin views only from modules registered this way.
+
+**Consequences:**
+- Simple route modules stay simple — just define `router` and add to `INSTALLED_APPS`
+- Full app modules get first-class model and admin registration
+- `AdminLifespanHook` only sees modules registered via `install_app()` — not `INSTALLED_APPS` string imports
+- All `install_app()` calls must complete before lifespan begins (see I9)
+- Generated `app.py` uses `install_app()` for the main app module (since it has models)

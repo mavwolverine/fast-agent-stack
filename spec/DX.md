@@ -74,6 +74,7 @@ async def info(settings: Settings = Depends(get_settings)) -> dict:
 ├── .env.example
 ├── Dockerfile         # {% if include_dockerfile %}
 ├── docker-compose.yml # {% if include_docker_compose %}
+├── frontend/          # {% if include_frontend %} — SPA build output root (ADR-024)
 ├── alembic/
 │   └── versions/
 └── {project_name}/    # importable package
@@ -91,6 +92,22 @@ Additional route files are added as standard `APIRouter` modules and included in
 
 For `ai-full` and `api` presets, `models/`, `schemas/`, and `routes/` are generated as packages (directories with `__init__.py`) to accommodate growth. The `minimal` preset keeps them as flat files.
 
+## Database CLI (Django-style)
+
+```bash
+fastagentstack makemigrations          # autogenerate migration from user model changes
+fastagentstack makemigrations -m "add user profile fields"  # with message
+fastagentstack migrate                 # apply framework + user migrations
+fastagentstack seed                    # run seeds.py
+```
+
+Behavior mirrors Django's `manage.py makemigrations` / `manage.py migrate`:
+
+- `makemigrations` detects changes in the **user's models only** and generates a new Alembic revision in the project's `alembic/versions/`. Framework-provided models (User, ConversationLog, etc.) are not included — the framework ships its own migrations.
+- `migrate` applies **both** framework-bundled migrations and user project migrations (framework first, then user). Like Django applying `auth` and `contenttypes` migrations alongside your app's.
+- Framework migrations are shipped inside the `fast_agent_stack` package and applied automatically — users never edit or generate them.
+- When the framework adds new models in a future version, `migrate` picks them up on next run (no `makemigrations` needed for framework changes).
+
 ## CLI UX Flow
 
 ```
@@ -100,7 +117,7 @@ $ fastagentstack new myproject
 ? Description: My AI-powered API
 
 Database:
-? Which database? (PostgreSQL / MySQL / SQLite / MSSQL)
+? Which database? (PostgreSQL / MySQL / SQLite)
 
 AI / LLM:
 ? LLM provider? (Bedrock / OpenAI / Anthropic / LiteLLM proxy / None)

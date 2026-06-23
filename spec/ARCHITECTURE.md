@@ -100,9 +100,9 @@ Inspired by Django's database backends. Each service type has:
 
 | Extra | Key packages | ADR |
 |---|---|---|
-| `db-postgres` | `asyncpg>=0.29` | ADR-002 |
-| `db-sqlite` | `aiosqlite>=0.19` | ADR-002 |
-| `db-mysql` | `aiomysql>=0.2` | ADR-002 |
+| `db-postgres` | `asyncpg>=0.29` (driver only — SQLAlchemy and Alembic are core) | ADR-002, ADR-025 |
+| `db-sqlite` | `aiosqlite>=0.19` (driver only — SQLAlchemy and Alembic are core) | ADR-002, ADR-025 |
+| `db-mysql` | `aiomysql>=0.2` (driver only — SQLAlchemy and Alembic are core) | ADR-002, ADR-025 |
 | `auth-jwt` | `passlib[bcrypt]>=1.7`, `redis>=5` | ADR-015 |
 | `auth-session` | `passlib[bcrypt]>=1.7`, `redis>=5` | ADR-015 |
 | `admin` | `sqladmin>=0.16` | ADR-007 |
@@ -132,6 +132,8 @@ Inspired by Django's database backends. Each service type has:
 | `tracing` | `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-jaeger` | — |
 
 Bundle extras: `ai-full` (all AI backends + vector + storage + embedding), `all` (everything).
+
+**Note on `db-*` extras:** These groups contain only the async engine driver for the chosen database. `sqlalchemy[asyncio]` and `alembic` are in `project.dependencies` (core, always installed) per ADR-025. I3 (extras gate) applies to the async drivers in `db-*` extras; it does not apply to SQLAlchemy or Alembic imports.
 
 ## Custom Backends (Bring Your Own)
 
@@ -193,10 +195,9 @@ The database is **not** a pluggable backend family. SQLAlchemy is the ORM (ADR-0
 DATABASE_URL=postgresql+asyncpg://...    # postgres (default)
 DATABASE_URL=mysql+aiomysql://...        # mysql
 DATABASE_URL=sqlite+aiosqlite:///...     # sqlite
-DATABASE_URL=mssql+aioodbc://...         # mssql
 ```
 
-Swapping the ORM itself (e.g., Tortoise, SQLModel) violates ADR-002 and is a `plan-guardian` BLOCK.
+`sqlalchemy[asyncio]` and `alembic` are always installed as core dependencies — they are in `project.dependencies`, not in any extras group (ADR-025). Only the async engine driver for the chosen database needs to be added via a `db-*` extras group. Swapping the ORM itself (e.g., Tortoise, SQLModel) violates ADR-002 and is a `plan-guardian` BLOCK.
 
 ## Package Structure
 
