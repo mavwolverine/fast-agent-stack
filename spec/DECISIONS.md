@@ -165,12 +165,12 @@ fastagentstack new myproject
 
 **Context:** The framework needs a consistent, fast development toolchain.
 
-**Decision:** See `.claude/TECH.md` for the full spec. Summary: uv (package manager), ruff (lint/format), mypy strict (type checking), pytest + pytest-asyncio (tests), tox (multi-version matrix: Python 3.11, 3.12, 3.13).
+**Decision:** See `.claude/TECH.md` for the full spec. Summary: uv (package manager), ruff (lint/format), mypy strict (type checking), pytest + pytest-asyncio (tests), tox (multi-version matrix: Python 3.11 through the latest stable CPython release at time of testing; currently 3.11, 3.12, 3.13, 3.14).
 
 **Consequences:**
 - Rules out pip/pip-tools, black, flake8, unittest as primary tooling
 - Minimum Python version: 3.11
-- All CI must run the tox matrix
+- All CI must run the tox matrix; add each new CPython stable release to the envlist when it ships
 
 ---
 
@@ -326,17 +326,28 @@ email_from_name: str = "FastAgentStack"
 
 ---
 
-## ADR-019 — ASGI Server: Uvicorn via `fastapi run`
+## ADR-019 — ASGI Server: Uvicorn via fastapi-cli internals
 
-**Context:** The framework needs a default ASGI server for `fastagentstack run`. Two candidates: Uvicorn (FastAPI's official default, used by `fastapi run`) and Granian (Rust-based, newer). The CLI must bind to exactly one default.
+**Context:** The framework needs a default ASGI server for development and production. Two candidates: Uvicorn (FastAPI's official default, used internally by `fastapi run`) and Granian (Rust-based, newer). The CLI must bind to exactly one default.
 
-**Decision:** `fastagentstack run` delegates to `fastapi run` (which uses Uvicorn internally). Uvicorn is the only server dependency.
+**Decision:** Two CLI commands are exposed, both backed by `uvicorn.run()` with no subprocess spawning. App auto-detection uses `fastapi_cli.discover.get_import_data`.
+
+| Command | Default host | Reload | Workers flag |
+|---------|-------------|--------|--------------|
+| `fastagentstack dev` | `127.0.0.1` | on | no |
+| `fastagentstack run` | `0.0.0.0` | off | yes (`--workers`) |
+
+This gives us:
+- Auto-detection of the app module (`main.py`, `app.py`, `api.py`, etc.)
+- PYTHONPATH manipulation for importability
+- `uvicorn.run()` with proper config
 
 **Consequences:**
-- Aligns with FastAPI's official tooling — `fastapi run` handles reload, workers, and host/port binding
-- Single server dependency (`uvicorn[standard]`) — already pulled in by `fastapi[standard]`
-- Users who prefer Granian or Hypercorn can run them directly against the generated ASGI app; the framework does not prevent this
-- Rules out Granian as a default (less ecosystem integration, fewer debugging resources)
+- Works in any environment where `fast-agent-stack` is installed — generated projects need no separate venv
+- Inherits FastAPI CLI's app discovery logic without reimplementing it
+- Depends on `fastapi-cli` as an import (already a FastAPI dependency)
+- Users who prefer Granian or Hypercorn can run them directly against the generated ASGI app
+- Rules out subprocess delegation (fragile PATH dependency) and Granian as default
 
 ---
 
@@ -386,3 +397,104 @@ class LLMBackend(Protocol):
 - LiteLLM available as a backend for users who want its proxy/routing features, registered via ADR-012 dotted-path
 - Custom backends follow the same ADR-012 pattern: `llm_backend = "myproject.llm.MyBackend"`
 - Rules out LiteLLM-as-sole-adapter (adds a heavy transitive dep tree, obscures provider-specific features, breaks when LiteLLM lags behind provider API changes)
+
+---
+
+## ADR-022 — Version Source: `__version__.py` + Hatchling Dynamic Version
+
+**Context:** The version string must be readable at runtime (`fast_agent_stack.__version__`) and also drive the `pyproject.toml` package metadata. Two patterns exist: (A) hardcode version in `pyproject.toml` and duplicate it in `__init__.py`; (B) keep one canonical `__version__.py` and read it from both places. Pattern A creates two places to update on every release, which will drift.
+
+**Decision:** Single source of truth in `fast_agent_stack/__version__.py`:
+
+```python
+__version__ = "0.1.0"
+```
+
+`pyproject.toml` reads it dynamically via Hatchling (the build backend):
+
+```toml
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+dynamic = ["version"]
+
+[tool.hatch.version]
+path = "fast_agent_stack/__version__.py"
+```
+
+`fast_agent_stack/__init__.py` imports it:
+
+```python
+from fast_agent_stack.__version__ import __version__
+```
+
+**Consequences:**
+- One file to edit on every release — no drift between runtime `__version__` and the installed package metadata
+- Hatchling is the build backend (replaces any setuptools assumption in ADR-011); uv is compatible with hatchling out of the box
+- `importlib.metadata.version("fast-agent-stack")` also works at runtime as an alternative read path
+- Rules out `[project] version = "..."` static field (requires duplicate update); rules out `importlib.metadata`-only approaches (version unreadable before install)
+
+---
+
+## ADR-023 — Lifespan Hook Interface: Async Context Manager (`__aenter__` / `__aexit__`)
+
+**Context:** `LifespanHook` objects need to run code at application startup and shutdown. Two interfaces were considered:
+
+- **Callback pair** (`on_startup() / on_shutdown()`): explicit, easy to read, mirrors Django signals and some ASGI frameworks.
+- **Async context manager** (`__aenter__` / `__aexit__`): standard Python async resource protocol; directly composable with `AsyncExitStack`.
+
+The callback pair has two failure-safety problems: (1) if `on_startup` raises, partially initialised hooks must be cleaned up manually; (2) teardown order must be implemented explicitly with `reversed(hooks)`. Both are solved for free by `AsyncExitStack`, which guarantees LIFO teardown and propagates exceptions through `__aexit__` correctly.
+
+The context manager form also aligns with FastAPI's own lifespan pattern (`@asynccontextmanager`) and means any class that already implements `async with` (e.g., `httpx.AsyncClient`, `aiohttp.ClientSession`) can be used as a hook directly or as a delegate inside one.
+
+**Decision:** `LifespanHook` is an async context manager protocol:
+
+```python
+class LifespanHook(Protocol):
+    async def __aenter__(self) -> None: ...
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool | None: ...
+```
+
+`FastAgentStack` drives hooks via `contextlib.AsyncExitStack`:
+
+```python
+async with AsyncExitStack() as stack:
+    for hook in hooks:
+        await stack.enter_async_context(hook)
+    yield
+```
+
+**Consequences:**
+- Exception safety is provided by `AsyncExitStack` at no cost — partial startup failures clean up already-entered contexts automatically
+- Teardown order (LIFO) is guaranteed without explicit `reversed()` logic
+- Any async context manager is a valid hook with zero boilerplate
+- Rules out the `on_startup / on_shutdown` callback pair — existing code using that interface must migrate to `__aenter__ / __aexit__`
+
+## ADR-024 — Frontend Serving: `app.frontend()` for Static SPA
+
+**Context:** AI applications typically need a user-facing frontend (chat UI, dashboard, etc.) alongside the API. Options considered:
+
+- **Separate deployment** (Vercel, Cloudflare Pages, S3+CloudFront): adds infrastructure complexity, CORS config, separate CI/CD pipeline.
+- **`StaticFiles` mount**: works but doesn't handle SPA fallback routing (client-side routes return 404).
+- **`app.frontend()`** (FastAPI >=0.138.0): purpose-built for serving static SPA builds with automatic fallback routing. API routes take priority; unmatched paths serve `index.html`.
+
+`app.frontend()` gives a Django-like single-deployment experience — one container serves both API and UI — while still allowing split deployments in production via a CDN in front.
+
+SQLAdmin remains the admin console (server-rendered, auto-generated from models). `app.frontend()` serves the user-facing application.
+
+**Decision:** Use `app.frontend("./frontend/dist")` for serving the static frontend build. Optional feature gated by `include_frontend` in the scaffolder.
+
+**Consequences:**
+- Single deployable artifact for API + frontend
+- No CORS configuration needed between frontend and API (same origin)
+- SPA client-side routing works out of the box (fallback to `index.html`)
+- `fastagentstack new` generates a `frontend/` directory stub when enabled
+- Production deployments can optionally serve frontend via CDN instead
+- Requires `fastapi>=0.138.0`

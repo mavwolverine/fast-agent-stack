@@ -36,3 +36,10 @@ contribute models and admin views. See `spec/ARCHITECTURE.md` Module 1.
 **Escape hatch** — direct access to the underlying third-party object (e.g., `app.fastapi_app`, the raw SQLAlchemy engine). Every wrapped component must expose one.
 
 **copier.yml** — the Copier question definition file that drives interactive project generation. Variable names defined here are the only valid names for template conditionals.
+
+**Deprecation cycle** — the process for removing or changing a public API surface covered by I6.
+A deprecated symbol must emit a `DeprecationWarning` for at least one minor version before removal.
+The warning message must name the replacement (if any) and the version in which removal will occur.
+Removal may only happen in the next minor version after the warning was introduced (e.g., deprecated
+in 0.5.0, removable in 0.6.0). CLI commands follow the same policy: `--help` output notes the
+deprecation and the replacement command.

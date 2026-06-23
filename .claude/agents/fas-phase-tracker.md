@@ -18,7 +18,7 @@ You are the phase-tracker for fast-agent-stack. Produce a status report covering
 
 ### Part 2 — Roadmap progress
 1. Read `spec/ROADMAP.md` to get the complete phase checklist.
-2. For each item, determine completion by checking whether corresponding code exists in `src/`.
+2. For each item, determine completion by checking whether corresponding code exists in `fast_agent_stack/`.
 3. A file that exists but is empty or stub-only is NOT complete.
 
 ## Output format

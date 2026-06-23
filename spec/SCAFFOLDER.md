@@ -11,42 +11,42 @@ fast_agent_stack/
 │   └── ...
 └── template/                # Copier template (Jinja2)
     ├── copier.yml
-    ├── {{project_name}}/
-    │   ├── pyproject.toml.jinja
-    │   ├── settings.py.jinja
-    │   ├── manage.py
-    │   ├── apps/
-    │   │   └── {{default_app}}/
-    │   │       ├── routes.py.jinja
-    │   │       ├── models.py.jinja
-    │   │       ├── schemas.py.jinja
-    │   │       ├── agents.py.jinja   # {% if llm_provider != "none" %}
-    │   │       └── tasks.py.jinja    # {% if task_broker != "none" %}
-    │   ├── alembic/
-    │   │   ├── env.py.jinja
-    │   │   └── versions/
-    │   ├── docker-compose.yml.jinja  # {% if include_docker_compose %}
-    │   ├── Dockerfile.jinja          # {% if include_dockerfile %}
-    │   ├── k8s/                      # {% if include_k8s %}
-    │   └── .env.example.jinja
-    └── .copier-answers.yml
+    ├── pyproject.toml.jinja
+    ├── main.py.jinja            # thin entry: from {{project_name}}.app import app
+    ├── .env.example.jinja
+    ├── docker-compose.yml.jinja  # {% if include_docker_compose %}
+    ├── Dockerfile.jinja          # {% if include_dockerfile %}
+    ├── k8s/                      # {% if include_k8s %}
+    ├── alembic/
+    │   ├── env.py.jinja
+    │   └── versions/
+    └── {{project_name}}/        # rendered as the package directory
+        ├── __init__.py.jinja
+        ├── app.py.jinja         # app factory — default run target via main.py re-export
+        ├── routes.py.jinja
+        ├── models.py.jinja
+        ├── schemas.py.jinja
+        ├── agents.py.jinja      # {% if llm_provider != "none" %}
+        ├── tasks.py.jinja       # {% if task_broker != "none" %}
+        └── settings.py.jinja
 ```
 
 ## Key Behaviors
 
 - Files only generated when the feature is selected
 - `pyproject.toml` only includes chosen dependencies
+- All Jinja conditional blocks (`{% if %}`, `{% elif %}`, `{% endif %}`) must use whitespace-trimming syntax (`{%-`) to avoid blank lines in rendered output when conditions are false
 - `docker-compose.yml` only includes chosen services (postgres, qdrant, redis, etc.). When
   `task_broker != "none"`, a `worker` service must also be included that runs
-  `fastagentstack worker apps.{default_app}.tasks` and depends on the broker service.
+  `fastagentstack worker tasks` and depends on the broker service.
 - Settings class only has fields for enabled features
 - The generated `Dockerfile` uses `python:{python_version}-slim` — the version matches the
   `python_version` copier answer, not a hardcoded value.
-- **Lifespan hook registration order** (see Invariant I9): the generated `app.py` always registers
-  hooks in this sequence: `DatabaseLifespanHook` → `AuthLifespanHook` (if `include_auth`) →
-  `AdminLifespanHook` (if `include_admin`) → `TracingLifespanHook` (if `tracing == "jaeger"`) →
-  `RateLimitLifespanHook` (if `include_rate_limit`). Any hook that depends on the database must
-  follow `DatabaseLifespanHook`.
+- **Lifespan hook registration order** (see Invariant I9): the generated `{{project_name}}/app.py`
+  always registers hooks in this sequence: `DatabaseLifespanHook` → `AuthLifespanHook` (if
+  `include_auth`) → `RateLimitLifespanHook` (if `include_rate_limit`) → `TracingLifespanHook` (if
+  `tracing == "jaeger"`) → `AdminLifespanHook` (if `include_admin`). Any hook that depends on the
+  database must follow `DatabaseLifespanHook`.
 
 ## copier.yml Question Definitions
 
@@ -59,11 +59,6 @@ description:
   type: str
   help: Short project description (used in pyproject.toml)
   default: ""
-
-default_app:
-  type: str
-  help: Name of the default app module (e.g. chat, api, main)
-  default: chat
 
 db:
   type: str
@@ -187,7 +182,8 @@ python_version:
     - "3.11"
     - "3.12"
     - "3.13"
-  default: "3.12"
+    - "3.14"
+  default: "3.14"
   help: Python version for the generated Dockerfile
 ```
 
@@ -196,7 +192,6 @@ python_version:
 ```python
 PRESETS = {
     "ai-full": {
-        "default_app": "chat",
         "db": "postgres",
         "llm_provider": "bedrock",
         "vector_db": "qdrant",
@@ -216,7 +211,6 @@ PRESETS = {
         "include_k8s": False,
     },
     "api": {
-        "default_app": "api",
         "db": "postgres",
         "llm_provider": "none",
         "vector_db": "none",
@@ -235,7 +229,6 @@ PRESETS = {
         "include_k8s": False,
     },
     "minimal": {
-        "default_app": "main",
         "db": "sqlite",
         "llm_provider": "none",
         "vector_db": "none",

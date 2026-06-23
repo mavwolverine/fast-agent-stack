@@ -7,4 +7,4 @@ Run the phase-tracker on fast-agent-stack.
 
 ## Steps
 
-**Step 1 — phase-tracker**: Read `spec/ROADMAP.md`, check code existence in `src/`, produce the status report showing completed/in-progress/blocked items per phase.
+**Step 1 — phase-tracker**: Read `spec/ROADMAP.md`, check code existence in `fast_agent_stack/`, produce the status report showing completed/in-progress/blocked items per phase.

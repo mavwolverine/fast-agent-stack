@@ -8,8 +8,8 @@
 
 ## Compatibility
 
-- **Python:** 3.11, 3.12, 3.13 — all three must pass the tox matrix on every release
-- **FastAPI:** >=0.111 (`fastapi run` CLI required by ADR-019)
+- **Python:** 3.11, 3.12, 3.13, 3.14 — all must pass the tox matrix on every release
+- **FastAPI:** >=0.138.0 (`app.frontend()` static file serving; `fastapi-cli` app discovery required by ADR-019)
 - **SQLAlchemy:** >=2.0 (async-native era)
 - **Operating systems:** Linux, macOS; Windows is best-effort
 
@@ -41,8 +41,10 @@
 
 ## Security
 
-- The development server (`fastagentstack run`) must bind to `127.0.0.1` by default. Binding to
+- The development server (`fastagentstack dev`) must bind to `127.0.0.1` by default. Binding to
   `0.0.0.0` must require an explicit `--host 0.0.0.0` flag.
+- The production server (`fastagentstack run`) must bind to `0.0.0.0` by default to serve all
+  interfaces. Reload must be off and a `--workers` flag must be available.
 - Passwords must be hashed with bcrypt (minimum cost factor 12)
 - JWT tokens must be signed; algorithm must be configurable; default RS256 or HS256
 - No secrets may appear in generated files — `.env.example` only shows key names, never values

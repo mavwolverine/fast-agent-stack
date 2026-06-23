@@ -3,13 +3,14 @@
 ## Project Creation
 
 ```bash
-pip install fast-agent-stack
-fastagentstack new myproject
-cd myproject
-fastagentstack migrate
-fastagentstack createsuperuser
-fastagentstack run
+mkdir myproject && cd myproject
+uv venv && uv pip install fast-agent-stack
+fastagentstack new myproject --preset minimal
+fastagentstack dev   # development: auto-reload, 127.0.0.1
+fastagentstack run   # production: multi-worker, 0.0.0.0
 ```
+
+`fastagentstack new` places files in the current directory, using the provided name in `pyproject.toml`.
 
 ## Minimal App
 
@@ -30,6 +31,8 @@ async def hello():
 
 ## Settings
 
+Define settings by subclassing `BaseSettings` in `{project_name}/settings.py`:
+
 ```python
 from pydantic_settings import SettingsConfigDict
 from fast_agent_stack.config import BaseSettings
@@ -43,25 +46,50 @@ class Settings(BaseSettings):
     llm_model: str = "claude-sonnet"
 ```
 
+Access settings in route handlers via a cached FastAPI dependency:
+
+```python
+from functools import lru_cache
+from fastapi import Depends
+from .settings import Settings
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+# in a route:
+@router.get("/info")
+async def info(settings: Settings = Depends(get_settings)) -> dict:
+    return {"llm_provider": settings.llm_provider}
+```
+
+`get_settings` is defined in `settings.py` and exported from there. Override it in tests with `app.dependency_overrides[get_settings] = lambda: Settings(database_url="sqlite:///:memory:")`.
+
 ## Generated Project Structure
 
 ```
-myproject/
-├── manage.py
-├── settings.py
-├── apps/
-│   └── chat/
-│       ├── routes.py
-│       ├── models.py
-│       ├── schemas.py
-│       ├── agents.py
-│       └── tasks.py
+./
+├── main.py            # thin entry: from {project_name}.app import app
+├── pyproject.toml
+├── .env.example
+├── Dockerfile         # {% if include_dockerfile %}
+├── docker-compose.yml # {% if include_docker_compose %}
 ├── alembic/
 │   └── versions/
-├── pyproject.toml
-├── Dockerfile
-└── docker-compose.yml
+└── {project_name}/    # importable package
+    ├── __init__.py
+    ├── app.py         # app factory (FastAgentStack instance + router wiring)
+    ├── routes.py
+    ├── models.py
+    ├── schemas.py
+    ├── agents.py      # {% if llm_provider != "none" %}
+    ├── tasks.py       # {% if task_broker != "none" %}
+    └── settings.py
 ```
+
+Additional route files are added as standard `APIRouter` modules and included in `{project_name}/app.py`.
+
+For `ai-full` and `api` presets, `models/`, `schemas/`, and `routes/` are generated as packages (directories with `__init__.py`) to accommodate growth. The `minimal` preset keeps them as flat files.
 
 ## CLI UX Flow
 
@@ -106,12 +134,13 @@ Secrets:
 
 Deployment:
 ? Include Dockerfile? (Yes / No)
-? Python version? (3.11 / 3.12 / 3.13)
+? Python version? (3.11 / 3.12 / 3.13 / 3.14)
 ? Include docker-compose? (Yes / No)
 ? Include K8s manifests? (Yes / No)
 
-✅ Created myproject/
-   Run: cd myproject && fastagentstack migrate && fastagentstack run
+✅ Created myproject
+   Dev:  fastagentstack migrate && fastagentstack dev
+   Prod: fastagentstack migrate && fastagentstack run
 ```
 
 **CLI presentation:** Rich (via `typer[all]`) provides styled prompts, grouped sections with panels, colored output, and a summary table of selections before project generation.

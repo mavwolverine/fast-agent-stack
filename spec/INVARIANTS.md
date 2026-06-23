@@ -8,6 +8,10 @@ Every pluggable backend must implement every method of its Protocol/ABC. Partial
 
 **Applies to:** all backends under `core/ai/` (including `core/ai/embedding/`), `core/vector/`, `core/storage/`
 
+**Known gap (Phase 6):** ADR-018 allows a custom email backend via dotted path in `email_backend`
+setting. Unlike other backend families, there is no `EmailProtocol` defined yet and no extras gate
+for user-supplied email implementations. This must be resolved when email support is implemented.
+
 ## I2 — Async-Only I/O
 
 No synchronous blocking calls in any async code path. All database access, HTTP calls, file I/O, and external service calls must use async APIs.
@@ -55,21 +59,34 @@ The following must not change between minor versions without a deprecation cycle
 
 Jinja2 conditionals in template files (`{% if llm_provider != "none" %}`) must use variable names that exist verbatim in `copier.yml`. No assumed or derived variable names.
 
-## I8 — Session Factory Schema Override
+## I8 — Schema Name Injection Guard
 
-The SQLAlchemy session factory must accept an optional schema parameter to support schema-per-tenant multi-tenancy. This must not be hard-coded out of the design.
+The `get_async_session_for_schema(schema)` dependency must validate the schema name against the
+regex `^[a-zA-Z_][a-zA-Z0-9_]*$` before issuing `SET search_path`. Any input not matching must
+raise `ValueError` immediately — never interpolated into SQL. This prevents SQL injection via
+tenant identifiers.
+
+**Applies to:** `core/database.py` (or equivalent session factory module)
 
 ## I9 — Lifespan Hook Registration Order
 
-`DatabaseLifespanHook` must be registered before any hook that depends on the database. The required order is:
+`DatabaseLifespanHook` must be registered before any hook that depends on the database. The
+canonical registration order is:
 
 1. `DatabaseLifespanHook` — initialises engine and session factory
 2. `AuthLifespanHook` — connects auth backend (may use Redis, but not DB directly)
-3. `AdminLifespanHook` — mounts SQLAdmin; requires the engine to already exist
+3. `RateLimitLifespanHook` — connects to Redis for rate-limit counters
+4. `TracingLifespanHook` — initialises OpenTelemetry exporters
+5. `AdminLifespanHook` — mounts SQLAdmin; requires the engine to already exist
 
 Any hook that reads `db_module._engine` or calls `get_async_session()` at startup will raise
-`RuntimeError` if registered before `DatabaseLifespanHook`. The generated `app.py` template must
-enforce this order. Agents must BLOCK any template or code change that violates it.
+`RuntimeError` if registered before `DatabaseLifespanHook`. The generated `{{project_name}}/app.py`
+template must enforce this order. Agents must BLOCK any template or code change that violates it.
+
+**`install_app()` ordering contract:** All `install_app()` calls must complete before the lifespan
+sequence begins (i.e., before `__aenter__` is called on the first hook). `AdminLifespanHook`
+collects admin views from previously-installed modules — calling `install_app()` after lifespan
+start results in views not appearing in the admin panel.
 
 ## I10 — Token Revocation Must Use a Shared Store
 
@@ -87,6 +104,8 @@ due to a missing secret. The following are hard startup requirements:
 
 - `secret_key` must be set when `auth_backend` is `"jwt"` or `"both"`
 - `admin_secret_key` must be set when the admin panel is enabled without auth
+- `redis_url` must be set and connectable when `auth_backend` is `"jwt"` or `"both"` (token
+  revocation store — see I10). **TODO (Phase 3):** implement connectivity check with ≤5s timeout.
 
 Failure to meet these conditions must raise `RuntimeError` with a message naming the missing
 setting before the app begins serving requests. Deferring the check to request time is forbidden.

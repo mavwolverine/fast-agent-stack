@@ -15,7 +15,8 @@ You are the drift-detector for fast-agent-stack. Your job is to find implementat
 1. Run `git diff HEAD -- spec/` to get spec diffs. If empty, run `git diff HEAD~1 HEAD -- spec/`.
 2. Identify what changed: a decision, a module description, an invariant, an NFR, a roadmap item.
 3. Scan existing implementation for contradictions:
-   - `src/` — source code
+   - `fast_agent_stack/` — source code (note: project uses `fast_agent_stack/` not `src/`)
+   - `tests/` — test assertions that may now contradict updated spec behaviour or defaults
    - `.claude/agents/` — agent files referencing outdated decisions
    - `.claude/commands/` — command files
    - `CLAUDE.md` — project guide

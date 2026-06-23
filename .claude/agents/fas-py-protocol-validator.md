@@ -12,7 +12,7 @@ You are the protocol-validator for fast-agent-stack. Your job is to find classes
 
 ## How to operate
 
-1. Find all `typing.Protocol` and `abc.ABC` definitions in `src/`.
+1. Find all `typing.Protocol` and `abc.ABC` definitions in `fast_agent_stack/`.
 2. Find all classes that inherit from or are registered with those protocols/ABCs.
 3. For each implementing class, verify:
    - All required methods are present

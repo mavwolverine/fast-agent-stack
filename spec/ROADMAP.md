@@ -1,13 +1,14 @@
 # Roadmap
 
 ## Phase 1: Hello World
-- [ ] Package skeleton (pyproject.toml, `fast_agent_stack/`, py.typed)
-- [ ] `FastAgentStack` class wrapping FastAPI (pass-through routing, lifespan hooks)
-- [ ] Config via pydantic-settings (`BaseSettings` with env/dotenv)
-- [ ] CLI entry point: `fastagentstack --help`, `fastagentstack run` (delegates to `fastapi run`)
-- [ ] Scaffolder: `fastagentstack new` with `minimal` preset only
-- [ ] Generated project runs: scaffold → run → GET / returns JSON
-- [ ] Tests for wrapper, config, CLI, scaffolder
+- [x] Package skeleton (pyproject.toml, `fast_agent_stack/`, py.typed)
+- [x] `FastAgentStack` class wrapping FastAPI (pass-through routing, lifespan hooks, CORS, request-id, error handlers)
+- [x] Config via pydantic-settings (`BaseSettings` with env/dotenv)
+- [x] CLI entry point: `fastagentstack --help`, `fastagentstack dev` (reload, 127.0.0.1) and `fastagentstack run` (multi-worker, 0.0.0.0) — both call `fastapi_cli` discovery + `uvicorn.run()`
+- [x] Scaffolder: `fastagentstack new` with `minimal` preset only
+- [x] Generated project runs: scaffold → run → GET / returns JSON
+- [x] Tests for wrapper, config, CLI, scaffolder, middleware
+- [x] CLI: `version` command
 
 ## Phase 2: Database
 - [ ] SQLAlchemy async engine + session management
@@ -19,10 +20,12 @@
 
 ## Phase 3: Auth & Admin
 - [ ] Redis client (`redis.asyncio`) + `/health/ready` ping
-- [ ] User model (hashed passwords, email, roles)
+- [ ] User model (hashed passwords, email, roles, `is_verified` field)
+- [ ] `auth_verification_token` table (token, user_id, type, expires_at — TTL: 24h reset, 72h verification)
 - [ ] JWT + session backends (pluggable via ADR-008)
 - [ ] Access + refresh token lifecycle (ADR-015, Redis denylist)
 - [ ] Routes: `/auth/token`, `/auth/refresh`, `/auth/logout`
+- [ ] Verification route stubs: `POST /auth/send-verification`, `POST /auth/verify-email`, `POST /auth/forgot-password`, `POST /auth/reset-password` (email delivery deferred to Phase 6)
 - [ ] API key management (`/api-keys`)
 - [ ] SQLAdmin integration
 - [ ] CLI: `createsuperuser`
@@ -33,12 +36,14 @@
 - [ ] SSE streaming response helpers
 - [ ] Conversation persistence
 - [ ] Agent registration + lifecycle
+- [ ] Token usage metering middleware — **NEEDS-DECISION:** schema shape, per-user vs per-org, storage backend
 - [ ] Tests
 
 ## Phase 5: Data Pipeline
 - [ ] Storage backends (S3, local, MinIO)
 - [ ] Vector store backends (Qdrant, pgvector, OpenSearch, Weaviate)
 - [ ] Embedding backends (Bedrock, OpenAI, local)
+- [ ] Document extraction backends (PDF, DOCX, XLSX, EML)
 - [ ] RAG pipeline service
 - [ ] Tests
 

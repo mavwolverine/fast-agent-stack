@@ -1,0 +1,8 @@
+
+from fast_agent_stack import FastAgentStack
+from .routes import router
+
+_stack = FastAgentStack()
+app = _stack.fastapi_app  # ASGI entrypoint — see I4
+
+app.include_router(router)

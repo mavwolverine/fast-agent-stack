@@ -55,7 +55,7 @@
 
 ### 8. CLI
 - Built on Typer
-- Commands: `new`, `run`, `migrate`, `makemigrations`, `createsuperuser`, `shell`, `routes`, `seed`, `update`, `worker`, `scheduler`, `version`
+- Commands: `new`, `dev`, `run`, `migrate`, `makemigrations`, `createsuperuser`, `seed`, `update`, `worker`, `scheduler`, `version`
 - Plugin system for custom commands
 
 ## AI-Specific Modules
@@ -96,22 +96,42 @@ Inspired by Django's database backends. Each service type has:
 - Multiple implementations shipped as extras
 - Factory function that reads config and returns the right backend
 
-```python
-# pyproject.toml
-# pip install fast-agent-stack[qdrant,s3,bedrock]
+### Extras Reference
 
-[project.optional-dependencies]
-vector-qdrant = ["qdrant-client"]
-vector-pgvector = ["pgvector"]
-vector-opensearch = ["opensearch-py[async]"]
-storage-s3 = ["aioboto3"]
-storage-local = ["aiofiles"]
-embedding-bedrock = ["aioboto3"]
-embedding-openai = ["openai"]
-email-smtp = ["aiosmtplib>=3"]
-secrets-aws = ["boto3>=1.34"]
-secrets-gcp = ["google-cloud-secret-manager>=2.20"]
-```
+| Extra | Key packages | ADR |
+|---|---|---|
+| `db-postgres` | `asyncpg>=0.29` | ADR-002 |
+| `db-sqlite` | `aiosqlite>=0.19` | ADR-002 |
+| `db-mysql` | `aiomysql>=0.2` | ADR-002 |
+| `auth-jwt` | `passlib[bcrypt]>=1.7`, `redis>=5` | ADR-015 |
+| `auth-session` | `passlib[bcrypt]>=1.7`, `redis>=5` | ADR-015 |
+| `admin` | `sqladmin>=0.16` | ADR-007 |
+| `bedrock` | `aioboto3>=12` | ADR-021 |
+| `openai` | `openai>=1.0` | ADR-021 |
+| `anthropic` | `anthropic>=0.25` | ADR-021 |
+| `litellm` | `litellm>=1.30` | ADR-021 |
+| `vector-qdrant` | `qdrant-client>=1.7` | — |
+| `vector-pgvector` | `pgvector>=0.2` | — |
+| `vector-opensearch` | `opensearch-py[async]>=2.3` | — |
+| `vector-weaviate` | `weaviate-client>=4` | — |
+| `embedding-bedrock` | `aioboto3>=12` | — |
+| `embedding-openai` | `openai>=1.0` | — |
+| `embedding-local` | *(no extra deps — uses local model)* | — |
+| `storage-s3` | `aioboto3>=12` | — |
+| `storage-local` | `aiofiles>=23` | — |
+| `storage-minio` | `aioboto3>=12` | — |
+| `tasks` | `dramatiq[redis]>=1.15` | ADR-005, ADR-020 |
+| `scheduler` | `periodiq>=0.9` | ADR-005 |
+| `rate-limit` | `redis>=5` | ADR-016 |
+| `email-smtp` | `aiosmtplib>=3` | ADR-018 |
+| `extract-pdf` | `pdfplumber>=0.10` | — |
+| `extract-docx` | `python-docx>=1.1` | — |
+| `extract-xlsx` | `openpyxl>=3.1` | — |
+| `secrets-aws` | `boto3>=1.34` | ADR-017 |
+| `secrets-gcp` | `google-cloud-secret-manager>=2.20` | ADR-017 |
+| `tracing` | `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-jaeger` | — |
+
+Bundle extras: `ai-full` (all AI backends + vector + storage + embedding), `all` (everything).
 
 ## Custom Backends (Bring Your Own)
 
@@ -180,6 +200,20 @@ Swapping the ORM itself (e.g., Tortoise, SQLModel) violates ADR-002 and is a `pl
 
 ## Package Structure
 
+### Convention: `lifespan.py` per subpackage
+
+Every `core/` subpackage that needs startup/shutdown behaviour exports a `LifespanHook`
+implementor from a `lifespan.py` module. This gives a consistent discovery pattern:
+
+- `core/database/lifespan.py` → `DatabaseLifespanHook`
+- `core/auth/lifespan.py` → `AuthLifespanHook`
+- `core/ratelimit/lifespan.py` → `RateLimitLifespanHook`
+- `core/observability/lifespan.py` → `TracingLifespanHook`
+- `core/admin/lifespan.py` → `AdminLifespanHook`
+
+Each hook implements the `LifespanHook` protocol (`__aenter__`/`__aexit__`). The generated app
+template imports and registers them in the order defined by I9.
+
 ```
 fast_agent_stack/
 ├── cli/
@@ -190,8 +224,6 @@ fast_agent_stack/
 │   ├── auth.py
 │   ├── worker.py
 │   ├── scheduler_cmd.py
-│   ├── routes_cmd.py
-│   ├── shell.py
 │   ├── seed.py
 │   └── update.py
 ├── config/                  # Public re-export: fast_agent_stack.config.BaseSettings
@@ -228,3 +260,11 @@ fast_agent_stack/
     ├── storage/              # Storage backends (s3, local, minio)
     └── vector/               # Vector store backends (qdrant, pgvector, opensearch, weaviate)
 ```
+
+## Frontend Serving
+
+- Uses FastAPI's `app.frontend("./frontend/dist")` to serve a static SPA build
+- API routes take priority; frontend files are served only when no path operation matches
+- SPA fallback routing handled automatically (client-side routing works)
+- Optional — only generated when `include_frontend` is enabled in scaffolder
+- Separate from SQLAdmin (admin = server-rendered model CRUD; frontend = user-facing app)

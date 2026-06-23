@@ -34,7 +34,7 @@ Concrete use cases that validate the framework design. Module briefs and impleme
 
 **Flow:**
 1. `fastagentstack new myapi --preset api`
-2. Define models, routes, schemas in `apps/`
+2. Define models, routes, schemas in the project root
 3. `fastagentstack migrate` + `fastagentstack createsuperuser`
 4. Admin panel auto-registers models
 
@@ -126,7 +126,7 @@ new CLI command, updated docker-compose service, new settings field).
    updated; user-owned files (models, routes, agents) are preserved
 
 **Protected files** (user-owned — never overwritten without prompt):
-- `apps/**/models.py`, `apps/**/routes.py`, `apps/**/agents.py`, `apps/**/tasks.py`
+- `models.py`, `routes.py`, `agents.py`, `tasks.py`
 - `alembic/versions/` (all migration files)
 - `seeds.py`
 
@@ -138,6 +138,15 @@ new CLI command, updated docker-compose service, new settings field).
 - `.copier-answers.yml` contract is stable across framework versions
 - Copier update flow works without destroying user code
 - Framework-owned vs user-owned file distinction is enforced in the template
+
+**User-modified files behavior:**
+- If the user has modified a framework-owned file (e.g., `Dockerfile`), `copier update` presents
+  a 3-way merge diff. User chooses: accept upstream, keep local, or manual merge.
+- Copier's `--conflict rej` flag writes `.rej` files for unresolved conflicts — the CLI prints a
+  summary of `.rej` files at the end with guidance to resolve them.
+- If a new template version adds a copier question that didn't exist before (e.g., a new boolean
+  flag), and the user runs in `--defaults` mode, the question's `default` value is used silently.
+  In interactive mode, the user is prompted for the new question only.
 
 ---
 
@@ -211,6 +220,14 @@ auth, sessions, and rate limiting behave correctly across processes.
 - `RateLimiter` Redis backend is used (not in-memory fallback) when `redis_url` is set
 - Session auth does not use in-memory fallback in multi-worker deployments
 - `redis_url` for sessions and broker use different Redis DB indices to avoid key collisions
+
+**Failure mode — Redis unreachable at runtime:**
+- If Redis becomes unreachable after startup, authenticated requests that require denylist
+  checking must fail closed (return 503, not silently allow). Silent open-fail would let revoked
+  tokens through.
+- Rate limiter failing to reach Redis: fail open (allow request) with a warning log — rate
+  limiting is a soft protection, not a security boundary.
+- Health check `/health/ready` returns 503 naming Redis as the failing service.
 
 ---
 
@@ -398,3 +415,32 @@ token cannot be reused after logout even within its remaining TTL.
 - Tracing adds < 5ms p99 latency overhead (NFR)
 - When `tracing = "none"`: zero OTEL packages in the lockfile, no middleware registered, no runtime cost
 - Switching from off → on requires only changing the config + installing `fast-agent-stack[tracing]` — no code changes
+
+---
+
+## S16 — Startup Validation Failure
+
+**User goal:** Get a clear error at application startup (not at first request time) when required
+configuration is missing or an external service is unreachable.
+
+**Stack:** postgres + redis + jwt auth
+
+**Flow (missing secret):**
+1. Deploy with `auth_backend = "jwt"` but `SECRET_KEY` unset
+2. Application raises `RuntimeError("secret_key must be set when auth_backend is 'jwt' or 'both'")` before serving any request
+3. Process exits with code 1; error message appears in stdout/stderr
+
+**Flow (missing redis_url):**
+1. Deploy with `auth_backend = "jwt"` but `REDIS_URL` unset
+2. Application raises `RuntimeError("redis_url must be set when auth_backend is 'jwt' or 'both'")` before serving any request
+
+**Flow (Redis unreachable):**
+1. Deploy with `auth_backend = "jwt"`, `REDIS_URL = "redis://bad-host:6379"`
+2. `AuthLifespanHook.__aenter__()` attempts a Redis `PING` with a 5-second timeout
+3. On failure: raises `RuntimeError("Cannot connect to Redis at redis://bad-host:6379 — required for token revocation")` and process exits
+
+**What this validates:**
+- Invariant I11 is enforced: missing secrets fail fast at startup
+- Redis connectivity is verified during lifespan startup, not at first authenticated request
+- Error messages name the specific missing setting or failing service
+- The process exits non-zero; orchestrators (Docker, K8s) see the failure and can restart/alert

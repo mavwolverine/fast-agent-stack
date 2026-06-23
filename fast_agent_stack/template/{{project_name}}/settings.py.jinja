@@ -1,0 +1,28 @@
+from functools import lru_cache
+
+from pydantic_settings import SettingsConfigDict
+
+from fast_agent_stack.config import BaseSettings
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="{{ project_name | upper }}_")
+
+{%- if db == "sqlite" %}
+    database_url: str = "sqlite+aiosqlite:///./{{ project_name }}.db"
+{%- elif db == "postgres" %}
+    database_url: str = "postgresql+asyncpg://user:password@localhost/{{ project_name }}"
+{%- elif db == "mysql" %}
+    database_url: str = "mysql+aiomysql://user:password@localhost/{{ project_name }}"
+{%- elif db == "mssql" %}
+    database_url: str = "mssql+aioodbc://user:password@localhost/{{ project_name }}"
+{%- endif %}
+{%- if include_auth %}
+    auth_backend: str = "{{ auth_method }}"
+    secret_key: str | None = None
+{%- endif %}
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

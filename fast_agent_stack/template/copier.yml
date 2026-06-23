@@ -1,0 +1,148 @@
+project_name:
+    type: str
+    help: Project name (used as the package/directory name)
+
+description:
+    type: str
+    help: Short project description (used in pyproject.toml)
+    default: ""
+
+db:
+    type: str
+    help: Which database?
+    choices:
+        PostgreSQL: postgres
+        MySQL: mysql
+        SQLite: sqlite
+        MSSQL: mssql
+    default: postgres
+
+llm_provider:
+    type: str
+    help: LLM provider?
+    choices:
+        AWS Bedrock: bedrock
+        OpenAI: openai
+        Anthropic: anthropic
+        LiteLLM Proxy: litellm
+        None: none
+    default: none
+
+vector_db:
+    type: str
+    help: Vector database?
+    choices:
+        Qdrant: qdrant
+        pgvector: pgvector
+        OpenSearch: opensearch
+        Weaviate: weaviate
+        None: none
+    default: none
+
+embedding_provider:
+    type: str
+    help: Embedding provider?
+    choices:
+        AWS Bedrock: bedrock
+        OpenAI: openai
+        Local: local
+        None: none
+    default: none
+    when: "{{ vector_db != 'none' }}"
+
+storage_backend:
+    type: str
+    help: File storage backend?
+    choices:
+        S3: s3
+        Local filesystem: local
+        MinIO: minio
+        None: none
+    default: none
+
+task_broker:
+    type: str
+    help: Background task broker?
+    choices:
+        Redis/Valkey: redis
+        None: none
+    default: none
+
+include_scheduler:
+    type: bool
+    help: Include periodiq scheduler?
+    default: false
+    when: "{{ task_broker != 'none' }}"
+
+include_auth:
+    type: bool
+    help: Include user authentication?
+    default: false
+
+auth_method:
+    type: str
+    help: Auth method?
+    choices:
+        JWT: jwt
+        Session: session
+        Both: both
+    default: jwt
+    when: "{{ include_auth }}"
+
+include_email:
+    type: bool
+    help: Include SMTP email support (password reset, verification)?
+    default: false
+    when: "{{ include_auth }}"
+
+include_admin:
+    type: bool
+    help: Include SQLAdmin panel?
+    default: false
+
+tracing:
+    type: str
+    help: Tracing backend?
+    choices:
+        Jaeger + OpenTelemetry: jaeger
+        None: none
+    default: none
+
+include_rate_limit:
+    type: bool
+    help: Add Redis-backed per-IP rate limiting?
+    default: false
+
+secrets_backend:
+    type: str
+    help: Cloud secrets manager backend?
+    choices:
+        None: none
+        AWS Secrets Manager: aws
+        GCP Secret Manager: gcp
+    default: none
+
+include_dockerfile:
+    type: bool
+    help: Include Dockerfile?
+    default: false
+
+include_docker_compose:
+    type: bool
+    help: Include docker-compose.yml?
+    default: false
+
+include_k8s:
+    type: bool
+    help: Include Kubernetes manifests?
+    default: false
+
+python_version:
+    type: str
+    help: Python version for the generated Dockerfile
+    choices:
+        - "3.11"
+        - "3.12"
+        - "3.13"
+        - "3.14"
+    default: "3.14"

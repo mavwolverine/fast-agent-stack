@@ -80,6 +80,6 @@ Agents live in `.claude/agents/`:
 
 ## Project Structure
 
-- Source: `src/`
+- Source: `fast_agent_stack/`
 - Tests: `tests/`
 - Stack: Python

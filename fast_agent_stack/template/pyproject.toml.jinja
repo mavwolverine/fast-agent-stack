@@ -1,0 +1,88 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "{{ project_name }}"
+version = "0.1.0"
+description = "{{ description }}"
+requires-python = ">=3.11"
+dependencies = [
+    "fast-agent-stack",
+{%- if db == "sqlite" %}
+    "fast-agent-stack[db-sqlite]",
+{%- elif db == "postgres" %}
+    "fast-agent-stack[db-postgres]",
+{%- elif db == "mysql" %}
+    "fast-agent-stack[db-mysql]",
+{%- endif %}
+{%- if llm_provider == "bedrock" %}
+    "fast-agent-stack[bedrock]",
+{%- elif llm_provider == "openai" %}
+    "fast-agent-stack[openai]",
+{%- elif llm_provider == "anthropic" %}
+    "fast-agent-stack[anthropic]",
+{%- elif llm_provider == "litellm" %}
+    "fast-agent-stack[litellm]",
+{%- endif %}
+{%- if vector_db == "qdrant" %}
+    "fast-agent-stack[vector-qdrant]",
+{%- elif vector_db == "pgvector" %}
+    "fast-agent-stack[vector-pgvector]",
+{%- elif vector_db == "opensearch" %}
+    "fast-agent-stack[vector-opensearch]",
+{%- endif %}
+{%- if storage_backend == "s3" or storage_backend == "minio" %}
+    "fast-agent-stack[storage-s3]",
+{%- elif storage_backend == "local" %}
+    "fast-agent-stack[storage-local]",
+{%- endif %}
+{%- if task_broker == "redis" %}
+    "fast-agent-stack[tasks]",
+{%- endif %}
+{%- if include_scheduler %}
+    "fast-agent-stack[scheduler]",
+{%- endif %}
+{%- if include_auth %}
+    "fast-agent-stack[auth-{{ auth_method if auth_method != 'both' else 'jwt'}}]",
+{%- endif %}
+{%- if include_admin %}
+    "fast-agent-stack[admin]",
+{%- endif %}
+{%- if include_email %}
+    "fast-agent-stack[email-smtp]",
+{%- endif %}
+{%- if include_rate_limit %}
+    "fast-agent-stack[rate-limit]",
+{%- endif %}
+{%- if secrets_backend == "aws" %}
+    "fast-agent-stack[secrets-aws]",
+{%- elif secrets_backend == "gcp" %}
+    "fast-agent-stack[secrets-gcp]",
+{%- endif %}
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+    "ruff>=0.9",
+    "mypy>=1.10",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
