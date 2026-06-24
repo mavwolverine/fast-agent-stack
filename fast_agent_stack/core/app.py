@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from fast_agent_stack.core.health import router as _health_router
 from fast_agent_stack.core.middleware import (
     CORSConfig,
     apply_cors,
@@ -44,6 +45,7 @@ class FastAgentStack:
                 yield
 
         self.fastapi_app: FastAPI = FastAPI(lifespan=_lifespan, **kwargs)
+        self.fastapi_app.include_router(_health_router)
 
         if error_handlers:
             install_error_handlers(self.fastapi_app)

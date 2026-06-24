@@ -1,9 +1,7 @@
-from fast_agent_stack.core.database import (
-    Base,
-    BaseModel,
-    DatabaseLifespanHook,
-    FRAMEWORK_TABLES,
-    check_db,
+from fast_agent_stack.core.database.base import Base, BaseModel, FRAMEWORK_TABLES
+from fast_agent_stack.core.database.health import check_db
+from fast_agent_stack.core.database.lifespan import DatabaseLifespanHook
+from fast_agent_stack.core.database.session import (
     configure_engine,
     dispose_engine,
     get_async_session,
@@ -14,8 +12,8 @@ from fast_agent_stack.core.database import (
 __all__ = [
     "Base",
     "BaseModel",
-    "DatabaseLifespanHook",
     "FRAMEWORK_TABLES",
+    "DatabaseLifespanHook",
     "check_db",
     "configure_engine",
     "dispose_engine",

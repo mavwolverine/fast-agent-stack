@@ -8,6 +8,9 @@ from rich.panel import Panel
 from rich.table import Table
 
 from fast_agent_stack import __version__
+from fast_agent_stack.cli.db import makemigrations as _makemigrations
+from fast_agent_stack.cli.db import migrate as _migrate
+from fast_agent_stack.cli.db import seed as _seed
 from fast_agent_stack.cli.new import new as _new
 from fast_agent_stack.cli.run import dev as _dev
 from fast_agent_stack.cli.run import run as _run
@@ -73,3 +76,6 @@ app.command(name="dev")(_dev)
 app.command(name="run")(_run)
 app.command(name="new")(_new)
 app.command(name="update")(_update)
+app.command(name="migrate")(_migrate)
+app.command(name="makemigrations")(_makemigrations)
+app.command(name="seed")(_seed)

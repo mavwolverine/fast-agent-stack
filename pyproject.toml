@@ -33,6 +33,7 @@ dependencies = [
 
 [project.scripts]
 fastagentstack = "fast_agent_stack.cli.main:app"
+fas = "fast_agent_stack.cli.main:app"
 
 [tool.hatch.version]
 path = "fast_agent_stack/__version__.py"
@@ -141,5 +142,6 @@ isolated_build = true
 [testenv]
 runner = uv-venv-runner
 dependency_groups = dev
+extras = db-sqlite
 commands = pytest {posargs}
 """

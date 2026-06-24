@@ -1,8 +1,12 @@
-
 from fast_agent_stack import FastAgentStack
+from fast_agent_stack.database import DatabaseLifespanHook
 from .routes import router
+from .settings import get_settings
 
+_settings = get_settings()
 _stack = FastAgentStack()
+_stack.add_lifespan_hook(DatabaseLifespanHook(_settings.database_url))
+
 app = _stack.fastapi_app  # ASGI entrypoint — see I4
 
 app.include_router(router)

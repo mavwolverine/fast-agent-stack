@@ -1147,7 +1147,7 @@ requires-dist = [
     { name = "copier", specifier = ">=9.0" },
     { name = "dramatiq", extras = ["redis"], marker = "extra == 'all'", specifier = ">=1.15" },
     { name = "dramatiq", extras = ["redis"], marker = "extra == 'tasks'", specifier = ">=1.15" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.137.0" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.138.0" },
     { name = "google-cloud-secret-manager", marker = "extra == 'secrets-gcp'", specifier = ">=2.20" },
     { name = "litellm", marker = "extra == 'ai-full'", specifier = ">=1.30" },
     { name = "litellm", marker = "extra == 'all'", specifier = ">=1.30" },

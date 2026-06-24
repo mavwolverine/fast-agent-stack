@@ -547,3 +547,22 @@ A single mechanism can't serve both well: forcing the `AppModule` protocol on si
 - `AdminLifespanHook` only sees modules registered via `install_app()` — not `INSTALLED_APPS` string imports
 - All `install_app()` calls must complete before lifespan begins (see I9)
 - Generated `app.py` uses `install_app()` for the main app module (since it has models)
+
+## ADR-027 — CLI Alias: `fas` as shorthand for `fastagentstack`
+
+**Context:** `fastagentstack` is verbose for frequent use. A shorter alias improves DX for daily commands like `fas migrate`, `fas dev`, `fas new`.
+
+Checked for conflicts: no standard Unix/macOS/Linux utility named `fas`. `fasd` (directory autojump, archived) exists but is a different name. No Homebrew formula, no PyPI package installs a `fas` binary.
+
+**Decision:** Register `fas` as an additional entry point alongside `fastagentstack`.
+
+```toml
+[project.scripts]
+fastagentstack = "fast_agent_stack.cli.main:app"
+fas = "fast_agent_stack.cli.main:app"
+```
+
+**Consequences:**
+- Both `fas dev` and `fastagentstack dev` work identically
+- Documentation uses `fas` for brevity, mentions `fastagentstack` as the canonical name
+- Minimal collision risk — no known conflicting tool

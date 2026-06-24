@@ -1,3 +1,5 @@
+_answers_file: .copier-answers.yml
+
 project_name:
     type: str
     help: Project name (used as the package/directory name)
