@@ -127,7 +127,7 @@ fastagentstack new myproject
 - Full control over the user model, token format, and session semantics
 - Rules out FastAPI-Users, AuthLib, and Starlette-Login as drop-in auth solutions
 - Higher maintenance burden — the framework owns the auth code
-- Password hashing via passlib (bcrypt)
+- Password hashing via pwdlib (Argon2id default, with automatic re-hash on login if parameters change)
 - JWT token revocation (denylist) must be stored in Redis, not in-process memory — see NFR
   Security and ADR-015 for the refresh token design that pairs with this requirement
 
@@ -566,3 +566,118 @@ fas = "fast_agent_stack.cli.main:app"
 - Both `fas dev` and `fastagentstack dev` work identically
 - Documentation uses `fas` for brevity, mentions `fastagentstack` as the canonical name
 - Minimal collision risk — no known conflicting tool
+
+## ADR-028 — Authorization Model: Django-style Users, Groups & Permissions
+
+**Context:** The framework needs RBAC. Options considered:
+
+- **Casbin/OPA** — powerful but external policy engines add deployment complexity and latency for simple cases.
+- **Django's auth model** — battle-tested, universal naming (AWS IAM, Atlassian, Django all use User/Group). Simple relational model, easy to reason about.
+- **Role-only (no permissions table)** — too coarse; forces role-per-action workarounds.
+
+**Decision:** Django-inspired relational RBAC with Users, Groups, and Permissions.
+
+Tables:
+
+| Table | Key fields |
+|---|---|
+| `users` | id, email, password_hash, is_active, is_verified, is_staff, is_superuser, date_joined |
+| `groups` | id, name, description |
+| `permissions` | id, resource, action (e.g. `"posts"`, `"delete"`) |
+| `user_groups` | user_id, group_id |
+| `group_permissions` | group_id, permission_id |
+| `user_permissions` | user_id, permission_id (direct grants) |
+
+Key differences from Django:
+- No ContentType framework (Django-specific ORM coupling, not applicable)
+- `resource` + `action` instead of Django's `codename` — more explicit, easier to query
+- `is_verified` added (Django doesn't have email verification built-in)
+- Uses "Group" not "Role" — matches Django, AWS IAM, Atlassian convention
+
+`user_permissions` provides direct grants without forcing single-user groups. `is_superuser` bypasses all permission checks (same as Django).
+
+**Consequences:**
+- Permission check: `user.is_superuser OR permission in user_permissions OR permission in any of user's group_permissions`
+- Framework provides `require_permission("resource.action")` dependency for route protection
+- Groups are optional — direct `user_permissions` work for simple cases
+- Auth models are part of core (always present when `include_auth` is enabled), not gated behind any extra
+- SQLAdmin panel (separate `admin` extra) provides UI to manage users/groups/permissions
+
+## ADR-029 — JWT Library: PyJWT
+
+**Context:** Two main Python JWT libraries:
+
+- **PyJWT** — JWT (JWS) encode/decode only. Actively maintained, simple API, used in FastAPI docs.
+- **python-jose** — full JOSE spec (JWE, JWK, JWS, JWT). Larger surface area.
+
+The framework only needs JWT signing/verification. JWE and JWK are out of scope.
+
+**Decision:** `pyjwt[crypto]>=2.8`. The `[crypto]` extra adds `cryptography` for RS256.
+
+Default algorithm: HS256 (single `secret_key`). RS256 available via config for asymmetric deployments.
+
+**Consequences:**
+- Minimal dependency — only what's needed
+- Rules out python-jose
+- `auth-jwt` extras: `pyjwt[crypto]>=2.8`, `pwdlib[argon2]>=0.3`, `redis>=5`
+
+---
+
+## ADR-030 — Password Hashing: pwdlib + Argon2id
+
+**Context:** `passlib` is unmaintained (last release 2020, Python 3.14 issues). Alternatives:
+
+- **pwdlib** — modern replacement by fastapi-users author. Active (2025). Supports argon2 + bcrypt with built-in `needs_rehash` detection.
+- **bcrypt** / **argon2-cffi** — raw bindings, no high-level API (hash/verify/rehash).
+
+Argon2id is the 2026 OWASP recommendation: memory-hard, resistant to GPU/ASIC attacks. Bcrypt has 72-byte password truncation and no memory-hardness.
+
+**Decision:** `pwdlib[argon2]>=0.3` with Argon2id as the default algorithm.
+
+Parameters (OWASP 2024 minimum): time_cost=3, memory_cost=65536 (64MB), parallelism=4.
+
+Re-hash policy: on successful login, if `hasher.needs_rehash(stored_hash)` returns True (parameters changed in config), transparently re-hash and persist.
+
+**Consequences:**
+- Stronger than bcrypt against modern GPU attacks
+- Built-in re-hash detection — cost upgrades happen transparently on login
+- No 72-byte password truncation
+- Rules out passlib as a dependency
+- Legacy bcrypt hashes (if migrating) can be verified via `pwdlib[bcrypt]` and re-hashed to argon2 on next login
+
+---
+
+## ADR-031 — API Key Format & Storage
+
+**Context:** API keys need identifiability and secure at-rest storage.
+
+**Decision:**
+
+Format: `fas_<32-byte-urlsafe-base64>` (prefix + 43 random chars).
+
+Storage:
+- Show-once: full key returned only in `POST /api-keys` response, never stored in plaintext.
+- SHA-256 hash stored in `api_keys` table (high-entropy input makes bcrypt unnecessary).
+
+Table schema:
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | primary key |
+| user_id | FK → users | owner |
+| name | str | human label |
+| key_hash | str | SHA-256 hex digest |
+| key_prefix | str(8) | first 8 chars for UI identification |
+| scopes | JSON | optional permission scopes |
+| expires_at | datetime | nullable |
+| created_at | datetime | |
+| last_used_at | datetime | nullable, updated on each use |
+| revoked_at | datetime | nullable |
+
+Lookup: SHA-256 hash incoming key, query by `key_hash`. Header: `Authorization: Bearer fas_...` (prefix discriminates from JWT).
+
+**Consequences:**
+- Show-once — key never retrievable after creation
+- SHA-256 is O(1) per request (no bcrypt latency)
+- `key_prefix` allows identification without exposing full key
+- Revocation is instant (`revoked_at` set)

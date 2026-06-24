@@ -6,7 +6,7 @@ These rules are non-negotiable. No implementation may violate them. Agents must 
 
 Every pluggable backend must implement every method of its Protocol/ABC. Partial implementations are forbidden — they silently break user projects at runtime.
 
-**Applies to:** all backends under `core/ai/` (including `core/ai/embedding/`), `core/vector/`, `core/storage/`
+**Applies to:** all backends under `core/ai/` (including `core/ai/embedding/`), `core/vector/`, `core/storage/`, `core/auth/backends/`
 
 **Known gap (Phase 6):** ADR-018 allows a custom email backend via dotted path in `email_backend`
 setting. Unlike other backend families, there is no `EmailProtocol` defined yet and no extras gate
@@ -172,3 +172,24 @@ this is a security hole. Fail-closed may cause availability degradation but pres
 invariant that revoked tokens cannot be used.
 
 **Applies to:** all auth backends under `core/auth/backends/` that implement token revocation checks
+
+---
+
+## I18 — Password Hashing Parameters Must Meet OWASP Minimums
+
+Argon2id parameters must be at minimum: time_cost=3, memory_cost=65536 (64MB), parallelism=4.
+Any implementation that uses weaker parameters (lower time_cost, lower memory_cost) is a BLOCK.
+
+If bcrypt is used as a fallback (legacy migration), cost factor must be ≥ 12.
+
+**Applies to:** `core/auth/password.py` or equivalent hashing module
+
+---
+
+## I19 — API Keys Must Be Hashed at Rest and Show-Once
+
+API keys must never be stored in plaintext. The full key is returned exactly once (in the creation
+response) and only the SHA-256 hash is persisted. Any endpoint or admin view that exposes the full
+key after creation is a BLOCK.
+
+**Applies to:** `core/auth/api_keys.py`, API key routes, admin views

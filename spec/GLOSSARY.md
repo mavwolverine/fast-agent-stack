@@ -35,6 +35,12 @@ contribute models and admin views. See `spec/ARCHITECTURE.md` Module 1.
 
 **Escape hatch** — direct access to the underlying third-party object (e.g., `app.fastapi_app`, the raw SQLAlchemy engine). Every wrapped component must expose one.
 
+**Group** — a named collection of users that share permissions. Equivalent to Django's Group and AWS IAM Group. Users can belong to multiple groups. Permissions are assigned to groups via the `group_permissions` join table. See ADR-028.
+
+**Permission** — a `(resource, action)` pair granting the ability to perform an operation (e.g., `"posts"`, `"delete"`). Assigned to groups or directly to users. See ADR-028.
+
+**RBAC (Role-Based Access Control)** — the authorization model used by the framework. Users gain permissions through group membership (`user_groups` → `group_permissions`) or direct grants (`user_permissions`). `is_superuser` bypasses all permission checks. See ADR-028.
+
 **copier.yml** — the Copier question definition file that drives interactive project generation. Variable names defined here are the only valid names for template conditionals.
 
 **Deprecation cycle** — the process for removing or changing a public API surface covered by I6.

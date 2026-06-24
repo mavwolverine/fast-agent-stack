@@ -46,8 +46,8 @@
   `0.0.0.0` must require an explicit `--host 0.0.0.0` flag.
 - The production server (`fastagentstack run`) must bind to `0.0.0.0` by default to serve all
   interfaces. Reload must be off and a `--workers` flag must be available.
-- Passwords must be hashed with bcrypt (minimum cost factor 12)
-- JWT tokens must be signed; algorithm must be configurable; default RS256 or HS256
+- Passwords must be hashed with Argon2id via pwdlib (ADR-030); minimum parameters per I18: time_cost=3, memory_cost=65536, parallelism=4. Bcrypt fallback for legacy migration requires cost factor ≥ 12.
+- JWT tokens must be signed; algorithm configurable; default HS256 (ADR-029). RS256 available via config for asymmetric deployments.
 - No secrets may appear in generated files — `.env.example` only shows key names, never values
 - Admin panel must require authentication; unauthenticated access to `/admin` must return 401/403
 - **Token revocation must be durable across all worker processes and replicas.** In-process

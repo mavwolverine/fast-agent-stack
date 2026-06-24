@@ -18,17 +18,28 @@
 - [ ] Health check: `/health/live`, `/health/ready` (DB connectivity)
 - [ ] Tests
 
-## Phase 3: Auth & Admin
-- [ ] Redis client (`redis.asyncio`) + `/health/ready` ping
-- [ ] User model (hashed passwords, email, roles, `is_verified` field)
-- [ ] `auth_verification_token` table (token, user_id, type, expires_at — TTL: 24h reset, 72h verification)
-- [ ] JWT + session backends (pluggable via ADR-008)
-- [ ] Access + refresh token lifecycle (ADR-015, Redis denylist)
+## Phase 3a: User Model & Identity
+- [ ] User model (email, password_hash, is_active, is_verified, is_staff, is_superuser, date_joined)
+- [ ] Group model (name, description)
+- [ ] Permission model (resource, action)
+- [ ] Join tables: user_groups, group_permissions, user_permissions
+- [ ] `auth_verification_token` table (token, user_id, type, expires_at)
+- [ ] `api_keys` table (ADR-031 schema)
+- [ ] CLI: `createsuperuser`
+- [ ] Tests
+
+## Phase 3b: Auth Backends & Core Routes
+- [ ] JWT + session backends (pluggable, ADR-008)
 - [ ] Routes: `/auth/token`, `/auth/refresh`, `/auth/logout`
 - [ ] Verification route stubs: `POST /auth/send-verification`, `POST /auth/verify-email`, `POST /auth/forgot-password`, `POST /auth/reset-password` (email delivery deferred to Phase 6)
+- [ ] Permission-checking dependencies (`require_permission("posts.delete")`)
+- [ ] Tests
+
+## Phase 3c: Redis, Token Hardening & Admin
+- [ ] Redis client (`redis.asyncio`) + `/health/ready` ping
+- [ ] Access + refresh token lifecycle (ADR-015, Redis JTI denylist)
 - [ ] API key management (`/api-keys`)
-- [ ] SQLAdmin integration
-- [ ] CLI: `createsuperuser`
+- [ ] SQLAdmin integration (gated behind `admin` extra)
 - [ ] Tests
 
 ## Phase 4: AI & Streaming

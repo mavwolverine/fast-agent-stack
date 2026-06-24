@@ -45,8 +45,8 @@ db-sqlite   = ["aiosqlite>=0.19"]
 db-mysql    = ["aiomysql>=0.2"]
 
 # Auth — JWT library TBD (NEEDS-DECISION before Phase 3)
-auth-jwt     = ["passlib[bcrypt]>=1.7", "redis>=5"]
-auth-session = ["passlib[bcrypt]>=1.7", "redis>=5"]
+auth-jwt     = ["pwdlib[argon2]>=0.3", "pyjwt[crypto]>=2.8", "redis>=5"]
+auth-session = ["pwdlib[argon2]>=0.3", "redis>=5"]
 
 # Admin (ADR-007)
 admin = ["sqladmin>=0.16"]

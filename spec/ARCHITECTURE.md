@@ -103,8 +103,8 @@ Inspired by Django's database backends. Each service type has:
 | `db-postgres` | `asyncpg>=0.29` (driver only — SQLAlchemy and Alembic are core) | ADR-002, ADR-025 |
 | `db-sqlite` | `aiosqlite>=0.19` (driver only — SQLAlchemy and Alembic are core) | ADR-002, ADR-025 |
 | `db-mysql` | `aiomysql>=0.2` (driver only — SQLAlchemy and Alembic are core) | ADR-002, ADR-025 |
-| `auth-jwt` | `passlib[bcrypt]>=1.7`, `redis>=5` | ADR-015 |
-| `auth-session` | `passlib[bcrypt]>=1.7`, `redis>=5` | ADR-015 |
+| `auth-jwt` | `pwdlib[argon2]>=0.3`, `pyjwt[crypto]>=2.8`, `redis>=5` | ADR-015, ADR-029, ADR-030 |
+| `auth-session` | `pwdlib[argon2]>=0.3`, `redis>=5` | ADR-015, ADR-030 |
 | `admin` | `sqladmin>=0.16` | ADR-007 |
 | `bedrock` | `aioboto3>=12` | ADR-021 |
 | `openai` | `openai>=1.0` | ADR-021 |
@@ -182,6 +182,7 @@ Same pattern applies to `get_vector_store()`, `get_llm()`, `get_embedding_provid
 
 | Family | Protocol | Required methods |
 |---|---|---|
+| Auth | `AuthBackend` | `authenticate`, `create_token`, `verify_token`, `revoke_token`, `refresh_token` |
 | LLM | `LLMBackend` | `complete`, `stream`, `count_tokens`, `model_id` (property) |
 | Vector store | `VectorStoreProtocol` | `upsert`, `search`, `delete`, `create_collection`, `close` |
 | Embedding | `EmbeddingProtocol` | `embed`, `embed_batch`, `dimensions` (property) |
