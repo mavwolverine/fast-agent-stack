@@ -33,6 +33,14 @@ class BaseSettings(_BaseSettings):
     admin_enabled: bool = False
     admin_secret_key: str | None = None
 
+    # Redis (ADR-006, ADR-032, ADR-033)
+    redis_url: str | None = None
+
+    # Token / session TTLs (ADR-015, ADR-032)
+    access_token_ttl_seconds: int = 900        # 15 minutes
+    refresh_token_ttl_seconds: int = 2592000   # 30 days
+    session_ttl_seconds: int = 86400           # 24 hours
+
     @model_validator(mode="after")
     def _validate_required_secrets(self) -> Self:
         if self.auth_backend not in _VALID_AUTH_BACKENDS:
@@ -43,6 +51,10 @@ class BaseSettings(_BaseSettings):
         if self.auth_backend in ("jwt", "both") and not self.secret_key:
             raise RuntimeError(
                 "secret_key must be set when auth_backend is 'jwt' or 'both' (I11)"
+            )
+        if self.auth_backend in ("jwt", "session", "both") and not self.redis_url:
+            raise RuntimeError(
+                "redis_url must be set when auth_backend is 'jwt', 'session', or 'both' (I11)"
             )
         if self.admin_enabled and not (self.admin_secret_key or self.secret_key):
             raise RuntimeError(

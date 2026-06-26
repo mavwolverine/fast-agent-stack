@@ -29,11 +29,11 @@
 - [x] Tests
 
 ## Phase 3b: Auth Backends & Core Routes
-- [ ] JWT + session backends (pluggable, ADR-008)
-- [ ] Routes: `/auth/token`, `/auth/refresh`, `/auth/logout` (logout deletes refresh token only; JTI denylist added in 3c)
-- [ ] Verification route stubs: `POST /auth/send-verification`, `POST /auth/verify-email`, `POST /auth/forgot-password`, `POST /auth/reset-password` (email delivery deferred to Phase 6)
-- [ ] Permission-checking dependencies (`require_permission("posts.delete")`)
-- [ ] Tests
+- [x] JWT + session backends (pluggable, ADR-008)
+- [x] Routes: `/auth/token`, `/auth/refresh`, `/auth/logout` (logout deletes refresh token only; JTI denylist added in 3c)
+- [x] Verification route stubs: `POST /auth/send-verification`, `POST /auth/verify-email`, `POST /auth/forgot-password`, `POST /auth/reset-password` (email delivery deferred to Phase 6)
+- [x] Permission-checking dependencies (`require_permission("posts.delete")`)
+- [x] Tests
 
 ## Phase 3c: Redis, Token Hardening & Admin
 - [ ] Redis client (`redis.asyncio`) + `/health/ready` ping
