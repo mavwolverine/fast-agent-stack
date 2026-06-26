@@ -27,10 +27,62 @@ def _require_alembic_dir() -> None:
         raise typer.Exit(1)
 
 
+def _discover_database_url() -> str | None:
+    """Return the project's database URL by importing its settings module."""
+    sys.path.insert(0, str(Path.cwd()))
+    candidates = ["settings"] + [
+        f"{p.name}.settings"
+        for p in Path.cwd().iterdir()
+        if p.is_dir()
+        and not p.name.startswith(".")
+        and not p.name.startswith("_")
+        and (p / "settings.py").exists()
+    ]
+    for module_name in candidates:
+        try:
+            mod = importlib.import_module(module_name)
+            get_settings = getattr(mod, "get_settings", None)
+            if callable(get_settings):
+                return get_settings().database_url  # type: ignore[no-any-return]
+        except Exception:
+            continue
+    return None
+
+
+# I16: registry mapping feature keys to (migration_module, gate_package) tuples.
+# fas migrate only applies migrations when the gate package is importable.
+FRAMEWORK_MIGRATION_MODULES: dict[str, tuple[str, str]] = {
+    "auth": ("fast_agent_stack.core.auth.migrations", "pwdlib"),
+    # "ai": ("fast_agent_stack.core.ai.migrations", "anthropic"),  # Phase 4
+}
+
+
+def _run_framework_migrations(database_url: str) -> None:
+    """Apply framework-bundled migrations for enabled modules (I16)."""
+    import importlib.resources as ilr
+
+    for key, (module_path, gate_package) in FRAMEWORK_MIGRATION_MODULES.items():
+        # Import-based gating: skip if extras not installed
+        try:
+            importlib.import_module(gate_package)
+        except ImportError:
+            continue
+
+        pkg = ilr.files(module_path)
+        migrations_dir = str(pkg)
+        cfg = Config()
+        cfg.set_main_option("script_location", migrations_dir)
+        cfg.attributes["database_url"] = database_url
+        command.upgrade(cfg, "head")
+
+
 @app.command()
 def migrate() -> None:
     """Apply framework + user database migrations (framework first, I16)."""
     _require_alembic_dir()
+    database_url = _discover_database_url()
+    if database_url is not None:
+        _run_framework_migrations(database_url)
     command.upgrade(_alembic_cfg(), "head")
     typer.echo("Migrations applied.")
 

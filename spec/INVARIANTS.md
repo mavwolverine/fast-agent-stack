@@ -106,7 +106,7 @@ due to a missing secret. The following are hard startup requirements:
 
 - `secret_key` must be set when `auth_backend` is `"jwt"` or `"both"`
 - `admin_secret_key` must be set when the admin panel is enabled without auth
-- `redis_url` must be set and connectable (≤5s timeout) when `auth_backend` is `"jwt"` or `"both"` (token revocation store — see I10).
+- `redis_url` must be set and connectable (≤5s timeout) when `auth_backend` is `"jwt"`, `"session"`, or `"both"` (token revocation store for JWT — see I10; session storage for session — see ADR-032).
 
 Failure to meet these conditions must raise `RuntimeError` with a message naming the missing
 setting before the app begins serving requests. Deferring the check to request time is forbidden.
@@ -153,11 +153,54 @@ Framework-provided models (User, ConversationLog, etc.) ship with their own migr
 
 - `fastagentstack makemigrations` autogenerates revisions for **user models only** — framework models are excluded from the diff.
 - `fastagentstack migrate` applies **both** framework-bundled migrations and user migrations (framework first).
-- The generated `alembic/env.py` must set `target_metadata` to include only the user's models for autogeneration purposes. Framework migrations are managed separately.
+- Framework migrations are shipped inside the package and applied automatically — users never edit or generate them.
+- When the framework adds new models in a future version, `migrate` picks them up on next run (no `makemigrations` needed for framework changes).
 
-This mirrors Django's approach: the framework ships its own migrations (like `django.contrib.auth`), and `makemigrations` only touches user app models.
+### Framework migration discovery (`fas migrate`)
 
-**Applies to:** `template/alembic/env.py.jinja`, `cli/db.py`
+A settings-driven registry maps enabled features to their migration modules. The gate is the **presence of the corresponding extras package** (not a settings field):
+
+```python
+FRAMEWORK_MIGRATION_MODULES = {
+    "auth": ("fast_agent_stack.core.auth.migrations", "pwdlib"),  # gate: pwdlib importable
+    "ai": ("fast_agent_stack.core.ai.migrations", "anthropic"),   # gate: any LLM SDK importable
+}
+```
+
+`fas migrate` attempts to import the gate package. If it succeeds, the module's migrations are applied. If the extra isn't installed, the migrations are skipped silently. This avoids needing a settings field for each feature — installation of the extra is the signal.
+
+### User autogenerate exclusion (`fas makemigrations`)
+
+The generated `alembic/env.py` uses an `include_object` filter that excludes framework-owned tables from autogeneration:
+
+```python
+from fast_agent_stack.database import FRAMEWORK_TABLES
+
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table" and name in FRAMEWORK_TABLES:
+        return False
+    return True
+```
+
+`FRAMEWORK_TABLES` is a `set[str]` exported by the framework listing all table names owned by core modules. This ensures `fas makemigrations` never generates migrations for framework tables.
+
+### Naming convention
+
+Framework migration files: `NNNN_fas_<module>_<description>.py`
+
+```
+fast_agent_stack/core/auth/migrations/
+├── 0001_fas_auth_initial.py
+├── 0002_fas_auth_api_keys.py
+└── ...
+```
+
+- `NNNN` — sequential number within the module
+- `fas_` — prefix identifying framework-owned migrations
+- `<module>` — core submodule (auth, ai, etc.)
+- `<description>` — short snake_case description
+
+**Applies to:** `template/alembic/env.py.jinja`, `cli/db.py`, `core/*/migrations/`
 
 ---
 

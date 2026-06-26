@@ -11,26 +11,26 @@
 - [x] CLI: `version` command
 
 ## Phase 2: Database
-- [ ] SQLAlchemy async engine + session management
-- [ ] Base model (id, created_at, updated_at)
-- [ ] Alembic integration (auto-configured)
-- [ ] CLI: `migrate`, `makemigrations`, `seed`
-- [ ] Health check: `/health/live`, `/health/ready` (DB connectivity)
-- [ ] Tests
+- [x] SQLAlchemy async engine + session management
+- [x] Base model (id, created_at, updated_at)
+- [x] Alembic integration (auto-configured)
+- [x] CLI: `migrate`, `makemigrations`, `seed`
+- [x] Health check: `/health/live`, `/health/ready` (DB connectivity)
+- [x] Tests
 
 ## Phase 3a: User Model & Identity
-- [ ] User model (email, password_hash, is_active, is_verified, is_staff, is_superuser, date_joined)
-- [ ] Group model (name, description)
-- [ ] Permission model (resource, action)
-- [ ] Join tables: user_groups, group_permissions, user_permissions
-- [ ] `auth_verification_token` table (token, user_id, type, expires_at)
-- [ ] `api_keys` table (ADR-031 schema)
-- [ ] CLI: `createsuperuser`
-- [ ] Tests
+- [x] User model (email, password_hash, is_active, is_verified, is_staff, is_superuser, date_joined)
+- [x] Group model (name, description)
+- [x] Permission model (resource, action)
+- [x] Join tables: user_groups, group_permissions, user_permissions
+- [x] `auth_verification_token` table (token, user_id, type, expires_at)
+- [x] `api_keys` table (ADR-031 schema)
+- [x] CLI: `createsuperuser`
+- [x] Tests
 
 ## Phase 3b: Auth Backends & Core Routes
 - [ ] JWT + session backends (pluggable, ADR-008)
-- [ ] Routes: `/auth/token`, `/auth/refresh`, `/auth/logout`
+- [ ] Routes: `/auth/token`, `/auth/refresh`, `/auth/logout` (logout deletes refresh token only; JTI denylist added in 3c)
 - [ ] Verification route stubs: `POST /auth/send-verification`, `POST /auth/verify-email`, `POST /auth/forgot-password`, `POST /auth/reset-password` (email delivery deferred to Phase 6)
 - [ ] Permission-checking dependencies (`require_permission("posts.delete")`)
 - [ ] Tests
@@ -67,7 +67,7 @@
 - [ ] Tests
 
 ## Phase 7: Scaffolder Completion & Release
-- [ ] Full scaffolder: all presets (`ai-full`, `api`), all copier questions
+- [ ] Full scaffolder: all presets (`minimal`, `standard`, `full`, `agent`), all copier questions
 - [ ] Docker + K8s template generation
 - [ ] Documentation site
 - [ ] CI/CD (GitHub Actions: lint, tox, integration, PyPI publish)

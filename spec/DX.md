@@ -90,7 +90,7 @@ async def info(settings: Settings = Depends(get_settings)) -> dict:
 
 Additional route files are added as standard `APIRouter` modules and included in `{project_name}/app.py`.
 
-For `ai-full` and `api` presets, `models/`, `schemas/`, and `routes/` are generated as packages (directories with `__init__.py`) to accommodate growth. The `minimal` preset keeps them as flat files.
+For `agent`, `full`, and `standard` presets, `models/`, `schemas/`, and `routes/` are generated as packages (directories with `__init__.py`) to accommodate growth. The `minimal` preset keeps them as flat files.
 
 ## Database CLI (Django-style)
 
@@ -165,13 +165,16 @@ Deployment:
 ## Presets
 
 ```bash
-# Full AI stack with sensible defaults
-fastagentstack new myproject --preset ai-full
+# Full AI agent stack (Bedrock + Qdrant + S3 + auth + admin + frontend)
+fastagentstack new myproject --preset agent
 
-# REST API: FastAPI + PostgreSQL + auth + admin, no AI/vector/storage
-fastagentstack new myproject --preset api
+# Full non-AI stack (auth + admin + tasks + rate-limit + tracing)
+fastagentstack new myproject --preset full
 
-# Minimal: SQLite, no auth, no admin, no Docker — fastest start
+# Standard REST API (auth + admin, no AI/vector/storage/tasks)
+fastagentstack new myproject --preset standard
+
+# Minimal: no auth, no admin, no Docker — fastest start
 fastagentstack new myproject --preset minimal
 
 # Custom via flags (CI-friendly, no prompts)

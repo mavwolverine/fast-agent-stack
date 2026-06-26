@@ -36,7 +36,7 @@ def _clean_generated_modules() -> None:  # type: ignore[return]
 def _scaffold(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
-        ["new", _PROJECT, "--preset", "minimal", "--output-dir", str(tmp_path)],
+        ["new", _PROJECT, "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
     )
     assert result.exit_code == 0, result.output
 

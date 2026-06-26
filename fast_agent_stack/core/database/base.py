@@ -4,7 +4,18 @@ from datetime import datetime
 from sqlalchemy import DateTime, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-FRAMEWORK_TABLES: frozenset[str] = frozenset()
+FRAMEWORK_TABLES: frozenset[str] = frozenset(
+    {
+        "users",
+        "groups",
+        "permissions",
+        "user_groups",
+        "group_permissions",
+        "user_permissions",
+        "auth_verification_token",
+        "api_keys",
+    }
+)
 
 
 class Base(DeclarativeBase):

@@ -142,6 +142,6 @@ isolated_build = true
 [testenv]
 runner = uv-venv-runner
 dependency_groups = dev
-extras = db-sqlite
+extras = db-sqlite,auth-jwt
 commands = pytest {posargs}
 """

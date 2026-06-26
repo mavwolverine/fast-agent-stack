@@ -236,7 +236,7 @@ storage_backend: str = "myproject.backends.AzureStorage"  # custom
 - `POST /auth/refresh` accepts a refresh token, validates it against Redis, issues a new access token (and optionally rotates the refresh token)
 - `POST /auth/logout` deletes the refresh token from Redis and adds the access token's JTI to the denylist
 
-The JWT denylist is stored in Redis (key: `jwt:deny:{jti}`, TTL = remaining access token lifetime) so revocation is visible across all workers.
+The JWT denylist is stored in Redis (key: `fas:jti:deny:{jti}`, TTL = remaining access token lifetime, per ADR-033 prefix convention) so revocation is visible across all workers.
 
 **Consequences:**
 - Access tokens remain stateless and fast to validate (no Redis hit per request)
@@ -598,7 +598,7 @@ Key differences from Django:
 
 **Consequences:**
 - Permission check: `user.is_superuser OR permission in user_permissions OR permission in any of user's group_permissions`
-- Framework provides `require_permission("resource.action")` dependency for route protection
+- Framework provides `require_permission("resource.action")` dependency for route protection. Argument is a single dot-separated string (split on first `.` to get resource and action).
 - Groups are optional — direct `user_permissions` work for simple cases
 - Auth models are part of core (always present when `include_auth` is enabled), not gated behind any extra
 - SQLAdmin panel (separate `admin` extra) provides UI to manage users/groups/permissions
@@ -681,3 +681,56 @@ Lookup: SHA-256 hash incoming key, query by `key_hash`. Header: `Authorization: 
 - SHA-256 is O(1) per request (no bcrypt latency)
 - `key_prefix` allows identification without exposing full key
 - Revocation is instant (`revoked_at` set)
+
+## ADR-032 — Session Auth: Cookie Transport & Redis Storage
+
+**Context:** The session auth backend needs binding decisions on cookie semantics, session ID generation, TTL behavior, and Redis storage schema.
+
+**Decision:**
+
+Cookie flags:
+- `HttpOnly: true` — prevents XSS access to session ID
+- `SameSite: Lax` — protects against CSRF while allowing top-level navigation
+- `Secure: true` in production (when `settings.debug is False`)
+- Cookie name: `fas_session`
+
+Session ID: `secrets.token_urlsafe(32)` — 256 bits of entropy (43 chars).
+
+TTL: Sliding window. Default 24 hours, configurable via `settings.session_ttl_seconds`. Each request resets the TTL (Redis `EXPIRE` on access).
+
+Redis key schema: `fas:session:{session_id}` — value is JSON-serialized session data (`user_id`, `created_at`, metadata).
+
+**Consequences:**
+- HttpOnly prevents client-side JS from reading session — mitigates XSS token theft
+- SameSite=Lax balances CSRF protection with UX (GET navigations work)
+- Sliding TTL means active users stay logged in; idle sessions expire
+- Redis key prefix `fas:session:` avoids collision with other subsystems (see ADR-033)
+- Session invalidation: delete the Redis key (immediate, no denylist needed)
+
+---
+
+## ADR-033 — Redis DB Index Assignment
+
+**Context:** Multiple framework subsystems share a single Redis instance. Without namespace separation, key collisions are possible. Redis supports 16 databases (0-15) and key prefixes.
+
+**Decision:** Use key prefixes on a single DB (index 0) rather than separate DB indices.
+
+| Subsystem | Key prefix | Example key |
+|---|---|---|
+| Sessions | `fas:session:` | `fas:session:abc123...` |
+| JWT denylist | `fas:jti:deny:` | `fas:jti:deny:550e8400-e29b...` |
+| Rate limiting | `fas:rl:` | `fas:rl:192.168.1.1:/api/users` |
+| Task broker (Dramatiq) | `dramatiq:` | (Dramatiq's own prefix, unchanged) |
+
+Rationale for prefixes over DB indices:
+- `SELECT <db>` doesn't work with connection pooling (pool returns connections to arbitrary DBs)
+- Prefixes work with Redis Cluster (which only supports DB 0)
+- Easier to inspect/debug with `KEYS fas:session:*`
+- Dramatiq already uses its own prefix convention — no conflict
+
+**Consequences:**
+- All subsystems use `redis_url` pointing to DB 0 (single connection pool)
+- No `SELECT` commands needed — simpler connection management
+- Key prefixes are framework-internal; users don't configure them
+- Compatible with Redis Cluster deployments
+- `FLUSHDB` flushes everything — use prefix-scoped `SCAN + DEL` for selective cleanup

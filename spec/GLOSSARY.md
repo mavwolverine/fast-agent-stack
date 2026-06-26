@@ -29,7 +29,7 @@ contribute models and admin views. See `spec/ARCHITECTURE.md` Module 1.
 
 **Lifespan hook** — a class implementing `async __aenter__` / `async __aexit__` that is registered with FastAgentStack's lifespan. Used to open and close database connections, broker connections, etc. on startup/shutdown.
 
-**Preset** — a named set of copier answers that bypasses the interactive CLI. Defined in `spec/SCAFFOLDER.md`. Current presets: `ai-full`, `api`, `minimal`.
+**Preset** — a named set of copier answers that bypasses the interactive CLI. Defined in `spec/SCAFFOLDER.md`. Current presets: `minimal`, `standard`, `full`, `agent`.
 
 **Protocol/ABC** — the abstract interface all backends of a family must fully implement. Defined in code; documented in `spec/ARCHITECTURE.md`. Partial implementation is forbidden (see Invariant I1).
 

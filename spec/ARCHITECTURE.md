@@ -241,6 +241,7 @@ fast_agent_stack/
     ├── protocols.py          # AppModule, LifespanHook
     ├── auth/
     │   ├── backends/         # jwt.py, session.py, combined.py, factory.py
+    │   ├── migrations/       # 0001_fas_auth_initial.py, ...
     │   ├── models.py
     │   ├── tokens.py
     │   ├── routes.py

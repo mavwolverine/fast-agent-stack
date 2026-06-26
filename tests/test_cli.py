@@ -239,7 +239,7 @@ def test_a4_new_uses_copier_run_copy(tmp_path: Path) -> None:
         mock_copy.return_value = None
         runner.invoke(
             app,
-            ["new", "demo", "--preset", "minimal", "--output-dir", str(tmp_path)],
+            ["new", "demo", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
         )
     assert mock_copy.called
 

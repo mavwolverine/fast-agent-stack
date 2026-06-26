@@ -11,7 +11,7 @@ Concrete use cases that validate the framework design. Module briefs and impleme
 **Stack:** postgres + bedrock (LLM) + qdrant (vector) + bedrock (embedding) + jwt auth
 
 **Flow:**
-1. `fastagentstack new chatbot --preset ai-full`
+1. `fastagentstack new chatbot --preset agent`
 2. Drop PDFs into storage; extraction pipeline chunks and embeds them into Qdrant
 3. User authenticates via JWT; sends a message
 4. Agent retrieves top-k chunks from Qdrant, calls Bedrock, streams response via SSE
@@ -33,7 +33,7 @@ Concrete use cases that validate the framework design. Module briefs and impleme
 **Stack:** postgres + jwt auth + sqladmin + no LLM/vector/storage
 
 **Flow:**
-1. `fastagentstack new myapi --preset api`
+1. `fastagentstack new myapi --preset standard`
 2. Define models, routes, schemas in the project root
 3. `fastagentstack migrate` + `fastagentstack createsuperuser`
 4. Admin panel auto-registers models
@@ -158,7 +158,7 @@ new CLI command, updated docker-compose service, new settings field).
 **Stack:** postgres + bedrock (LLM) + jwt auth
 
 **Flow:**
-1. `fastagentstack new support-bot --preset ai-full`
+1. `fastagentstack new support-bot --preset agent`
 2. Three agent handlers registered: `billing`, `technical`, `escalation`
 3. A `router` agent handler receives the message, calls the LLM to classify intent, then calls
    the appropriate sub-agent handler directly (function call, not HTTP)
@@ -186,14 +186,14 @@ authenticates with a long-lived API key instead of a user login session.
 2. Framework returns the raw key once (`fas_<token>`) — show-once, then only the hash is stored
 3. Integration sends `Authorization: Bearer fas_<token>` on each request
 4. A custom dependency resolves the API key: `APIKeyService.authenticate(raw_key)` → `APIKey`
-5. Route uses the tier from `APIKey.tier` to enforce usage limits
+5. Route uses `APIKey.scopes` to enforce access control on the endpoint
 6. Superuser revokes the key via `POST /api-keys/{id}/revoke`
 
 **What this validates:**
 - `APIKeyService.create`, `authenticate`, `revoke`, `list_for_user` all work end-to-end
 - Key is hashed at rest; raw key never stored or logged
 - `last_used_at` is updated on each authenticated request
-- Tier field is readable by application logic for rate-limit or feature-flag decisions
+- Scopes field is readable by application logic for fine-grained access control
 - API key auth coexists with JWT auth on the same app (both wired via the same auth backend)
 
 ---
@@ -233,7 +233,7 @@ auth, sessions, and rate limiting behave correctly across processes.
 
 ## S10 — Worker Operational Pattern
 
-**User goal:** Run the full `ai-full` stack locally and in production: web server + Dramatiq
+**User goal:** Run the full `agent` stack locally and in production: web server + Dramatiq
 worker + periodiq, all sharing the same Postgres and Redis.
 
 **Stack:** postgres + redis + dramatiq + periodiq
@@ -352,7 +352,7 @@ token cannot be reused after logout even within its remaining TTL.
 **Stack:** postgres + jwt auth + `fast-agent-stack[secrets-aws]`
 
 **Flow:**
-1. `fastagentstack new myapp --preset api` with `secrets_backend = aws`
+1. `fastagentstack new myapp --preset standard` with `secrets_backend = aws`
 2. Generated `pyproject.toml` depends on `fast-agent-stack[secrets-aws]` (boto3 included)
 3. **Dev:** `.env` file sets `DATABASE_URL`, `SECRET_KEY`, etc. `SECRETS_BACKEND` is unset.
    `BaseSettings` loads from `.env` — default source chain, no AWS call.
@@ -444,3 +444,37 @@ configuration is missing or an external service is unreachable.
 - Redis connectivity is verified during lifespan startup, not at first authenticated request
 - Error messages name the specific missing setting or failing service
 - The process exits non-zero; orchestrators (Docker, K8s) see the failure and can restart/alert
+
+---
+
+## S17 — RBAC Permission Check
+
+**User goal:** Protect an endpoint so only users with the `posts.delete` permission can access it.
+
+**Setup:**
+1. User A belongs to group "editors" which has permission `("posts", "delete")`
+2. User B has no groups, no direct permissions
+3. User C is `is_superuser=True`
+4. User D has `is_active=False` but has the permission via group
+
+**Route:**
+```python
+@router.delete("/posts/{id}", dependencies=[Depends(require_permission("posts.delete"))])
+async def delete_post(id: int): ...
+```
+
+**Validation steps:**
+
+| Actor | Expected | HTTP status |
+|---|---|---|
+| User A (has permission via group) | Allowed | 200 |
+| User B (no permission) | Denied | 403 `{"detail": "Permission denied"}` |
+| User C (superuser) | Allowed (bypasses all checks) | 200 |
+| User D (inactive, has permission) | Denied | 403 `{"detail": "Account inactive"}` |
+| No auth header | Denied | 401 `{"detail": "Not authenticated"}` |
+
+**Framework validates:**
+- Permission resolution: `user.is_superuser OR perm in user_permissions OR perm in any group_permissions for user's groups`
+- `is_active=False` short-circuits before permission check
+- `require_permission()` is a reusable FastAPI dependency
+- Permission string format: `"resource.action"` (dot-separated)

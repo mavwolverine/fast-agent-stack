@@ -8,6 +8,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from fast_agent_stack import __version__
+from fast_agent_stack.cli.auth import createsuperuser as _createsuperuser
 from fast_agent_stack.cli.db import makemigrations as _makemigrations
 from fast_agent_stack.cli.db import migrate as _migrate
 from fast_agent_stack.cli.db import seed as _seed
@@ -79,3 +80,4 @@ app.command(name="update")(_update)
 app.command(name="migrate")(_migrate)
 app.command(name="makemigrations")(_makemigrations)
 app.command(name="seed")(_seed)
+app.command(name="createsuperuser")(_createsuperuser)
