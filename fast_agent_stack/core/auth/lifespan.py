@@ -50,6 +50,8 @@ class AuthLifespanHook:
 
         self._redis = redis_client
         self._install_backend(redis_client)
+        from fast_agent_stack.core.health import configure_redis_health
+        configure_redis_health(self._settings.redis_url)
 
     def _install_backend(self, redis: object) -> None:
         from fast_agent_stack.core.auth.backends.factory import _set_backend
@@ -98,6 +100,8 @@ class AuthLifespanHook:
         from fast_agent_stack.core.auth.backends.factory import _clear_backend
 
         _clear_backend()
+        from fast_agent_stack.core.health import configure_redis_health
+        configure_redis_health(None)
         if self._redis is not None:
             await self._redis.aclose()  # type: ignore[attr-defined]
             self._redis = None

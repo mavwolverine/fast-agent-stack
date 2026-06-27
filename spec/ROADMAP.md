@@ -36,11 +36,11 @@
 - [x] Tests
 
 ## Phase 3c: Redis, Token Hardening & Admin
-- [ ] Redis client (`redis.asyncio`) + `/health/ready` ping
-- [ ] Access + refresh token lifecycle (ADR-015, Redis JTI denylist)
-- [ ] API key management (`/api-keys`)
-- [ ] SQLAdmin integration (gated behind `admin` extra)
-- [ ] Tests
+- [x] Redis client (`redis.asyncio`) + `/health/ready` ping
+- [x] Access + refresh token lifecycle (ADR-015, Redis JTI denylist)
+- [x] API key management (`/api-keys`)
+- [x] SQLAdmin integration (gated behind `admin` extra)
+- [x] Tests
 
 ## Phase 4: AI & Streaming
 - [ ] LLM provider abstraction (Bedrock, OpenAI, Anthropic, LiteLLM)

@@ -17,7 +17,8 @@ class Settings(BaseSettings):
 {%- endif %}
 {%- if include_auth %}
     auth_backend: str = "{{ auth_method }}"
-    secret_key: str | None = None
+    secret_key: str = "change-me-in-production"
+    redis_url: str = "redis://localhost:6379/0"
 {%- endif %}
 
 

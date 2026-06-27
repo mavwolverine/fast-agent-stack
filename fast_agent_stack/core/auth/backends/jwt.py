@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import HTTPException, Request, Response
 
@@ -11,14 +12,17 @@ from fast_agent_stack.core.auth.backends import TokenResponse
 from fast_agent_stack.core.auth.tokens import create_access_token, decode_access_token
 
 try:
+    import jwt as pyjwt
     from redis.asyncio import Redis
+    from redis.exceptions import RedisError
 except ImportError:
     raise ImportError(
         "redis is required for JWT authentication. "
         "Install it with: pip install fast-agent-stack[auth-jwt]"
     )
 
-_REFRESH_PREFIX = "fas:refresh:"  # ADR-033
+_REFRESH_PREFIX = "fas:refresh:"    # ADR-033
+_DENYLIST_PREFIX = "fas:jti:deny:"  # ADR-033
 
 
 class JWTAuthBackend:
@@ -40,6 +44,17 @@ class JWTAuthBackend:
             return None
         token = auth.removeprefix("Bearer ")
         payload = decode_access_token(token, self._secret_key)
+        jti = str(payload.get("jti", ""))
+        if jti:
+            try:
+                if await self._redis.get(f"{_DENYLIST_PREFIX}{jti}"):
+                    raise HTTPException(status_code=401, detail="Token revoked")
+            except HTTPException:
+                raise
+            except RedisError as exc:
+                raise HTTPException(
+                    status_code=503, detail="Auth service unavailable"
+                ) from exc
         return uuid.UUID(str(payload["sub"]))
 
     async def create_token(self, user: object, response: Response) -> TokenResponse:
@@ -65,9 +80,31 @@ class JWTAuthBackend:
         response: Response,
         refresh_tok: str | None,
     ) -> None:
-        # Phase 3b: delete refresh token only. JTI denylist added in Phase 3c.
+        # Extract JTI from Authorization header for denylist (ADR-015)
+        jti: str = ""
+        remaining_ttl: int = self._access_ttl  # fallback: worst-case TTL
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth.removeprefix("Bearer ")
+            try:
+                # Lenient decode — we want to denylist even if token is near expiry
+                payload = pyjwt.decode(
+                    token,
+                    self._secret_key,
+                    algorithms=["HS256"],
+                    options={"verify_exp": False},
+                )
+                jti = str(payload.get("jti", ""))
+                exp = int(payload.get("exp", 0))
+                remaining_ttl = max(0, exp - int(datetime.now(UTC).timestamp()))
+            except Exception:
+                pass  # malformed token — skip denylist write
+
         if refresh_tok:
             await self._redis.delete(f"{_REFRESH_PREFIX}{refresh_tok}")
+
+        if jti and remaining_ttl > 0:
+            await self._redis.set(f"{_DENYLIST_PREFIX}{jti}", "1", ex=remaining_ttl)
 
     async def refresh_token(self, refresh_tok: str) -> TokenResponse:
         raw = await self._redis.get(f"{_REFRESH_PREFIX}{refresh_tok}")

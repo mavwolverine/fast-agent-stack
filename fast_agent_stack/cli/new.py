@@ -99,7 +99,7 @@ def new(
     db: str | None = typer.Option(
         None,
         "--db",
-        help="Database: postgres, mysql, sqlite, mssql.",
+        help="Database: postgres, mysql, sqlite.",
     ),
     output_dir: Path | None = typer.Option(
         None,
@@ -137,10 +137,10 @@ def new(
         if db:
             data["db"] = db
         else:
-            db_choices = {"1": "postgres", "2": "mysql", "3": "sqlite", "4": "mssql"}
+            db_choices = {"1": "postgres", "2": "mysql", "3": "sqlite"}
             console.print(
                 "\n[bold]Which database?[/]\n"
-                "  1) PostgreSQL\n  2) MySQL\n  3) SQLite\n  4) MSSQL"
+                "  1) PostgreSQL\n  2) MySQL\n  3) SQLite"
             )
             choice = typer.prompt("Choose", default="1")
             data["db"] = db_choices.get(choice, "postgres")

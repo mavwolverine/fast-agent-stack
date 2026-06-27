@@ -1,3 +1,9 @@
+from fast_agent_stack.core.auth.api_keys import (
+    authenticate_api_key,
+    generate_api_key,
+    hash_api_key,
+    router as api_keys_router,
+)
 from fast_agent_stack.core.auth.backends import AuthBackend, TokenResponse
 from fast_agent_stack.core.auth.backends.factory import get_auth_backend
 from fast_agent_stack.core.auth.dependencies import get_current_user, require_permission
@@ -24,10 +30,14 @@ __all__ = [
     "Permission",
     "TokenResponse",
     "User",
+    "api_keys_router",
     "auth_router",
+    "authenticate_api_key",
+    "generate_api_key",
     "get_auth_backend",
     "get_current_user",
     "group_permissions",
+    "hash_api_key",
     "hash_password",
     "require_permission",
     "user_groups",
