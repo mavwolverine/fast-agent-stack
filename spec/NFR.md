@@ -33,6 +33,9 @@
   configurable timeout. Each backend family must read a `*_timeout: float` setting from
   `BaseSettings` (e.g. `llm_timeout`, `vector_timeout`, `storage_timeout`, `embedding_timeout`). Default: 30 seconds.
   Requests that exceed the timeout must raise a `TimeoutError` rather than hanging indefinitely.
+  **Exemption:** pure-arithmetic `count_tokens` heuristics that make no network I/O (e.g. the
+  character-count estimate for Bedrock, word-count estimate for OpenAI) are exempt from this
+  timeout requirement — they cannot block the event loop for a meaningful duration.
 
 ## Maintainability
 

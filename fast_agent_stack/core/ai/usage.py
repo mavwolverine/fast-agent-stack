@@ -20,12 +20,7 @@ class UsageService:
         agent_name: str,
         conversation_id: UUID | None,
     ) -> None:
-        try:
-            # Phase 4a stub — no DB write.
-            # Real write (token_usage_log table) implemented in Phase 4c.
-            pass
-        except Exception:
-            logger.warning(
-                "UsageService.log_usage failed (swallowed per I21)",
-                exc_info=True,
-            )
+        # Phase 4a stub — no DB write.
+        # Real write (token_usage_log table) implemented in Phase 4c.
+        # Callers (stream_sse) swallow failures per I21; this method propagates.
+        pass

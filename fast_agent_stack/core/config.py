@@ -39,6 +39,9 @@ class BaseSettings(_BaseSettings):
     # Rate limiting (ADR-016)
     include_rate_limit: bool = False
 
+    # LLM backend timeout — seconds to wait for provider API calls (NFR Reliability)
+    llm_timeout: float = 30.0
+
     # Token / session TTLs (ADR-015, ADR-032)
     access_token_ttl_seconds: int = 900        # 15 minutes
     refresh_token_ttl_seconds: int = 2592000   # 30 days

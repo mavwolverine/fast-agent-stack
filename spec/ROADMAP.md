@@ -50,12 +50,12 @@
 - [x] Tests
 
 ## Phase 4b: LLM Provider Backends (ADR-021)
-- [ ] Bedrock backend (extras-gated: `llm-bedrock`)
-- [ ] OpenAI backend (extras-gated: `llm-openai`)
-- [ ] Anthropic backend (extras-gated: `llm-anthropic`)
-- [ ] LiteLLM proxy backend (extras-gated: `llm-litellm`)
-- [ ] Each backend emits trailing `CompletionResult` sentinel in `stream()`
-- [ ] Tests
+- [x] Bedrock backend (extras-gated: `bedrock`) — `aioboto3` converse/converse_stream, `cost=None`
+- [x] OpenAI backend (extras-gated: `openai`) — `AsyncOpenAI`, `stream_options={"include_usage": True}`, `cost=None`
+- [x] Anthropic backend (extras-gated: `anthropic`) — `AsyncAnthropic`, `messages.stream()` ctx manager, real `count_tokens` API
+- [x] LiteLLM proxy backend (extras-gated: `litellm`) — `litellm.acompletion`, `completion_cost()`, `asyncio.to_thread` token counter
+- [x] Each backend emits trailing `CompletionResult(content="")` sentinel in `stream()` (ADR-036)
+- [x] Tests (36 tests: conformance, sentinel, escape hatch, extras gate per backend)
 
 ## Phase 4c: Agent Lifecycle & Metering (ADR-035)
 - [ ] `@app.agent()` decorator + handler registration

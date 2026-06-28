@@ -69,7 +69,7 @@
 ### 9. LLM Provider Abstraction
 
 - `LLMBackend` Protocol with `complete()` and `stream()` methods (ADR-021, amended by ADR-036)
-- Direct SDK backends: Bedrock (`boto3`), OpenAI (`openai`), Anthropic (`anthropic`)
+- Direct SDK backends: Bedrock (`aioboto3`), OpenAI (`openai`), Anthropic (`anthropic`)
 - LiteLLM backend for users who prefer a unified proxy (ADR-012 dotted-path registration)
 - Each backend is an optional extra: `fast-agent-stack[bedrock]`, `[openai]`, `[anthropic]`, `[litellm]`
 - Token usage metering middleware (ADR-035, ADR-036)
