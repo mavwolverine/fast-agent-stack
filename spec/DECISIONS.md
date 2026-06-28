@@ -860,6 +860,7 @@ The `LLMBackend.complete()` and `LLMBackend.stream()` methods return token count
   - Each `str` item is written as an SSE `data:` event to the response.
   - The trailing `CompletionResult` item is intercepted: it is **not** written to SSE; instead it is passed to `UsageService.log_usage()`.
   - Write failures in `UsageService.log_usage()` must be logged and swallowed — they must not abort or delay the streaming response (see I21).
+  - **Error-before-sentinel:** If `stream()` raises an exception before the `CompletionResult` sentinel is emitted (e.g., a network error from the LLM provider after some chunks), `stream_sse` must propagate the exception to the client (resulting in a 500 response or connection drop). `UsageService.log_usage()` must NOT be called — there is no usage data to record. This is a distinct failure path from I21 (which covers only `log_usage()` write failures, not upstream LLM errors).
 
   **Agent dispatcher contract** (`core/ai/agents.py`):
   - Non-streaming handlers: `async def handler(...) -> str` — called, result passed to `complete()`, returned `CompletionResult` logged via `UsageService.log_usage()`.
@@ -886,3 +887,51 @@ The `LLMBackend.complete()` and `LLMBackend.stream()` methods return token count
   - Invariant I21 is added: token usage log write failures must not abort or delay the LLM response.
   - `spec/GLOSSARY.md` gains three terms: `CompletionResult`, `UsageService`, `ConversationLog`.
   - `spec/ARCHITECTURE.md` Module 9 (LLM Provider Abstraction) and Module 10 (Agent Lifecycle) are updated to document the type definitions and dispatcher contract.
+
+## ADR-037 — Redis Integration: fastapi-redis-sdk
+
+**Phase:** 8 (deferred — allow library to mature; Phase 3c through Phase 6 remain on `redis.asyncio` directly)
+
+**Context:** The framework needs Redis for sessions, JWT denylist, rate limiting, and response caching. Options:
+
+- **`redis.asyncio` (raw)** — manual connection pool lifecycle, lifespan hook, DI wiring. Used in Phases 3c–6.
+- **`fastapi-redis-sdk`** — official Redis org library for FastAPI. Manages connection pools via lifespan, provides `AsyncRedisDep` for DI, includes response caching with ETag/304/Cache-Control.
+
+**Decision:** Migrate to `fastapi-redis-sdk` as the Redis integration layer in Phase 8, after all Redis usage patterns (auth, rate-limit, caching) are established and the library has had time to stabilize.
+
+**Current state (Phases 3c–6):** `redis>=5` (`redis.asyncio`) used directly. `AuthLifespanHook` manages pool lifecycle. Backends (`JWTAuthBackend`, `SessionAuthBackend`) take `Redis` at construction time.
+
+```toml
+# Phase 8 target — in auth-jwt, auth-session, rate-limit extras
+"fastapi-redis-sdk>=0.1"
+```
+
+Usage:
+```python
+from redis_fastapi import FastAPIRedis, AsyncRedisDep
+
+# In app setup
+FastAPIRedis(app).lifespan().caching()
+
+# In routes/services — raw Redis client via DI
+async def get_session(redis: AsyncRedisDep):
+    return await redis.get("fas:session:abc123")
+```
+
+**Phase 8 migration scope:**
+- Replace `redis>=5` with `fastapi-redis-sdk>=0.1` across `auth-jwt`, `auth-session`, `rate-limit` extras
+- Migrate `AuthLifespanHook` pool lifecycle to `FastAPIRedis(app).lifespan()` — amend I9 accordingly
+- Migrate `JWTAuthBackend` and `SessionAuthBackend` constructors from `Redis`-at-init to `AsyncRedisDep` request-time DI
+- Update rate-limit middleware to use `AsyncRedisDep`
+- Update I3 import guards: `redis_fastapi` replaces `redis.asyncio` guards
+- Update all affected tests
+
+**Consequences:**
+- Eliminates custom Redis lifespan hook — pool lifecycle managed by the SDK
+- `AsyncRedisDep` provides the raw `redis.asyncio.Redis` client as a FastAPI dependency
+- Response caching (`cache()`, `cache_evict()`, `cache_put()`) available as optional DI decorators
+- Pydantic-validated config (REDIS_URL, TLS, cluster mode) from env — aligns with our settings pattern
+- Cluster-ready out of the box
+- Sessions, denylist, rate-limiting logic stays ours — built on top of `AsyncRedisDep`
+- Replaces `redis>=5` in extras with `fastapi-redis-sdk>=0.1` (which depends on redis-py internally)
+- I9 must be amended in Phase 8 before code changes begin

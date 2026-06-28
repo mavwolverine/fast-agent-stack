@@ -57,9 +57,11 @@ The following must not change between minor versions without a deprecation cycle
 - All CLI command names and their arguments
 - Generated project file paths
 
-## I7 — Template Variables Must Match copier.yml Exactly
+## I7 — Template Variables and Choice Values Must Match copier.yml Exactly
 
 Jinja2 conditionals in template files (`{% if llm_provider != "none" %}`) must use variable names that exist verbatim in `copier.yml`. No assumed or derived variable names.
+
+Additionally, every literal value compared in a conditional (e.g., `{% if auth_backends == "jwt-and-session" %}`) must match verbatim the corresponding `choices` value in `copier.yml` — not the display label, not a derived string. A typo in a comparison value (e.g., `"jwt_and_session"` vs `"jwt-and-session"`) silently generates a broken project with no copier-level error. Agents must BLOCK any template conditional whose value does not appear verbatim in the `choices` block of the corresponding copier.yml question.
 
 ## I8 — Schema Name Injection Guard
 
@@ -106,9 +108,10 @@ due to a missing secret. The following are hard startup requirements:
 
 - `secret_key` must be set when `"jwt" in settings.auth_backends`
 - `admin_secret_key` must be set when the admin panel is enabled without auth
-- `redis_url` must be set and connectable (≤5s timeout) when `"jwt" in settings.auth_backends`
-  or `"session" in settings.auth_backends` (token revocation store for JWT — see I10; session
-  storage for session — see ADR-032).
+- `redis_url` must be set and connectable (≤5s timeout) when `"jwt" in settings.auth_backends`,
+  `"session" in settings.auth_backends`, or `settings.include_rate_limit is True` (token
+  revocation store for JWT — see I10; session storage — see ADR-032; rate-limit counters —
+  see ADR-016).
 
 Failure to meet these conditions must raise `RuntimeError` with a message naming the missing
 setting before the app begins serving requests. Deferring the check to request time is forbidden.
