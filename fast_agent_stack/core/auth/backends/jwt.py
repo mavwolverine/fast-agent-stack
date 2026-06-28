@@ -57,6 +57,25 @@ class JWTAuthBackend:
                 ) from exc
         return uuid.UUID(str(payload["sub"]))
 
+    async def verify_token(self, token: str) -> uuid.UUID | None:
+        try:
+            payload = decode_access_token(token, self._secret_key)
+        except Exception:
+            return None
+        jti = str(payload.get("jti", ""))
+        if jti:
+            try:
+                if await self._redis.get(f"{_DENYLIST_PREFIX}{jti}"):
+                    return None
+            except RedisError as exc:
+                raise HTTPException(
+                    status_code=503, detail="Auth service unavailable"
+                ) from exc
+        try:
+            return uuid.UUID(str(payload["sub"]))
+        except (KeyError, ValueError):
+            return None
+
     async def create_token(self, user: object, response: Response) -> TokenResponse:
         from fast_agent_stack.core.auth.models import User as _User
 

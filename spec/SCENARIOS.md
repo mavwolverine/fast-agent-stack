@@ -18,11 +18,14 @@ Concrete use cases that validate the framework design. Module briefs and impleme
 5. Conversation thread persisted to postgres
 
 **What this validates:**
-- LLM provider abstraction (streaming + token metering)
+- LLM provider abstraction (streaming + token metering via `CompletionResult` sentinel — ADR-036)
+- `stream_sse` helper correctly separates `str` chunks (→ SSE) from the trailing `CompletionResult`
+  (→ `UsageService.log_usage()`); a `token_usage_log` row is written after each streaming call
+- Usage log write failure does not abort or delay the SSE response (I21)
 - Vector store + embedding backend integration
 - RAG pipeline composability
 - Auth middleware wired into streaming responses
-- Conversation persistence model
+- Conversation persistence model (`ConversationLog`)
 
 ---
 
@@ -72,6 +75,7 @@ Concrete use cases that validate the framework design. Module briefs and impleme
 - Custom backends receive `Settings` at instantiation and can read user-defined fields
 - Extras gate doesn't interfere with custom backends
 - Invariant I1 (full Protocol conformance) is testable from outside the package
+- Custom `LLMBackend` implementations must emit a trailing `CompletionResult` in `stream()` (ADR-036, I1)
 
 ---
 
@@ -219,7 +223,8 @@ auth, sessions, and rate limiting behave correctly across processes.
 - Refresh token stored in Redis and deleted on logout
 - `RateLimiter` Redis backend is used (not in-memory fallback) when `redis_url` is set
 - Session auth does not use in-memory fallback in multi-worker deployments
-- `redis_url` for sessions and broker use different Redis DB indices to avoid key collisions
+- Key collision between sessions, JWT denylist, and rate limiting is prevented by namespaced prefixes
+  (`fas:session:`, `fas:jti:deny:`, `fas:rl:`) — all on DB 0 (ADR-033)
 
 **Failure mode — Redis unreachable at runtime:**
 - If Redis becomes unreachable after startup, authenticated requests that require denylist
@@ -310,8 +315,8 @@ token cannot be reused after logout even within its remaining TTL.
    `{"refresh_token": "<refresh_token>"}` in the body
 3. Framework:
    - Decodes the access token, extracts its `jti` claim
-   - Writes `jwt:deny:{jti}` to Redis with TTL = remaining access token lifetime
-   - Deletes `refresh:{refresh_token}` from Redis
+   - Writes `fas:jti:deny:{jti}` to Redis with TTL = remaining access token lifetime
+   - Deletes `fas:refresh:{refresh_token}` from Redis
 4. Any subsequent request with the old access token hits the denylist check and is rejected (401)
 5. Any attempt to call `POST /auth/refresh` with the old refresh token returns 401
 6. Other sessions (different refresh tokens issued to other devices) are unaffected
@@ -337,7 +342,8 @@ token cannot be reused after logout even within its remaining TTL.
 - JTI denylist check occurs on every authenticated request (not just token creation)
 - Refresh token revocation removes the Redis key; replay returns 401
 - Logout is idempotent: calling it twice does not error (second call is a no-op for expired keys)
-- `CombinedAuthBackend` delegates revocation to its internal `JWTAuthBackend`
+- The private `_AuthBackendChain` calls `revoke_token()` on ALL backends in order so every
+  authentication path is invalidated on logout (I20); there is no public `CombinedAuthBackend`
 - Session auth backends return 501 for `POST /auth/refresh` (no refresh tokens issued)
 - Access token TTL check and denylist check are both required: a denied token with time remaining
   must still be rejected
@@ -382,7 +388,7 @@ token cannot be reused after logout even within its remaining TTL.
 
 **Steps:**
 1. Client sends requests to a rate-limited endpoint up to the configured limit (e.g., 60/min)
-2. Each request increments a Redis key (`ratelimit:{ip}:{window}`) via atomic Lua script (ADR-016)
+2. Each request increments a Redis key (`fas:rl:{ip}:{window}`) via atomic Lua script (ADR-016)
 3. Responses include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers
 4. Request N+1 within the same window receives 429 Too Many Requests with a `Retry-After` header
 5. After the window resets, the client can make requests again
@@ -426,16 +432,16 @@ configuration is missing or an external service is unreachable.
 **Stack:** postgres + redis + jwt auth
 
 **Flow (missing secret):**
-1. Deploy with `auth_backend = "jwt"` but `SECRET_KEY` unset
-2. Application raises `RuntimeError("secret_key must be set when auth_backend is 'jwt' or 'both'")` before serving any request
+1. Deploy with `auth_backends = ["jwt"]` but `SECRET_KEY` unset
+2. Application raises `RuntimeError("secret_key must be set when \"jwt\" in auth_backends")` before serving any request
 3. Process exits with code 1; error message appears in stdout/stderr
 
 **Flow (missing redis_url):**
-1. Deploy with `auth_backend = "jwt"` but `REDIS_URL` unset
-2. Application raises `RuntimeError("redis_url must be set when auth_backend is 'jwt' or 'both'")` before serving any request
+1. Deploy with `auth_backends = ["jwt"]` but `REDIS_URL` unset
+2. Application raises `RuntimeError("redis_url must be set when \"jwt\" in auth_backends or \"session\" in auth_backends")` before serving any request
 
 **Flow (Redis unreachable):**
-1. Deploy with `auth_backend = "jwt"`, `REDIS_URL = "redis://bad-host:6379"`
+1. Deploy with `auth_backends = ["jwt"]`, `REDIS_URL = "redis://bad-host:6379"`
 2. `AuthLifespanHook.__aenter__()` attempts a Redis `PING` with a 5-second timeout
 3. On failure: raises `RuntimeError("Cannot connect to Redis at redis://bad-host:6379 — required for token revocation")` and process exits
 

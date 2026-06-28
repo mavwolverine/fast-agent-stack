@@ -37,6 +37,7 @@ fast_agent_stack/
 - Files only generated when the feature is selected
 - `pyproject.toml` only includes chosen dependencies
 - All Jinja conditional blocks (`{% if %}`, `{% elif %}`, `{% endif %}`) must use whitespace-trimming syntax (`{%-`) to avoid blank lines in rendered output when conditions are false
+- Template conditionals for `auth_backends` must use exact equality checks: `{% if auth_backends == "jwt" or auth_backends == "jwt-and-session" %}` — never substring matching
 - `docker-compose.yml` only includes chosen services (postgres, qdrant, redis, etc.). When
   `task_broker != "none"`, a `worker` service must also be included that runs
   `fastagentstack worker tasks` and depends on the broker service.
@@ -124,12 +125,12 @@ include_auth:
   type: bool
   default: true
 
-auth_method:
+auth_backends:
   type: str
   choices:
     JWT: jwt
     Session: session
-    Both: both
+    JWT + Session: jwt-and-session
   default: jwt
   when: "{{ include_auth }}"
 
@@ -192,6 +193,8 @@ python_version:
   help: Python version for the generated Dockerfile
 ```
 
+**Template conditional note:** Template files use `auth_backends` for all conditionals with exact equality checks. `jwt-and-session` generates `auth_backends = ["jwt", "session"]` in the rendered `settings.py`; `jwt` generates `["jwt"]`; `session` generates `["session"]`. There is no runtime concept of a "combined" backend — the list is the canonical form (ADR-034).
+
 ## Preset Definitions
 
 `db` is always prompted (never defaulted by a preset) — it's too important to silently assume.
@@ -224,7 +227,7 @@ PRESETS = {
         "task_broker": "none",
         "include_scheduler": False,
         "include_auth": True,
-        "auth_method": "jwt",
+        "auth_backends": "jwt",
         "include_email": False,
         "include_admin": True,
         "include_frontend": False,
@@ -243,7 +246,7 @@ PRESETS = {
         "task_broker": "redis",
         "include_scheduler": True,
         "include_auth": True,
-        "auth_method": "jwt",
+        "auth_backends": "jwt",
         "include_email": True,
         "include_admin": True,
         "include_frontend": False,
@@ -262,7 +265,7 @@ PRESETS = {
         "task_broker": "redis",
         "include_scheduler": True,
         "include_auth": True,
-        "auth_method": "jwt",
+        "auth_backends": "jwt",
         "include_email": False,
         "include_admin": True,
         "include_frontend": True,

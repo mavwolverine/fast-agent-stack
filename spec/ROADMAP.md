@@ -29,7 +29,7 @@
 - [x] Tests
 
 ## Phase 3b: Auth Backends & Core Routes
-- [x] JWT + session backends (pluggable, ADR-008)
+- [x] JWT + session backends (pluggable, ADR-034)
 - [x] Routes: `/auth/token`, `/auth/refresh`, `/auth/logout` (logout deletes refresh token only; JTI denylist added in 3c)
 - [x] Verification route stubs: `POST /auth/send-verification`, `POST /auth/verify-email`, `POST /auth/forgot-password`, `POST /auth/reset-password` (email delivery deferred to Phase 6)
 - [x] Permission-checking dependencies (`require_permission("posts.delete")`)
@@ -47,7 +47,7 @@
 - [ ] SSE streaming response helpers
 - [ ] Conversation persistence
 - [ ] Agent registration + lifecycle
-- [ ] Token usage metering middleware — **NEEDS-DECISION:** schema shape, per-user vs per-org, storage backend
+- [ ] Token usage metering (ADR-035 — per-request event log)
 - [ ] Tests
 
 ## Phase 5: Data Pipeline

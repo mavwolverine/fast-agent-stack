@@ -20,7 +20,6 @@ from starlette.datastructures import Headers
 
 import fast_agent_stack.core.auth.models as _auth_mod  # noqa: F401 — registers on Base.metadata
 from fast_agent_stack.core.auth.backends import AuthBackend, TokenResponse
-from fast_agent_stack.core.auth.backends.combined import CombinedAuthBackend
 from fast_agent_stack.core.auth.backends.jwt import JWTAuthBackend, _REFRESH_PREFIX
 from fast_agent_stack.core.auth.backends.session import (
     SessionAuthBackend,
@@ -111,13 +110,6 @@ def jwt_backend(redis: FakeRedis) -> JWTAuthBackend:
 @pytest.fixture
 def session_backend(redis: FakeRedis) -> SessionAuthBackend:
     return SessionAuthBackend(session_ttl=_TTL_SESSION, redis=redis, debug=True)
-
-
-@pytest.fixture
-def combined_backend(
-    jwt_backend: JWTAuthBackend, session_backend: SessionAuthBackend
-) -> CombinedAuthBackend:
-    return CombinedAuthBackend(jwt=jwt_backend, session=session_backend)
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────
@@ -234,18 +226,20 @@ async def test_b9_session_logout_deletes_key_and_cookie(
     assert _COOKIE_NAME in out_resp.deleted_cookies
 
 
-async def test_b10_combined_tries_jwt_then_session(
-    combined_backend: CombinedAuthBackend,
-    active_user: User,
+async def test_b10_chain_tries_jwt_then_session(
     jwt_backend: JWTAuthBackend,
     session_backend: SessionAuthBackend,
+    active_user: User,
 ) -> None:
-    # Use session token
+    from fast_agent_stack.core.auth.lifespan import _AuthBackendChain
+
+    chain = _AuthBackendChain([jwt_backend, session_backend])
+    # Session-only request — JWT returns None, chain falls through to session
     resp = _MockResponse()
     await session_backend.create_token(active_user, resp)  # type: ignore[arg-type]
     session_id = resp.cookies[_COOKIE_NAME]["value"]
     req = _make_request(cookies={_COOKIE_NAME: session_id})
-    user_id = await combined_backend.authenticate(req)
+    user_id = await chain.authenticate(req)
     assert user_id == active_user.id
 
 
@@ -266,10 +260,14 @@ def test_c2_session_backend_implements_auth_backend_protocol(
     assert isinstance(session_backend, AuthBackend)
 
 
-def test_c3_combined_backend_implements_auth_backend_protocol(
-    combined_backend: CombinedAuthBackend,
+def test_c3_chain_implements_auth_backend_protocol(
+    jwt_backend: JWTAuthBackend,
+    session_backend: SessionAuthBackend,
 ) -> None:
-    assert isinstance(combined_backend, AuthBackend)
+    from fast_agent_stack.core.auth.lifespan import _AuthBackendChain
+
+    chain = _AuthBackendChain([jwt_backend, session_backend])
+    assert isinstance(chain, AuthBackend)
 
 
 def test_c4_token_response_is_pydantic_model() -> None:

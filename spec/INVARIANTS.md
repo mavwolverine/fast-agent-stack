@@ -104,9 +104,11 @@ Python `set` on the backend instance) is forbidden.
 An application must not start in a configuration where the first authenticated request will fail
 due to a missing secret. The following are hard startup requirements:
 
-- `secret_key` must be set when `auth_backend` is `"jwt"` or `"both"`
+- `secret_key` must be set when `"jwt" in settings.auth_backends`
 - `admin_secret_key` must be set when the admin panel is enabled without auth
-- `redis_url` must be set and connectable (≤5s timeout) when `auth_backend` is `"jwt"`, `"session"`, or `"both"` (token revocation store for JWT — see I10; session storage for session — see ADR-032).
+- `redis_url` must be set and connectable (≤5s timeout) when `"jwt" in settings.auth_backends`
+  or `"session" in settings.auth_backends` (token revocation store for JWT — see I10; session
+  storage for session — see ADR-032).
 
 Failure to meet these conditions must raise `RuntimeError` with a message naming the missing
 setting before the app begins serving requests. Deferring the check to request time is forbidden.
@@ -236,3 +238,33 @@ response) and only the SHA-256 hash is persisted. Any endpoint or admin view tha
 key after creation is a BLOCK.
 
 **Applies to:** `core/auth/api_keys.py`, API key routes, admin views
+
+---
+
+## I20 — Auth Backend Chain: revoke_token Must Run on All Backends
+
+When `auth_backends` contains more than one entry, the internal chain's `revoke_token()` method
+must invoke `revoke_token()` on **every** backend in the list, not just the primary. Skipping
+revocation on any backend means a user who authenticates via that backend remains authenticated
+after logout.
+
+**Applies to:** `core/auth/backends/factory.py` internal chain implementation
+
+**Rationale:** See ADR-034 chain delegation rules. Logout must invalidate all authentication
+paths, not just the one that was used for the current request.
+
+---
+
+## I21 — Token Usage Log Write Failures Must Not Abort the LLM Response
+
+Failures in `UsageService.log_usage()` — whether due to database unavailability, connection pool
+exhaustion, or any other error — must be caught, logged at `WARNING` level, and swallowed. They
+must never propagate to the caller in a way that aborts, delays, or errors the ongoing LLM
+response (streaming or non-streaming).
+
+Rationale: metering is an observability concern, not a correctness concern. A user receiving an
+LLM response must not experience a failure or timeout because the usage record could not be written.
+Missing usage rows are recoverable (re-derivable from logs); an aborted response is not.
+
+**Applies to:** `core/ai/streaming.py` (`stream_sse` helper), `core/ai/agents.py` (agent dispatcher),
+and any other call site of `UsageService.log_usage()`

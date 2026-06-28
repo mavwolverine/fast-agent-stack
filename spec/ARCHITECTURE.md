@@ -29,7 +29,13 @@
 
 ### 4. Authentication & User Management
 - User model (hashed passwords, email, is_active, is_verified, is_staff, is_superuser)
-- JWT + session-based auth (pluggable backends)
+- Pluggable auth backends via `auth_backends: list[str]` in settings (ADR-034). Each entry is a
+  built-in alias (`"jwt"`, `"session"`) or a dotted Python path to a custom `AuthBackend`
+  implementation. `get_auth_backend()` wraps all configured backends in a private internal chain:
+  - `authenticate` / `verify_token` — first non-`None` result wins (backends tried in order)
+  - `create_token` / `refresh_token` — primary (first) backend only
+  - `revoke_token` — runs on ALL backends (logout must invalidate every auth path; see I20)
+  Single-backend deployments pass a list of one entry and incur no chain overhead.
 - Core auth routes: `POST /auth/token`, `POST /auth/refresh`, `POST /auth/logout` (ADR-015)
 - API key management: `POST /api-keys`, `GET /api-keys`, `DELETE /api-keys/{id}`, `POST /api-keys/{id}/revoke` (S8)
 - Permissions and groups
@@ -61,20 +67,85 @@
 ## AI-Specific Modules
 
 ### 9. LLM Provider Abstraction
-- `LLMBackend` protocol with `complete()` and `stream()` methods
+
+- `LLMBackend` Protocol with `complete()` and `stream()` methods (ADR-021, amended by ADR-036)
 - Direct SDK backends: Bedrock (`boto3`), OpenAI (`openai`), Anthropic (`anthropic`)
 - LiteLLM backend for users who prefer a unified proxy (ADR-012 dotted-path registration)
 - Each backend is an optional extra: `fast-agent-stack[bedrock]`, `[openai]`, `[anthropic]`, `[litellm]`
-- Token usage metering middleware
+- Token usage metering middleware (ADR-035, ADR-036)
 - **Future (post-Phase 4):** model routing, fallback on error, A/B testing
 
+#### CompletionResult type (defined in `core/ai/llm/__init__.py`)
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class CompletionResult:
+    content: str          # generated text; empty string ("") for the streaming sentinel
+    model: str            # model identifier used for the call
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    cost: float | None    # None when the backend cannot compute cost (e.g., self-hosted)
+```
+
+#### LLMBackend Protocol (post-ADR-036)
+
+```python
+class LLMBackend(Protocol):
+    @property
+    def model_id(self) -> str: ...
+
+    async def complete(
+        self, messages: list[Message], **kwargs
+    ) -> CompletionResult: ...
+
+    async def stream(
+        self, messages: list[Message], **kwargs
+    ) -> AsyncIterator[str | CompletionResult]: ...
+
+    async def count_tokens(self, messages: list[Message]) -> int: ...
+```
+
+#### Streaming sentinel contract
+
+`stream()` is an async generator that:
+1. Yields zero or more `str` items — the content chunks sent to the caller via SSE.
+2. Yields exactly one `CompletionResult` as its **final** item — the sentinel with `content=""`
+   and full token counts for the call. No `str` chunks may follow the sentinel.
+
+All built-in backend implementations (Bedrock, OpenAI, Anthropic, LiteLLM) must conform to this
+contract. Custom backends (ADR-012) must also conform (I1).
+
+#### SSE streaming helper (`core/ai/streaming.py`)
+
+The `stream_sse` helper in `core/ai/streaming.py` is the sole consumer of `backend.stream(...)`.
+It is responsible for:
+- Writing each `str` chunk as an SSE `data:` event to the HTTP response.
+- Intercepting the trailing `CompletionResult` item — it is **not** written to SSE.
+- Passing the intercepted `CompletionResult` to `UsageService.log_usage()`.
+- Catching and swallowing any exception raised by `UsageService.log_usage()` — write failures
+  must not abort or delay the streaming response (I21).
+
 ### 10. Agent Lifecycle
+
 - Agent registration via `@app.agent(name, model)` decorator
-- Agent handlers may be `async def` coroutines returning `str | AsyncIterator[str]`, or async
-  generator functions that `yield` string chunks. The framework detects the form at dispatch time
-  (`inspect.isasyncgenfunction`) and routes non-streaming results to JSON and streaming results
-  to SSE automatically.
-- Conversation/thread persistence (built-in model)
+- Agent handlers may be `async def` coroutines or async generator functions. The framework detects
+  the handler form at dispatch time using `inspect.isasyncgenfunction` and routes accordingly:
+
+  **Non-streaming handler** (`async def handler(...) -> str`):
+  - Called; the returned `str` is passed to `backend.complete(...)`.
+  - The returned `CompletionResult` is logged via `UsageService.log_usage()`.
+  - Response is a standard JSON body.
+
+  **Streaming handler** (`async def handler(...) -> AsyncIterator[str]`, declared as async generator):
+  - Iterated; each `str` chunk is emitted as an SSE `data:` event via `stream_sse`.
+  - The trailing `CompletionResult` sentinel from `backend.stream(...)` is intercepted by
+    `stream_sse` and passed to `UsageService.log_usage()` (I21 applies).
+  - Response is a `text/event-stream` SSE response.
+
+- Conversation/thread persistence (built-in `ConversationLog` model)
 - Session management (Valkey/Redis)
 - Streaming response helpers (SSE wired into auth/middleware stack)
 
@@ -129,7 +200,7 @@ Inspired by Django's database backends. Each service type has:
 | `extract-xlsx` | `openpyxl>=3.1` | — |
 | `secrets-aws` | `boto3>=1.34` | ADR-017 |
 | `secrets-gcp` | `google-cloud-secret-manager>=2.20` | ADR-017 |
-| `tracing` | `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-jaeger` | — |
+| `tracing` | `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-otlp` | ADR-009 |
 
 Bundle extras: `ai-full` (all AI backends + vector + storage + embedding), `all` (everything).
 
@@ -178,6 +249,27 @@ def get_storage(settings) -> StorageProtocol:
 
 Same pattern applies to `get_vector_store()`, `get_llm()`, `get_embedding_provider()`. All four factory functions accept a dotted Python path for custom backends (ADR-012). LLM provider constructors receive `settings` (same contract as all other families).
 
+### Auth backend factory (`get_auth_backend`)
+
+`get_auth_backend(settings)` reads `settings.auth_backends: list[str]` and returns a single
+`AuthBackend`-conforming object (ADR-034). For a list of one entry it returns the backend
+directly with no wrapper. For two or more entries it wraps them in a private internal chain
+(not exported, not a named public class). Each entry is resolved the same way as other backend
+families: known alias → built-in class; contains `.` → `_import_dotted_path` (ADR-012).
+
+```python
+def get_auth_backend(settings) -> AuthBackend:
+    backends = [_resolve_auth_backend(alias, settings) for alias in settings.auth_backends]
+    if len(backends) == 1:
+        return backends[0]
+    return _AuthBackendChain(backends)
+```
+
+Chain delegation rules (see ADR-034):
+- `authenticate` / `verify_token` — first non-`None` result wins
+- `create_token` / `refresh_token` — first backend only
+- `revoke_token` — all backends (I20)
+
 ### Protocol methods by family
 
 | Family | Protocol | Required methods |
@@ -187,6 +279,11 @@ Same pattern applies to `get_vector_store()`, `get_llm()`, `get_embedding_provid
 | Vector store | `VectorStoreProtocol` | `upsert`, `search`, `delete`, `create_collection`, `close` |
 | Embedding | `EmbeddingProtocol` | `embed`, `embed_batch`, `dimensions` (property) |
 | Storage | `StorageProtocol` | `upload`, `download`, `delete`, `exists`, `url` |
+
+**LLM return types (ADR-036):** `complete()` returns `CompletionResult`. `stream()` returns
+`AsyncIterator[str | CompletionResult]` where the final item is always a `CompletionResult`
+sentinel (content="", full token counts). See Module 9 above for the full Protocol definition
+and streaming sentinel contract.
 
 ### Database
 
@@ -240,7 +337,7 @@ fast_agent_stack/
     ├── middleware.py
     ├── protocols.py          # AppModule, LifespanHook
     ├── auth/
-    │   ├── backends/         # jwt.py, session.py, combined.py, factory.py
+    │   ├── backends/         # jwt.py, session.py, factory.py (no combined.py — see ADR-034)
     │   ├── migrations/       # 0001_fas_auth_initial.py, ...
     │   ├── models.py
     │   ├── tokens.py
@@ -253,13 +350,13 @@ fast_agent_stack/
     ├── ratelimit/
     ├── observability/
     ├── ai/
-    │   ├── llm/              # LLM provider abstraction + 4 built-in providers
+    │   ├── llm/              # LLMBackend Protocol, CompletionResult, 4 built-in providers
     │   ├── embedding/        # Embedding backends (bedrock, openai, local)
     │   ├── rag/              # RagService, chunking
     │   ├── extraction/       # PDF, DOCX, XLSX extractors (extras); EML (stdlib)
     │   ├── agents.py         # @app.agent registry + /agents/{name} router
-    │   ├── conversation.py   # Conversation + ConversationMessage models
-    │   └── streaming.py      # stream_sse, stream_response
+    │   ├── conversation.py   # ConversationLog + ConversationMessage models
+    │   └── streaming.py      # stream_sse (splits str chunks → SSE, CompletionResult → UsageService)
     ├── storage/              # Storage backends (s3, local, minio)
     └── vector/               # Vector store backends (qdrant, pgvector, opensearch, weaviate)
 ```

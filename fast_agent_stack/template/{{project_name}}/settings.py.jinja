@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     database_url: str = "mysql+aiomysql://user:password@localhost/{{ project_name }}"
 {%- endif %}
 {%- if include_auth %}
-    auth_backend: str = "{{ auth_method }}"
+    auth_backends: list[str] = [{%- if auth_backends == "jwt-and-session" %}"jwt", "session"{%- else %}"{{ auth_backends }}"{%- endif %}]
     secret_key: str = "change-me-in-production"
     redis_url: str = "redis://localhost:6379/0"
 {%- endif %}

@@ -1,11 +1,57 @@
-"""Auth lifespan hook — Redis init + backend construction (I9, I11, ADR-032)."""
+"""Auth lifespan hook — Redis init + backend construction (I9, I11, ADR-032, ADR-034)."""
 
 from __future__ import annotations
 
 import asyncio
+import uuid
 from types import TracebackType
+from typing import TYPE_CHECKING
 
+from fastapi import HTTPException, Request, Response
+
+from fast_agent_stack.core.auth.backends import AuthBackend, TokenResponse
 from fast_agent_stack.core.config import BaseSettings
+
+if TYPE_CHECKING:
+    pass
+
+
+class _AuthBackendChain:
+    """Private chain — tries backends in order for auth; primary-only for token ops (ADR-034)."""
+
+    def __init__(self, backends: list[AuthBackend]) -> None:
+        self._backends = backends
+        self._primary = backends[0]
+
+    async def authenticate(self, request: Request) -> uuid.UUID | None:
+        for backend in self._backends:
+            user_id = await backend.authenticate(request)
+            if user_id is not None:
+                return user_id
+        return None
+
+    async def verify_token(self, token: str) -> uuid.UUID | None:
+        for backend in self._backends:
+            user_id = await backend.verify_token(token)
+            if user_id is not None:
+                return user_id
+        return None
+
+    async def create_token(self, user: object, response: Response) -> TokenResponse:
+        return await self._primary.create_token(user, response)
+
+    async def refresh_token(self, refresh_tok: str) -> TokenResponse:
+        return await self._primary.refresh_token(refresh_tok)
+
+    async def revoke_token(
+        self,
+        request: Request,
+        response: Response,
+        refresh_tok: str | None,
+    ) -> None:
+        # I20: revoke on ALL backends so no method remains valid after logout
+        for backend in self._backends:
+            await backend.revoke_token(request, response, refresh_tok)
 
 
 class AuthLifespanHook:
@@ -16,7 +62,7 @@ class AuthLifespanHook:
         self._redis: object | None = None
 
     async def __aenter__(self) -> None:
-        if self._settings.auth_backend == "none":
+        if not self._settings.auth_backends:
             return
 
         # I3: gate on redis
@@ -31,7 +77,7 @@ class AuthLifespanHook:
         # I11: redis_url validated at settings construction; double-guard here for clarity
         if not self._settings.redis_url:
             raise RuntimeError(
-                "redis_url must be set when auth_backend is not 'none' (I11)"
+                "redis_url must be set when auth_backends is not empty (I11)"
             )
 
         redis_client = aioredis.from_url(
@@ -57,39 +103,36 @@ class AuthLifespanHook:
         from fast_agent_stack.core.auth.backends.factory import _set_backend
         from fast_agent_stack.core.auth.backends.jwt import JWTAuthBackend
         from fast_agent_stack.core.auth.backends.session import SessionAuthBackend
-        from fast_agent_stack.core.auth.backends.combined import CombinedAuthBackend
 
         s = self._settings
-        backend_type = s.auth_backend
+        backends: list[AuthBackend] = []
 
-        if backend_type == "jwt":
-            assert s.secret_key is not None
-            _set_backend(JWTAuthBackend(
-                secret_key=s.secret_key,
-                access_ttl=s.access_token_ttl_seconds,
-                refresh_ttl=s.refresh_token_ttl_seconds,
-                redis=redis,  # type: ignore[arg-type]
-            ))
-        elif backend_type == "session":
-            _set_backend(SessionAuthBackend(
-                session_ttl=s.session_ttl_seconds,
-                redis=redis,  # type: ignore[arg-type]
-                debug=s.debug,
-            ))
-        elif backend_type == "both":
-            assert s.secret_key is not None
-            jwt_b = JWTAuthBackend(
-                secret_key=s.secret_key,
-                access_ttl=s.access_token_ttl_seconds,
-                refresh_ttl=s.refresh_token_ttl_seconds,
-                redis=redis,  # type: ignore[arg-type]
-            )
-            session_b = SessionAuthBackend(
-                session_ttl=s.session_ttl_seconds,
-                redis=redis,  # type: ignore[arg-type]
-                debug=s.debug,
-            )
-            _set_backend(CombinedAuthBackend(jwt=jwt_b, session=session_b))
+        for name in s.auth_backends:
+            if name == "jwt":
+                assert s.secret_key is not None
+                backends.append(JWTAuthBackend(
+                    secret_key=s.secret_key,
+                    access_ttl=s.access_token_ttl_seconds,
+                    refresh_ttl=s.refresh_token_ttl_seconds,
+                    redis=redis,  # type: ignore[arg-type]
+                ))
+            elif name == "session":
+                backends.append(SessionAuthBackend(
+                    session_ttl=s.session_ttl_seconds,
+                    redis=redis,  # type: ignore[arg-type]
+                    debug=s.debug,
+                ))
+            else:
+                # Custom dotted-path backend (ADR-034)
+                import importlib
+                module_path, cls_name = name.rsplit(".", 1)
+                module = importlib.import_module(module_path)
+                backends.append(getattr(module, cls_name)())
+
+        if len(backends) == 1:
+            _set_backend(backends[0])
+        else:
+            _set_backend(_AuthBackendChain(backends))  # type: ignore[arg-type]
 
     async def __aexit__(
         self,

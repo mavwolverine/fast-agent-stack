@@ -80,13 +80,13 @@ include_auth:
     help: Include user authentication?
     default: false
 
-auth_method:
+auth_backends:
     type: str
-    help: Auth method?
+    help: Auth backends?
     choices:
         JWT: jwt
         Session: session
-        Both: both
+        JWT + Session: jwt-and-session
     default: jwt
     when: "{{ include_auth }}"
 

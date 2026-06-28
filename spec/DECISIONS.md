@@ -117,7 +117,7 @@ fastagentstack new myproject
 
 ---
 
-## ADR-008 — Auth: Custom JWT + Session Backends
+## ADR-008 — Auth: Custom JWT + Session Backends *(superseded by ADR-034)*
 
 **Context:** Auth libraries like FastAPI-Users and AuthLib exist but impose opinionated user models and flows that conflict with framework-level control.
 
@@ -130,6 +130,8 @@ fastagentstack new myproject
 - Password hashing via pwdlib (Argon2id default, with automatic re-hash on login if parameters change)
 - JWT token revocation (denylist) must be stored in Redis, not in-process memory — see NFR
   Security and ADR-015 for the refresh token design that pairs with this requirement
+
+**Superseded by ADR-034.** The `auth_mode` string setting and `CombinedAuthBackend` class described here have been replaced by `auth_backends: list[str]` and a private internal chain. Do not implement this ADR; implement ADR-034 instead.
 
 ---
 
@@ -241,7 +243,7 @@ The JWT denylist is stored in Redis (key: `fas:jti:deny:{jti}`, TTL = remaining 
 **Consequences:**
 - Access tokens remain stateless and fast to validate (no Redis hit per request)
 - Revocation is durable: logout invalidates both the refresh token (deleted from Redis) and the current access token (JTI added to denylist)
-- Requires `redis_url` when `auth_backend` is `"jwt"` — adds a Redis dependency to the JWT path
+- Requires `redis_url` when any entry in `auth_backends` is `"jwt"` — adds a Redis dependency to the JWT path
 - Rules out purely stateless JWT architectures where no server-side state is maintained
 - The `auth-jwt` extras group must pull in `redis>=5` (currently only in `auth-session` and `rate-limit`)
 
@@ -390,6 +392,8 @@ class LLMBackend(Protocol):
     async def stream(self, messages: list[Message], **kwargs) -> AsyncIterator[str]: ...
     async def count_tokens(self, messages: list[Message]) -> int: ...
 ```
+
+**Note:** The `CompletionResult` return type for `complete()` and the full streaming contract for `stream()` are defined by ADR-036, which amends this ADR. The signature shown above reflects the post-ADR-036 state.
 
 **Consequences:**
 - Minimal dependency footprint — only the SDK you use gets installed
@@ -643,7 +647,7 @@ Re-hash policy: on successful login, if `hasher.needs_rehash(stored_hash)` retur
 - Built-in re-hash detection — cost upgrades happen transparently on login
 - No 72-byte password truncation
 - Rules out passlib as a dependency
-- Legacy bcrypt hashes (if migrating) can be verified via `pwdlib[bcrypt]` and re-hashed to argon2 on next login
+- Legacy bcrypt hashes (if migrating) can be verified via `pwdlib[bcrypt]` and re-hash to argon2 on next login
 
 ---
 
@@ -719,6 +723,7 @@ Redis key schema: `fas:session:{session_id}` — value is JSON-serialized sessio
 |---|---|---|
 | Sessions | `fas:session:` | `fas:session:abc123...` |
 | JWT denylist | `fas:jti:deny:` | `fas:jti:deny:550e8400-e29b...` |
+| Refresh tokens | `fas:refresh:` | `fas:refresh:abc123...` |
 | Rate limiting | `fas:rl:` | `fas:rl:192.168.1.1:/api/users` |
 | Task broker (Dramatiq) | `dramatiq:` | (Dramatiq's own prefix, unchanged) |
 
@@ -734,3 +739,150 @@ Rationale for prefixes over DB indices:
 - Key prefixes are framework-internal; users don't configure them
 - Compatible with Redis Cluster deployments
 - `FLUSHDB` flushes everything — use prefix-scoped `SCAN + DEL` for selective cleanup
+
+---
+
+## ADR-034 — Auth Backends as an Ordered List (Django-style Multi-Backend Support)
+
+- **Decision:** Replace `auth_mode: str` in `FasSettings` with `auth_backends: list[str]`. Each entry is either a built-in alias (`"jwt"`, `"session"`) or a dotted Python path to a custom class implementing the `AuthBackend` Protocol (per ADR-012). The factory `get_auth_backend()` instantiates each backend and wraps them in a private internal chain that is not exported and carries no public name. `CombinedAuthBackend` is deleted entirely.
+
+  Chain delegation rules:
+  - `authenticate(request)` — try each backend in order; return the first non-`None` result
+  - `verify_token(token)` — try each backend in order; return the first non-`None` result
+  - `create_token(user, response)` — primary (first) backend only
+  - `refresh_token(refresh_tok)` — primary (first) backend only
+  - `revoke_token(request, response, refresh_tok)` — run on ALL backends (cleanup on logout)
+
+  Single-backend deployments pass a list of one entry and incur no overhead from the chain wrapper.
+
+- **Rationale:** Mirrors Django's `AUTHENTICATION_BACKENDS` — a known, well-understood pattern. Eliminates `CombinedAuthBackend` as a premature named concept that hardcodes ordering and token-issuance strategy. Supports future backends (API key bearer, OAuth token introspection) without adding new factory modes. Revoke-all on logout is correct: if a user can authenticate via multiple methods, all should be invalidated.
+
+- **Rejected:**
+  - Keep `CombinedAuthBackend` — rejected: hardcodes JWT-first ordering and always issues JWT tokens, which is wrong when session is the primary backend.
+  - Split Protocol into authenticator + token-lifecycle interfaces — rejected: the primary-backend delegation pattern is simpler and avoids doubling the Protocol surface area.
+
+- **Consequences:**
+  - `auth_mode` setting key is removed; `auth_backends: list[str]` replaces it in `FasSettings`.
+  - `CombinedAuthBackend` class (`core/auth/backends/combined.py`) is deleted.
+  - `get_auth_backend()` factory signature is unchanged externally — it still returns an `AuthBackend`-conforming object — but internally it builds a chain for any list length.
+  - `core/auth/backends/` directory: `combined.py` is removed; `factory.py` is updated to accept `list[str]` and produce the internal chain.
+  - I11 (startup secrets validation) is updated: references to `auth_backend` being `"jwt"` or `"both"` become `"jwt" in auth_backends` / `"session" in auth_backends`.
+  - NFR Security section is updated to use the new setting name.
+  - DX.md scaffolder prompt is updated: `? Auth method?` options change from `(JWT / Session / Both)` to `(JWT / Session / JWT + Session)`, and generated settings examples use `auth_backends = ["jwt"]`.
+  - GLOSSARY.md gains a new term: **auth backend chain**.
+  - Supersedes ADR-008.
+
+## ADR-035 — Token Usage Metering: Per-Request Event Log
+
+**Context:** AI applications need token usage tracking for cost attribution, budgeting, and rate enforcement. Design decisions:
+
+1. **Granularity:** per-request (every LLM call logged individually) vs. pre-aggregated counters (only totals stored).
+2. **Attribution:** per-user, per-API-key, per-agent, per-conversation — or all of them?
+3. **Storage:** same database as the app, separate analytics DB, or Redis counters?
+
+Per-request logging gives maximum flexibility — aggregation can be done after the fact by any dimension. Pre-aggregated counters are faster to query but lose detail.
+
+**Decision:** Per-request event log in the application database.
+
+Table: `token_usage_log`
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | primary key |
+| user_id | FK → users | nullable (for system/anonymous calls) |
+| api_key_id | FK → api_keys | nullable |
+| agent_name | str | which agent handled the request |
+| model | str | model identifier (e.g., `claude-sonnet-4-20250514`) |
+| prompt_tokens | int | input tokens |
+| completion_tokens | int | output tokens |
+| total_tokens | int | computed: prompt + completion |
+| cost_microcents | int | nullable, estimated cost in 1/10000 cents |
+| conversation_id | UUID | nullable, for thread-level attribution |
+| created_at | datetime | indexed for time-range queries |
+
+Key design choices:
+- **Per-request rows** — no pre-aggregation. Dashboards and billing aggregate via SQL (`GROUP BY user_id, date_trunc('day', created_at)`).
+- **Multi-dimensional attribution** — user_id, api_key_id, agent_name, conversation_id all captured. Query by any dimension.
+- **cost_microcents** — optional, computed at write time from a model pricing table. Nullable because not all providers expose cost immediately.
+- **Same database** — simpler ops, no separate analytics store needed at framework scale. Users can replicate to a data warehouse if needed.
+
+The `LLMBackend.complete()` and `LLMBackend.stream()` methods return token counts in their response. Token count delivery is specified by ADR-036: `complete()` returns a `CompletionResult`; `stream()` emits a trailing `CompletionResult` as its final item. The framework's SSE streaming helper intercepts the trailing item and calls `UsageService.log_usage()`.
+
+**Consequences:**
+- Every LLM call produces one row — high-volume apps may need table partitioning (by month)
+- No Redis counters needed — DB is the source of truth for usage
+- Rate limiting by token budget is possible: `SELECT SUM(total_tokens) WHERE user_id = ? AND created_at > now() - interval '1 day'`
+- Framework provides a `UsageService` with `log_usage()` and `get_usage(user_id, period)` methods
+- The table is a framework migration (`0002_fas_ai_token_usage.py`) — auto-applied when AI extras are installed
+- Users who don't need metering can ignore it (rows accumulate but don't affect performance until millions+)
+- Token count carrier type (`CompletionResult`) and the streaming sentinel pattern are defined in ADR-036
+
+---
+
+## ADR-036 — CompletionResult Type and LLMBackend Streaming Contract
+
+- **Decision:** Define `CompletionResult` as the canonical return type for `LLMBackend.complete()` and as the terminal sentinel item in `LLMBackend.stream()`. Update the `LLMBackend` Protocol to reflect these return types. Clarify the agent dispatcher contract for streaming handlers.
+
+  **`CompletionResult` dataclass** (defined in `core/ai/llm/__init__.py`):
+
+  ```python
+  from dataclasses import dataclass
+
+  @dataclass(frozen=True)
+  class CompletionResult:
+      content: str          # generated text (empty string for the streaming sentinel)
+      model: str            # model identifier used for the call
+      prompt_tokens: int
+      completion_tokens: int
+      total_tokens: int
+      cost: float | None    # None when the backend cannot compute cost (e.g., self-hosted)
+  ```
+
+  **Updated `LLMBackend` Protocol** (amends ADR-021):
+
+  ```python
+  class LLMBackend(Protocol):
+      @property
+      def model_id(self) -> str: ...
+      async def complete(
+          self, messages: list[Message], **kwargs
+      ) -> CompletionResult: ...
+      async def stream(
+          self, messages: list[Message], **kwargs
+      ) -> AsyncIterator[str | CompletionResult]: ...
+      async def count_tokens(self, messages: list[Message]) -> int: ...
+  ```
+
+  **Streaming sentinel contract:** `stream()` is an async generator that yields `str` chunks for content, then yields exactly one `CompletionResult` as its final item. The `CompletionResult` sentinel has `content=""` and carries the full token counts for the streaming call. No content chunks may follow the sentinel.
+
+  **SSE streaming helper contract** (`core/ai/streaming.py`):
+  - Iterates `backend.stream(...)`.
+  - Each `str` item is written as an SSE `data:` event to the response.
+  - The trailing `CompletionResult` item is intercepted: it is **not** written to SSE; instead it is passed to `UsageService.log_usage()`.
+  - Write failures in `UsageService.log_usage()` must be logged and swallowed — they must not abort or delay the streaming response (see I21).
+
+  **Agent dispatcher contract** (`core/ai/agents.py`):
+  - Non-streaming handlers: `async def handler(...) -> str` — called, result passed to `complete()`, returned `CompletionResult` logged via `UsageService.log_usage()`.
+  - Streaming handlers: `async def handler(...) -> AsyncIterator[str]` (detected via `inspect.isasyncgenfunction`) — iterated, each `str` chunk emitted as SSE, trailing `CompletionResult` intercepted and logged.
+
+- **Rationale:**
+  - Cleanest design: each backend already has full token-count knowledge at call time; embedding it as the final stream item avoids a separate callback or metadata channel.
+  - The terminal-sentinel pattern is established (used by LangChain, LiteLLM). It keeps `stream()` return type informative without requiring a parallel channel.
+  - `isinstance(item, CompletionResult)` is the single dispatch predicate — simple to implement and test.
+  - ADR-035 metering middleware can intercept the sentinel without any additional framework machinery.
+
+- **Rejected:**
+  - **Separate `last_stream_usage()` method on backends** — rejected: stateful, breaks concurrent requests sharing a backend instance.
+  - **Context variable (`contextvars.ContextVar`) for streaming usage** — rejected: implicit, hard to test in isolation, requires careful propagation across async boundaries.
+  - **Ignore token counts for streaming** — rejected: ADR-035 requires metering on all LLM calls, including streaming ones.
+  - **`AsyncIterator[str]` only, pull usage separately** — rejected: introduces a two-step API that callers must always pair correctly.
+
+- **Consequences:**
+  - `CompletionResult` is defined in `core/ai/llm/__init__.py` and exported from `fast_agent_stack.core.ai.llm`.
+  - All `LLMBackend` implementations (Bedrock, OpenAI, Anthropic, LiteLLM) must emit a trailing `CompletionResult` as the final item of their `stream()` async generator.
+  - `core/ai/streaming.py` (`stream_sse` helper) is responsible for splitting `str` chunks (→ SSE) from the trailing `CompletionResult` (→ `UsageService.log_usage()`).
+  - ADR-021 is amended by this ADR (not superseded) — it adds return-type specificity to the previously undefined `CompletionResult` reference and corrects the `stream()` return type annotation.
+  - ADR-035 is updated to reference `CompletionResult` as the token count carrier for both `complete()` and `stream()` paths.
+  - Invariant I21 is added: token usage log write failures must not abort or delay the LLM response.
+  - `spec/GLOSSARY.md` gains three terms: `CompletionResult`, `UsageService`, `ConversationLog`.
+  - `spec/ARCHITECTURE.md` Module 9 (LLM Provider Abstraction) and Module 10 (Agent Lifecycle) are updated to document the type definitions and dispatcher contract.

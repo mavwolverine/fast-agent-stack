@@ -47,6 +47,16 @@ class SessionAuthBackend:
         await self._redis.expire(f"{_SESSION_PREFIX}{session_id}", self._ttl)
         return uuid.UUID(data["user_id"])
 
+    async def verify_token(self, token: str) -> uuid.UUID | None:
+        raw = await self._redis.get(f"{_SESSION_PREFIX}{token}")
+        if not raw:
+            return None
+        data: dict[str, str] = json.loads(raw)
+        try:
+            return uuid.UUID(data["user_id"])
+        except (KeyError, ValueError):
+            return None
+
     async def create_token(self, user: object, response: Response) -> TokenResponse:
         from fast_agent_stack.core.auth.models import User as _User
 

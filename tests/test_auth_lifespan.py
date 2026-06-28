@@ -20,7 +20,7 @@ def _settings(**kwargs: Any) -> BaseSettings:
     """Build a minimal BaseSettings bypassing env discovery."""
     defaults = {
         "app_name": "test",
-        "auth_backend": "none",
+        "auth_backends": [],
     }
     defaults.update(kwargs)
     return BaseSettings.model_construct(**defaults)  # type: ignore[call-arg]
@@ -31,8 +31,8 @@ def _settings(**kwargs: Any) -> BaseSettings:
 # ===========================================================================
 
 
-async def test_b1_hook_no_op_when_auth_backend_none() -> None:
-    s = _settings(auth_backend="none")
+async def test_b1_hook_no_op_when_auth_backends_empty() -> None:
+    s = _settings(auth_backends=[])
     hook = AuthLifespanHook(s)
     await hook.__aenter__()
     await hook.__aexit__(None, None, None)
@@ -48,7 +48,7 @@ async def test_b2_hook_sets_backend_on_enter(monkeypatch: pytest.MonkeyPatch) ->
 
     s = BaseSettings.model_construct(
         app_name="test",
-        auth_backend="jwt",
+        auth_backends=["jwt"],
         secret_key="my-secret-key",
         redis_url="redis://localhost:6379",
         access_token_ttl_seconds=900,
@@ -78,7 +78,7 @@ async def test_b3_hook_clears_backend_on_exit(monkeypatch: pytest.MonkeyPatch) -
     backend = JWTAuthBackend("k", 900, 2592000, fake_redis)
     _set_backend(backend)
 
-    s = _settings(auth_backend="none")
+    s = _settings(auth_backends=[])
     hook = AuthLifespanHook(s)
     # Manually install redis so exit can close it
     hook._redis = fake_redis
@@ -136,7 +136,7 @@ def test_a1_i3_lifespan_gates_redis_import() -> None:
 def test_n1_i11_jwt_requires_secret_key() -> None:
     with pytest.raises(RuntimeError, match="secret_key"):
         BaseSettings(
-            auth_backend="jwt",
+            auth_backends=["jwt"],
             redis_url="redis://localhost:6379",
         )
 
@@ -144,33 +144,33 @@ def test_n1_i11_jwt_requires_secret_key() -> None:
 def test_n2_i11_jwt_requires_redis_url() -> None:
     with pytest.raises(RuntimeError, match="redis_url"):
         BaseSettings(
-            auth_backend="jwt",
+            auth_backends=["jwt"],
             secret_key="my-secret",
         )
 
 
 def test_n3_i11_session_requires_redis_url() -> None:
     with pytest.raises(RuntimeError, match="redis_url"):
-        BaseSettings(auth_backend="session")
+        BaseSettings(auth_backends=["session"])
 
 
-def test_n4_i11_both_requires_secret_key_and_redis_url() -> None:
+def test_n4_i11_multi_backend_requires_secret_key_and_redis_url() -> None:
     with pytest.raises(RuntimeError):
-        BaseSettings(auth_backend="both")
+        BaseSettings(auth_backends=["jwt", "session"])
 
 
-def test_n5_settings_valid_none_auth_no_redis_needed() -> None:
-    s = BaseSettings(auth_backend="none")
-    assert s.auth_backend == "none"
+def test_n5_settings_valid_empty_auth_no_redis_needed() -> None:
+    s = BaseSettings(auth_backends=[])
+    assert s.auth_backends == []
 
 
 def test_n6_settings_valid_jwt_with_all_required() -> None:
     s = BaseSettings(
-        auth_backend="jwt",
+        auth_backends=["jwt"],
         secret_key="valid-secret-key",
         redis_url="redis://localhost:6379",
     )
-    assert s.auth_backend == "jwt"
+    assert s.auth_backends == ["jwt"]
     assert s.access_token_ttl_seconds == 900
     assert s.refresh_token_ttl_seconds == 2592000
     assert s.session_ttl_seconds == 86400
@@ -191,7 +191,7 @@ async def test_f1_i11_redis_unreachable_raises_runtime_error() -> None:
 
     s = BaseSettings.model_construct(
         app_name="test",
-        auth_backend="jwt",
+        auth_backends=["jwt"],
         secret_key="my-secret-key",
         redis_url="redis://bad-host:6379",
         access_token_ttl_seconds=900,

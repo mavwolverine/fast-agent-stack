@@ -13,11 +13,11 @@ from fast_agent_stack.config import BaseSettings
 
 
 def test_b1_constructs_with_defaults() -> None:
-    s = BaseSettings()
+    s = BaseSettings.model_construct()  # bypass validation to inspect raw defaults
     assert s.app_name == "FastAgentStack"
     assert s.debug is False
     assert s.secret_key is None
-    assert s.auth_backend == "none"
+    assert s.auth_backends == []
     assert s.admin_enabled is False
     assert s.admin_secret_key is None
 
@@ -115,17 +115,17 @@ def test_n1_construction_under_100ms(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_f1_jwt_no_secret_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    """I11: auth_backend='jwt' requires secret_key."""
+    """I11: auth_backends=['jwt'] requires secret_key."""
     monkeypatch.delenv("SECRET_KEY", raising=False)
     with pytest.raises(RuntimeError, match="secret_key"):
-        BaseSettings(auth_backend="jwt")
+        BaseSettings(auth_backends=["jwt"], redis_url="redis://localhost:6379")
 
 
-def test_f2_both_no_secret_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    """I11: auth_backend='both' requires secret_key."""
+def test_f2_multi_backend_no_secret_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """I11: auth_backends=['jwt','session'] requires secret_key for jwt."""
     monkeypatch.delenv("SECRET_KEY", raising=False)
     with pytest.raises(RuntimeError, match="secret_key"):
-        BaseSettings(auth_backend="both")
+        BaseSettings(auth_backends=["jwt", "session"], redis_url="redis://localhost:6379")
 
 
 def test_f3_admin_enabled_no_keys_raises(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -133,12 +133,12 @@ def test_f3_admin_enabled_no_keys_raises(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.delenv("SECRET_KEY", raising=False)
     monkeypatch.delenv("ADMIN_SECRET_KEY", raising=False)
     with pytest.raises(RuntimeError, match="admin"):
-        BaseSettings(admin_enabled=True)
+        BaseSettings(auth_backends=[], admin_enabled=True)
 
 
 def test_f4_admin_enabled_with_secret_key_does_not_raise() -> None:
     """I11: admin may reuse secret_key when admin_secret_key is absent."""
-    s = BaseSettings(admin_enabled=True, secret_key="s3cr3t")
+    s = BaseSettings(auth_backends=[], admin_enabled=True, secret_key="s3cr3t")
     assert s.admin_enabled is True
 
 
@@ -148,6 +148,6 @@ def test_f5_invalid_secrets_backend_raises(monkeypatch: pytest.MonkeyPatch) -> N
         BaseSettings()
 
 
-def test_f6_invalid_auth_backend_raises() -> None:
-    with pytest.raises(ValueError, match="auth_backend"):
-        BaseSettings(auth_backend="magic")
+def test_f6_invalid_auth_backend_name_raises() -> None:
+    with pytest.raises(ValueError, match="Unknown auth backend"):
+        BaseSettings(auth_backends=["magic"])

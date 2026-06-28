@@ -13,7 +13,7 @@ from pydantic_settings import (
     BaseSettings as _BaseSettings,
 )
 
-_VALID_AUTH_BACKENDS = frozenset({"none", "jwt", "session", "both"})
+_BUILTIN_AUTH_BACKENDS = frozenset({"jwt", "session"})
 _VALID_SECRETS_BACKENDS = frozenset({"none", "aws", "gcp", ""})
 
 
@@ -29,7 +29,7 @@ class BaseSettings(_BaseSettings):
 
     # Auth fields — validated at construction time by I11
     secret_key: str | None = None
-    auth_backend: str = "none"  # "jwt" | "session" | "both" | "none"
+    auth_backends: list[str] = []  # e.g. ["jwt"] | ["session"] | ["jwt", "session"] (ADR-034)
     admin_enabled: bool = False
     admin_secret_key: str | None = None
 
@@ -43,18 +43,24 @@ class BaseSettings(_BaseSettings):
 
     @model_validator(mode="after")
     def _validate_required_secrets(self) -> Self:
-        if self.auth_backend not in _VALID_AUTH_BACKENDS:
+        builtin = [b for b in self.auth_backends if b in _BUILTIN_AUTH_BACKENDS]
+        unknown_builtins = [
+            b for b in self.auth_backends
+            if b not in _BUILTIN_AUTH_BACKENDS and "." not in b
+        ]
+        if unknown_builtins:
             raise ValueError(
-                f"Invalid auth_backend={self.auth_backend!r}. "
-                f"Expected one of: {sorted(_VALID_AUTH_BACKENDS)}"
+                f"Unknown auth backend(s): {unknown_builtins!r}. "
+                f"Built-in options: {sorted(_BUILTIN_AUTH_BACKENDS)}. "
+                "For custom backends use a dotted Python path."
             )
-        if self.auth_backend in ("jwt", "both") and not self.secret_key:
+        if "jwt" in builtin and not self.secret_key:
             raise RuntimeError(
-                "secret_key must be set when auth_backend is 'jwt' or 'both' (I11)"
+                "secret_key must be set when 'jwt' is in auth_backends (I11)"
             )
-        if self.auth_backend in ("jwt", "session", "both") and not self.redis_url:
+        if builtin and not self.redis_url:
             raise RuntimeError(
-                "redis_url must be set when auth_backend is 'jwt', 'session', or 'both' (I11)"
+                "redis_url must be set when auth_backends includes built-in backends (I11)"
             )
         if self.admin_enabled and not (self.admin_secret_key or self.secret_key):
             raise RuntimeError(

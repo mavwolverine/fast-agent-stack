@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     redis_url: str
     llm_provider: str = "bedrock"
     llm_model: str = "claude-sonnet"
+
+    # Auth backends — ordered list; first entry is the primary (issues tokens on login).
+    # Built-in aliases: "jwt", "session". Dotted path for custom backends (ADR-012).
+    auth_backends: list[str] = ["jwt"]          # JWT only (default)
+    # auth_backends: list[str] = ["session"]    # session only
+    # auth_backends: list[str] = ["jwt", "session"]  # JWT primary, session fallback
 ```
 
 Access settings in route handlers via a cached FastAPI dependency:
@@ -138,7 +144,7 @@ Task Queue:
 
 Auth:
 ? Include user auth? (Yes / No)
-? Auth method? (JWT / Session / Both)
+? Auth backends? (JWT / Session / JWT + Session)
 
 Admin:
 ? Include admin panel? (Yes / No)

@@ -44,7 +44,12 @@ dependencies = [
     "fast-agent-stack[scheduler]",
 {%- endif %}
 {%- if include_auth %}
-    "fast-agent-stack[auth-{{ auth_method if auth_method != 'both' else 'jwt'}}]",
+{%- if auth_backends == "jwt" or auth_backends == "jwt-and-session" %}
+    "fast-agent-stack[auth-jwt]",
+{%- endif %}
+{%- if auth_backends == "session" or auth_backends == "jwt-and-session" %}
+    "fast-agent-stack[auth-session]",
+{%- endif %}
 {%- endif %}
 {%- if include_admin %}
     "fast-agent-stack[admin]",

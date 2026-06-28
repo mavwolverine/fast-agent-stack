@@ -20,9 +20,11 @@ class TokenResponse(BaseModel):
 
 @runtime_checkable
 class AuthBackend(Protocol):
-    """I1: all four methods required on every concrete backend."""
+    """I1: all five methods required on every concrete backend."""
 
     async def authenticate(self, request: Request) -> uuid.UUID | None: ...
+
+    async def verify_token(self, token: str) -> uuid.UUID | None: ...
 
     async def create_token(self, user: "User", response: Response) -> TokenResponse: ...
 
