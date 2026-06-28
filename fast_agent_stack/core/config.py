@@ -36,6 +36,9 @@ class BaseSettings(_BaseSettings):
     # Redis (ADR-006, ADR-032, ADR-033)
     redis_url: str | None = None
 
+    # Rate limiting (ADR-016)
+    include_rate_limit: bool = False
+
     # Token / session TTLs (ADR-015, ADR-032)
     access_token_ttl_seconds: int = 900        # 15 minutes
     refresh_token_ttl_seconds: int = 2592000   # 30 days
@@ -58,9 +61,10 @@ class BaseSettings(_BaseSettings):
             raise RuntimeError(
                 "secret_key must be set when 'jwt' is in auth_backends (I11)"
             )
-        if builtin and not self.redis_url:
+        if (builtin or self.include_rate_limit) and not self.redis_url:
             raise RuntimeError(
-                "redis_url must be set when auth_backends includes built-in backends (I11)"
+                "redis_url must be set when auth_backends includes built-in backends "
+                "or include_rate_limit is True (I11, ADR-016)"
             )
         if self.admin_enabled and not (self.admin_secret_key or self.secret_key):
             raise RuntimeError(

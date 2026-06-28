@@ -151,3 +151,15 @@ def test_f5_invalid_secrets_backend_raises(monkeypatch: pytest.MonkeyPatch) -> N
 def test_f6_invalid_auth_backend_name_raises() -> None:
     with pytest.raises(ValueError, match="Unknown auth backend"):
         BaseSettings(auth_backends=["magic"])
+
+
+def test_f7_rate_limit_no_redis_url_raises() -> None:
+    """I11: include_rate_limit=True requires redis_url (ADR-016)."""
+    with pytest.raises(RuntimeError, match="redis_url"):
+        BaseSettings(include_rate_limit=True)
+
+
+def test_f8_rate_limit_with_redis_url_does_not_raise() -> None:
+    """I11: include_rate_limit=True is valid when redis_url is set."""
+    s = BaseSettings(include_rate_limit=True, redis_url="redis://localhost:6379")
+    assert s.include_rate_limit is True

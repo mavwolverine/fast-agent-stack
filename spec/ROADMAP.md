@@ -42,13 +42,30 @@
 - [x] SQLAdmin integration (gated behind `admin` extra)
 - [x] Tests
 
-## Phase 4: AI & Streaming
-- [ ] LLM provider abstraction (Bedrock, OpenAI, Anthropic, LiteLLM)
-- [ ] SSE streaming response helpers
-- [ ] Conversation persistence
-- [ ] Agent registration + lifecycle
-- [ ] Token usage metering (ADR-035 — per-request event log)
+## Phase 4a: AI Type Layer (ADR-036)
+- [x] `Message` + `CompletionResult` frozen dataclasses in `core/ai/llm/__init__.py`
+- [x] `LLMBackend` Protocol (`model_id`, `complete`, `stream`, `count_tokens`) — `messages: list[Message]` signature
+- [x] `stream_sse` helper in `core/ai/streaming.py` — SSE dispatch + CompletionResult sentinel intercept
+- [x] `UsageService` stub in `core/ai/usage.py` — swallows write failures (I21)
+- [x] Tests
+
+## Phase 4b: LLM Provider Backends (ADR-021)
+- [ ] Bedrock backend (extras-gated: `llm-bedrock`)
+- [ ] OpenAI backend (extras-gated: `llm-openai`)
+- [ ] Anthropic backend (extras-gated: `llm-anthropic`)
+- [ ] LiteLLM proxy backend (extras-gated: `llm-litellm`)
+- [ ] Each backend emits trailing `CompletionResult` sentinel in `stream()`
 - [ ] Tests
+
+## Phase 4c: Agent Lifecycle & Metering (ADR-035)
+- [ ] `@app.agent()` decorator + handler registration
+- [ ] Agent dispatcher: non-streaming → `complete()`, streaming → `stream_sse()` (via `inspect.isasyncgenfunction`)
+- [ ] `ConversationLog` table + migration (`0001_fas_ai_*.py`)
+- [ ] `token_usage_log` table + migration (ADR-035)
+- [ ] `UsageService.log_usage()` real DB write (replaces 4a stub)
+- [ ] Conversation persistence (`core/ai/conversation.py`)
+- [ ] Tests
+- [ ] `agent` preset complete
 
 ## Phase 5: Data Pipeline
 - [ ] Storage backends (S3, local, MinIO)
