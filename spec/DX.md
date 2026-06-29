@@ -16,10 +16,12 @@ fastagentstack run   # production: multi-worker, 0.0.0.0
 
 ```python
 from fast_agent_stack import FastAgentStack
+from fast_agent_stack.core.ai.llm import get_llm_backend
 
 app = FastAgentStack()
+backend = get_llm_backend()
 
-@app.agent(name="assistant", model="claude-sonnet")
+@app.agent(name="assistant", backend=backend)
 async def assistant(message: str, history: list):
     # your agent logic
     return response

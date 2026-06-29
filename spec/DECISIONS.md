@@ -789,8 +789,8 @@ Table: `token_usage_log`
 | Column | Type | Notes |
 |---|---|---|
 | id | UUID | primary key |
-| user_id | FK → users | nullable (for system/anonymous calls) |
-| api_key_id | FK → api_keys | nullable |
+| user_id | UUID | nullable, soft reference to users (no FK — AI tables must work without auth tables) |
+| api_key_id | UUID | nullable, soft reference to api_keys |
 | agent_name | str | which agent handled the request |
 | model | str | model identifier (e.g., `claude-sonnet-4-20250514`) |
 | prompt_tokens | int | input tokens |
@@ -812,7 +812,7 @@ The `LLMBackend.complete()` and `LLMBackend.stream()` methods return token count
 - Every LLM call produces one row — high-volume apps may need table partitioning (by month)
 - No Redis counters needed — DB is the source of truth for usage
 - Rate limiting by token budget is possible: `SELECT SUM(total_tokens) WHERE user_id = ? AND created_at > now() - interval '1 day'`
-- Framework provides a `UsageService` with `log_usage()` and `get_usage(user_id, period)` methods
+- Framework provides a `UsageService` with `log_usage()` (Phase 4c) and `get_usage(user_id, period)` (Phase 6) methods
 - The table is a framework migration (`0002_fas_ai_token_usage.py`) — auto-applied when AI extras are installed
 - Users who don't need metering can ignore it (rows accumulate but don't affect performance until millions+)
 - Token count carrier type (`CompletionResult`) and the streaming sentinel pattern are defined in ADR-036

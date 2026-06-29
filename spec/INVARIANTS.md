@@ -52,7 +52,7 @@ Examples:
 
 The following must not change between minor versions without a deprecation cycle:
 - `FastAgentStack()` constructor signature
-- `@app.agent(name, model)` decorator
+- `@app.agent(name, backend)` decorator
 - `BaseSettings` subclass pattern and `env_prefix` convention
 - All CLI command names and their arguments
 - Generated project file paths
@@ -168,7 +168,7 @@ A settings-driven registry maps enabled features to their migration modules. The
 ```python
 FRAMEWORK_MIGRATION_MODULES = {
     "auth": ("fast_agent_stack.core.auth.migrations", "pwdlib"),  # gate: pwdlib importable
-    "ai": ("fast_agent_stack.core.ai.migrations", "anthropic"),   # gate: any LLM SDK importable
+    "ai": ("fast_agent_stack.core.ai.migrations", ["anthropic", "openai", "litellm", "aioboto3"]),  # gate: any one importable
 }
 ```
 

@@ -130,7 +130,7 @@ It is responsible for:
 
 ### 10. Agent Lifecycle
 
-- Agent registration via `@app.agent(name, model)` decorator
+- Agent registration via `@app.agent(name, backend)` decorator
 - Agent handlers may be `async def` coroutines or async generator functions. The framework detects
   the handler form at dispatch time using `inspect.isasyncgenfunction` and routes accordingly:
 

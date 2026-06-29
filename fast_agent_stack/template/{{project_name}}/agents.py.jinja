@@ -1,0 +1,42 @@
+{% if llm_provider != "none" %}
+"""Agent definitions for {{ project_name }}.
+
+Register each agent with ``@app.agent(name, backend=backend)`` and decorate an
+async handler. Return a string for non-streaming, or use ``async def … yield``
+for streaming (ADR-036).
+"""
+
+from fast_agent_stack.core.ai.llm import Message
+{% if llm_provider == "anthropic" %}
+from fast_agent_stack.core.ai.llm.anthropic import AnthropicLLMBackend
+
+_backend = AnthropicLLMBackend(model_id="claude-haiku-4-5-20251001")
+{% elif llm_provider == "openai" %}
+from fast_agent_stack.core.ai.llm.openai import OpenAILLMBackend
+
+_backend = OpenAILLMBackend(model_id="gpt-4o-mini")
+{% elif llm_provider == "bedrock" %}
+from fast_agent_stack.core.ai.llm.bedrock import BedrockLLMBackend
+
+_backend = BedrockLLMBackend(model_id="us.amazon.nova-micro-v1:0")
+{% elif llm_provider == "litellm" %}
+from fast_agent_stack.core.ai.llm.litellm import LiteLLMLLMBackend
+
+_backend = LiteLLMLLMBackend(model_id="gpt-4o-mini")
+{% endif %}
+
+
+def register_agents(app):  # type: ignore[type-arg]
+    """Mount all agent routes on *app* (call from main.py after app creation)."""
+
+    @app.agent("chat", backend=_backend)
+    async def chat_agent(
+        messages: list[Message],
+        *,
+        user_id,
+        api_key_id,
+        conversation_id,
+    ) -> str:
+        user_message = messages[-1].content if messages else ""
+        return f"Echo: {user_message}"
+{% endif %}

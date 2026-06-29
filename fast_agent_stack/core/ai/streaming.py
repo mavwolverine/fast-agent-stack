@@ -6,6 +6,7 @@ from typing import AsyncIterator
 from uuid import UUID
 
 from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from fast_agent_stack.core.ai.llm import CompletionResult
 from fast_agent_stack.core.ai.usage import UsageService
@@ -22,6 +23,7 @@ async def stream_sse(
     api_key_id: UUID | None,
     agent_name: str,
     conversation_id: UUID | None,
+    db: AsyncSession | None = None,
 ) -> StreamingResponse:
     async def _generate() -> AsyncIterator[bytes]:
         async for item in iterator:
@@ -35,6 +37,7 @@ async def stream_sse(
                         api_key_id=api_key_id,
                         agent_name=agent_name,
                         conversation_id=conversation_id,
+                        db=db,
                     )
                 except Exception:
                     logger.warning(

@@ -6,6 +6,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 FRAMEWORK_TABLES: frozenset[str] = frozenset(
     {
+        # Auth tables (Phase 3)
         "users",
         "groups",
         "permissions",
@@ -14,6 +15,10 @@ FRAMEWORK_TABLES: frozenset[str] = frozenset(
         "user_permissions",
         "auth_verification_token",
         "api_keys",
+        # AI tables (Phase 4c)
+        "conversation_log",
+        "conversation_messages",
+        "token_usage_log",
     }
 )
 

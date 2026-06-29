@@ -58,14 +58,14 @@
 - [x] Tests (36 tests: conformance, sentinel, escape hatch, extras gate per backend)
 
 ## Phase 4c: Agent Lifecycle & Metering (ADR-035)
-- [ ] `@app.agent()` decorator + handler registration
-- [ ] Agent dispatcher: non-streaming → `complete()`, streaming → `stream_sse()` (via `inspect.isasyncgenfunction`)
-- [ ] `ConversationLog` table + migration (`0001_fas_ai_*.py`)
-- [ ] `token_usage_log` table + migration (ADR-035)
-- [ ] `UsageService.log_usage()` real DB write (replaces 4a stub)
-- [ ] Conversation persistence (`core/ai/conversation.py`)
-- [ ] Tests
-- [ ] `agent` preset complete
+- [x] `@app.agent()` decorator + handler registration
+- [x] Agent dispatcher: non-streaming → `complete()`, streaming → `stream_sse()` (via `inspect.isasyncgenfunction`)
+- [x] `ConversationLog` table + migration (`0001_fas_ai_conversation.py`)
+- [x] `token_usage_log` table + migration (`0002_fas_ai_token_usage.py`, ADR-035)
+- [x] `UsageService.log_usage()` real DB write (replaces 4a stub)
+- [x] Conversation persistence (`core/ai/conversation.py`)
+- [x] Tests (35 tests covering behavior, contract, architecture, NFR, failure modes)
+- [x] `agent` preset complete (agents.py.jinja with all 4 provider branches)
 
 ## Phase 5: Data Pipeline
 - [ ] Storage backends (S3, local, MinIO)
@@ -81,6 +81,7 @@
 - [ ] Observability (OpenTelemetry + Jaeger, config-driven)
 - [ ] Password reset + email verification (aiosmtplib)
 - [ ] Secrets manager backends (AWS, GCP)
+- [ ] `UsageService.get_usage(user_id, period)` query API (ADR-035)
 - [ ] Tests
 
 ## Phase 7: Scaffolder Completion & Release (standard preset complete)

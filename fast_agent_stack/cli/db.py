@@ -1,5 +1,6 @@
 import asyncio
 import importlib
+import importlib.util
 import sys
 from pathlib import Path
 from typing import Optional
@@ -49,23 +50,34 @@ def _discover_database_url() -> str | None:
     return None
 
 
-# I16: registry mapping feature keys to (migration_module, gate_package) tuples.
-# fas migrate only applies migrations when the gate package is importable.
-FRAMEWORK_MIGRATION_MODULES: dict[str, tuple[str, str]] = {
-    "auth": ("fast_agent_stack.core.auth.migrations", "pwdlib"),
-    # "ai": ("fast_agent_stack.core.ai.migrations", "anthropic"),  # Phase 4
+# I16: registry mapping feature keys to (migration_module, gate_packages) tuples.
+# fas migrate applies AI migrations when ANY gate package is importable (any-of semantics).
+FRAMEWORK_MIGRATION_MODULES: dict[str, tuple[str, list[str]]] = {
+    "auth": ("fast_agent_stack.core.auth.migrations", ["pwdlib"]),
+    "ai": (
+        "fast_agent_stack.core.ai.migrations",
+        ["anthropic", "openai", "litellm", "aioboto3"],
+    ),
 }
+
+
+def _gate_package_available(pkg: str) -> bool:
+    """Return True if *pkg* is findable without importing it."""
+    try:
+        return importlib.util.find_spec(pkg) is not None
+    except (ValueError, AttributeError):
+        # find_spec raises ValueError when sys.modules contains a non-module
+        # (e.g. a MagicMock in tests). Treat as not available.
+        return False
 
 
 def _run_framework_migrations(database_url: str) -> None:
     """Apply framework-bundled migrations for enabled modules (I16)."""
     import importlib.resources as ilr
 
-    for key, (module_path, gate_package) in FRAMEWORK_MIGRATION_MODULES.items():
-        # Import-based gating: skip if extras not installed
-        try:
-            importlib.import_module(gate_package)
-        except ImportError:
+    for _key, (module_path, gate_packages) in FRAMEWORK_MIGRATION_MODULES.items():
+        # Any-of gating: run migrations if at least one gate package is findable.
+        if not any(_gate_package_available(pkg) for pkg in gate_packages):
             continue
 
         pkg = ilr.files(module_path)

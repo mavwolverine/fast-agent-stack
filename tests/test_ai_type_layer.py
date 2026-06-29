@@ -220,7 +220,7 @@ _SENTINEL = CompletionResult(
     content="", model="m", prompt_tokens=10, completion_tokens=5, total_tokens=15, cost=None
 )
 
-_KWARGS = dict(user_id=None, api_key_id=None, agent_name="test", conversation_id=None)
+_KWARGS = dict(user_id=None, api_key_id=None, agent_name="test", conversation_id=None, db=None)
 
 
 class TestStreamSSE:
@@ -283,6 +283,7 @@ class TestStreamSSE:
             api_key_id=None,
             agent_name="test",
             conversation_id=None,
+            db=None,
         )
 
     @pytest.mark.asyncio
@@ -340,4 +341,5 @@ class TestStreamSSE:
             api_key_id=kid,
             agent_name="my-agent",
             conversation_id=cid,
+            db=None,
         )

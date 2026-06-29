@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any
 
@@ -35,6 +35,7 @@ class FastAgentStack:
         self._hooks: list[LifespanHook] = []
         self._models: list[Any] = []
         self._admin_views: list[Any] = []
+        self._agents: dict[str, Any] = {}
         hooks = self._hooks
 
         @asynccontextmanager
@@ -75,6 +76,37 @@ class FastAgentStack:
         self.fastapi_app.include_router(module.get_router())
         self._models.extend(module.get_models())
         self._admin_views.extend(module.get_admin_views())
+
+    def agent(
+        self,
+        name: str,
+        backend: Any,
+        *,
+        path: str | None = None,
+        tags: list[str] | None = None,
+        summary: str | None = None,
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        """Register an agent handler and mount a POST route at /agents/{name} (I6)."""
+        from fast_agent_stack.core.ai.agents import make_agent_route_func
+
+        def decorator(handler: Callable[..., Any]) -> Callable[..., Any]:
+            if name in self._agents:
+                raise ValueError(
+                    f"Agent name '{name}' is already registered. "
+                    "Each agent must have a unique name (I6)."
+                )
+            self._agents[name] = (handler, backend)
+            route_func = make_agent_route_func(name, handler, backend)
+            self.fastapi_app.add_api_route(
+                path or f"/agents/{name}",
+                route_func,
+                methods=["POST"],
+                tags=tags or ["agents"],
+                summary=summary or f"Agent: {name}",
+            )
+            return handler
+
+        return decorator
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         await self.fastapi_app(scope, receive, send)
