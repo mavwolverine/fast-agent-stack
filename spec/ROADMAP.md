@@ -68,12 +68,12 @@
 - [x] `agent` preset complete (agents.py.jinja with all 4 provider branches)
 
 ## Phase 5: Data Pipeline
-- [ ] Storage backends (S3, local, MinIO)
-- [ ] Vector store backends (Qdrant, pgvector, OpenSearch, Weaviate)
-- [ ] Embedding backends (Bedrock, OpenAI, local)
-- [ ] Document extraction backends (PDF, DOCX, XLSX, EML)
-- [ ] RAG pipeline service
-- [ ] Tests
+- [x] Storage backends (S3, local, MinIO)
+- [x] Vector store backends (Qdrant, pgvector, OpenSearch, Weaviate)
+- [x] Embedding backends (Bedrock, OpenAI, local)
+- [x] Document extraction backends (PDF, DOCX, XLSX, EML)
+- [x] RAG pipeline service
+- [x] Tests
 
 ## Phase 6: Background Tasks & Hardening
 - [ ] Background tasks (Dramatiq) + scheduling (periodiq)

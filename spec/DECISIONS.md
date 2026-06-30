@@ -935,3 +935,67 @@ async def get_session(redis: AsyncRedisDep):
 - Sessions, denylist, rate-limiting logic stays ours — built on top of `AsyncRedisDep`
 - Replaces `redis>=5` in extras with `fastapi-redis-sdk>=0.1` (which depends on redis-py internally)
 - I9 must be amended in Phase 8 before code changes begin
+
+---
+
+## ADR-038 — Phase 5 Protocol Signatures: StorageProtocol, VectorStoreProtocol, EmbeddingProtocol
+
+**Phase:** 5
+
+**Context:** ARCHITECTURE.md listed only method names for Phase 5 backend families — no parameter types or return types. Without full signatures, I1 (Full Protocol Conformance) cannot be enforced.
+
+**Decision:** Define complete typed signatures for all three protocols. Key choices:
+- `StorageProtocol.upload(key: str, data: bytes, *, content_type: str) -> str` — takes `bytes` not `IO[bytes]`
+- `VectorStoreProtocol.search(collection, vector: list[float], *, top_k, filter) -> list[VectorSearchResult]` — takes pre-computed vector, not text
+- `EmbeddingProtocol.embed(text: str) -> list[float]` — returns `list[float]` not `numpy.ndarray`
+- Metadata constrained to `dict[str, str | int | float | bool]` (intersection of all backend capabilities)
+- `VectorSearchResult` dataclass: `id`, `score`, `metadata`, `content`
+
+**Consequences:**
+- I1 conformance enforceable across all implementations
+- `VectorSearchResult` exported from `core/vector/__init__.py`
+- `KeyNotFoundError` from `core/storage/__init__.py`, `CollectionNotFoundError` from `core/vector/__init__.py`
+- Full signatures documented in ARCHITECTURE.md Protocol methods table
+
+See `spec/adr/ADR-038.md` for complete Protocol definitions.
+
+---
+
+## ADR-039 — Embedding-Local Backend: fastembed
+
+**Phase:** 5
+
+**Context:** ARCHITECTURE.md claimed `embedding-local` uses "no extra deps" — this is incorrect. A real local embedding model requires a library.
+
+**Decision:** `embedding-local` extras installs `fastembed>=0.8` (ONNX Runtime, ~50MB, CPU-first). Default model: `BAAI/bge-small-en-v1.5` (384 dimensions, ~33MB download). Sync inference wrapped in `run_in_executor` for I2 compliance. Settings: `embedding_model`, `embedding_cache_dir`.
+
+**Consequences:**
+- ARCHITECTURE.md extras table corrected
+- ~50MB install vs ~2GB for sentence-transformers
+- Rules out sentence-transformers (too heavy) and stubs (useless)
+- GPU via `fastembed-gpu` available but not in framework extras
+
+See `spec/adr/ADR-039.md` for full rationale.
+
+---
+
+## ADR-040 — RagService API and Composition Model
+
+**Phase:** 5
+
+**Context:** ARCHITECTURE.md Module 11 listed RAG as a "Composable retrieval service" with no API, protocol, or composition model defined.
+
+**Decision:** `RagService` is a concrete service (not a Protocol). Takes `EmbeddingProtocol` + `VectorStoreProtocol` at construction via DI. Public API:
+- `ingest(collection, content, *, document_id, metadata) -> IngestResult`
+- `ingest_file(collection, data, *, filename, content_type, document_id, metadata) -> IngestResult`
+- `retrieve(collection, query, *, top_k, filter) -> list[RagChunk]`
+- `delete_document(collection, document_id) -> int`
+
+Chunking strategies: `fixed` (default, 512 tokens / 64 overlap) and `paragraph`. Chunk IDs: `{document_id}:{chunk_index}`. `ExtractionProtocol` defined for file → text conversion.
+
+**Consequences:**
+- Not pluggable via ADR-012 (variability is in the backends, not the orchestrator)
+- Users needing different RAG patterns compose directly from EmbeddingProtocol + VectorStoreProtocol
+- Settings: `rag_chunk_size`, `rag_chunk_overlap`, `rag_chunking_strategy`
+
+See `spec/adr/ADR-040.md` for complete API definitions.

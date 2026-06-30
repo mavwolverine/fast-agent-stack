@@ -27,14 +27,14 @@ class LocalEmbedding:
         return self._dimensions
 
     async def embed(self, text: str) -> list[float]:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
             None, functools.partial(self._sync_embed, text)
         )
         return result
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None, functools.partial(self._sync_embed_batch, texts)
         )
