@@ -61,10 +61,12 @@ litellm   = ["litellm>=1.30"]
 vector-qdrant     = ["qdrant-client>=1.7"]
 vector-pgvector   = ["pgvector>=0.2"]
 vector-opensearch = ["opensearch-py[async]>=2.3"]
+vector-weaviate   = ["weaviate-client>=4"]
 
 # Embedding backends
 embedding-bedrock = ["aioboto3>=12"]
 embedding-openai  = ["openai>=1.0"]
+embedding-local   = ["fastembed>=0.8"]
 
 # Storage backends
 storage-s3    = ["aioboto3>=12"]
@@ -125,6 +127,9 @@ plugins = ["pydantic.mypy"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: marks tests that require real external services (deselect with '-m not integration')",
+]
 
 [tool.coverage.run]
 source = ["fast_agent_stack"]

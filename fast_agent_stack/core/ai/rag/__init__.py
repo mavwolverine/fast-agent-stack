@@ -1,0 +1,170 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Literal
+
+from fast_agent_stack.core.ai.embedding import EmbeddingProtocol
+from fast_agent_stack.core.ai.extraction import get_extractor
+from fast_agent_stack.core.ai.rag.chunking import fixed_chunker, paragraph_chunker
+from fast_agent_stack.core.vector import VectorSearchResult, VectorStoreProtocol
+
+__all__ = ["RagService", "RagChunk", "IngestResult", "ChunkingStrategy"]
+
+ChunkingStrategy = Literal["fixed", "paragraph"]
+
+
+@dataclass(frozen=True)
+class RagChunk:
+    content: str
+    score: float
+    metadata: dict[str, str | int | float | bool]
+    document_id: str
+    chunk_index: int
+
+
+@dataclass(frozen=True)
+class IngestResult:
+    document_id: str
+    chunks_created: int
+    collection: str
+
+
+class RagService:
+    """Composable RAG pipeline (ADR-040). DI via EmbeddingProtocol + VectorStoreProtocol."""
+
+    def __init__(
+        self,
+        embedding: EmbeddingProtocol,
+        vector_store: VectorStoreProtocol,
+        *,
+        chunk_size: int = 512,
+        chunk_overlap: int = 64,
+        chunking_strategy: ChunkingStrategy = "fixed",
+    ) -> None:
+        self._embedding = embedding
+        self._vector_store = vector_store
+        self._chunk_size = chunk_size
+        self._chunk_overlap = chunk_overlap
+        self._chunking_strategy: ChunkingStrategy = chunking_strategy
+
+    def _chunk(self, text: str) -> list[str]:
+        if self._chunking_strategy == "paragraph":
+            return paragraph_chunker(text)
+        return fixed_chunker(text, self._chunk_size, self._chunk_overlap)
+
+    async def ingest(
+        self,
+        collection: str,
+        content: str,
+        *,
+        document_id: str,
+        metadata: dict[str, str | int | float | bool] | None = None,
+    ) -> IngestResult:
+        chunks = self._chunk(content)
+        if not chunks:
+            return IngestResult(document_id=document_id, chunks_created=0, collection=collection)
+        base_meta: dict[str, str | int | float | bool] = dict(metadata or {})
+        base_meta["_chunk_count"] = len(chunks)
+        vectors = await self._embedding.embed_batch(chunks)
+        for idx, (chunk_text, vector) in enumerate(zip(chunks, vectors)):
+            chunk_meta = dict(base_meta)
+            chunk_meta["_chunk_index"] = idx
+            chunk_meta["_document_id"] = document_id
+            await self._vector_store.upsert(
+                collection=collection,
+                id=f"{document_id}:{idx}",
+                vector=vector,
+                metadata=chunk_meta,
+                content=chunk_text,
+            )
+        return IngestResult(
+            document_id=document_id,
+            chunks_created=len(chunks),
+            collection=collection,
+        )
+
+    async def ingest_file(
+        self,
+        collection: str,
+        data: bytes,
+        *,
+        filename: str,
+        content_type: str,
+        document_id: str,
+        metadata: dict[str, str | int | float | bool] | None = None,
+    ) -> IngestResult:
+        if content_type == "text/plain":
+            text = data.decode("utf-8", errors="replace")
+        else:
+            extractor = get_extractor(content_type)
+            if extractor is None:
+                raise ValueError(
+                    f"No extractor available for content_type={content_type!r}. "
+                    "Supported: application/pdf, application/vnd...docx, "
+                    "application/vnd...xlsx, message/rfc822, text/plain."
+                )
+            text = await extractor.extract(data)
+        return await self.ingest(
+            collection,
+            text,
+            document_id=document_id,
+            metadata=metadata,
+        )
+
+    async def retrieve(
+        self,
+        collection: str,
+        query: str,
+        *,
+        top_k: int = 10,
+        filter: dict[str, str | int | float | bool] | None = None,
+    ) -> list[RagChunk]:
+        vector = await self._embedding.embed(query)
+        results: list[VectorSearchResult] = await self._vector_store.search(
+            collection,
+            vector,
+            top_k=top_k,
+            filter=filter,
+        )
+        chunks: list[RagChunk] = []
+        for hit in results:
+            meta = dict(hit.metadata)
+            doc_id = str(meta.pop("_document_id", ""))
+            chunk_idx = int(meta.pop("_chunk_index", 0))
+            meta.pop("_chunk_count", None)
+            chunks.append(RagChunk(
+                content=hit.content or "",
+                score=hit.score,
+                metadata=meta,
+                document_id=doc_id,
+                chunk_index=chunk_idx,
+            ))
+        return chunks
+
+    async def delete_document(self, collection: str, document_id: str) -> int:
+        # Search with a zero-vector filtered on _document_id to retrieve _chunk_count.
+        # We stored _chunk_count in every chunk's metadata during ingest so we can
+        # reconstruct chunk IDs deterministically without a separate index.
+        dims = self._embedding.dimensions
+        dummy = [0.0] * dims
+        try:
+            hits = await self._vector_store.search(
+                collection,
+                dummy,
+                top_k=1,
+                filter={"_document_id": document_id},
+            )
+            if not hits:
+                return 0
+            chunk_count = int(hits[0].metadata.get("_chunk_count", 0))
+        except Exception:
+            return 0
+
+        deleted = 0
+        for idx in range(chunk_count):
+            try:
+                await self._vector_store.delete(collection, f"{document_id}:{idx}")
+                deleted += 1
+            except Exception:
+                pass
+        return deleted
