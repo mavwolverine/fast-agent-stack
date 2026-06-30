@@ -42,6 +42,42 @@ class BaseSettings(_BaseSettings):
     # LLM backend timeout — seconds to wait for provider API calls (NFR Reliability)
     llm_timeout: float = 30.0
 
+    # Storage backend (Phase 5, ADR-038)
+    storage_backend: str = "local"
+    storage_local_root: str = "./uploads"
+    storage_s3_bucket: str = ""
+    storage_s3_region: str = "us-east-1"
+    storage_minio_endpoint: str = ""
+    storage_minio_bucket: str = ""
+    storage_minio_access_key: str = ""
+    storage_minio_secret_key: str = ""
+    storage_timeout: float = 30.0
+
+    # Vector store backend (Phase 5, ADR-038)
+    vector_db: str = "qdrant"
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str | None = None
+    pgvector_collection_schema: str = "public"
+    opensearch_url: str = "http://localhost:9200"
+    opensearch_username: str | None = None
+    opensearch_password: str | None = None
+    weaviate_url: str = "http://localhost:8080"
+    weaviate_api_key: str | None = None
+    vector_timeout: float = 30.0
+
+    # Embedding backend (Phase 5, ADR-038, ADR-039)
+    embedding_provider: str = "local"
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_cache_dir: str = ""
+    embedding_openai_model: str = "text-embedding-3-small"
+    embedding_bedrock_model_id: str = "amazon.titan-embed-text-v2:0"
+    embedding_timeout: float = 30.0
+
+    # RAG pipeline (Phase 5, ADR-040)
+    rag_chunk_size: int = 512
+    rag_chunk_overlap: int = 64
+    rag_chunking_strategy: str = "fixed"
+
     # Token / session TTLs (ADR-015, ADR-032)
     access_token_ttl_seconds: int = 900        # 15 minutes
     refresh_token_ttl_seconds: int = 2592000   # 30 days
