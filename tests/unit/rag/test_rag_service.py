@@ -8,7 +8,9 @@ from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 
-from fast_agent_stack.core.ai.rag import ChunkingStrategy, IngestResult, RagChunk, RagService
+from fast_agent_stack.core.ai.rag import (
+    ChunkingStrategy, IngestResult, RagChunk, RagService, UnsupportedFileTypeError,
+)
 from fast_agent_stack.core.vector import VectorSearchResult
 
 
@@ -40,9 +42,9 @@ def test_rag_chunk_is_frozen_dataclass():
 
 
 def test_ingest_result_is_frozen_dataclass():
-    result = IngestResult(document_id="d", chunks_created=1, collection="c")
+    result = IngestResult(document_id="d", chunks_stored=1, collection="c")
     with pytest.raises((dataclasses.FrozenInstanceError, AttributeError)):
-        result.chunks_created = 99  # type: ignore[misc]
+        result.chunks_stored = 99  # type: ignore[misc]
 
 
 async def test_rag_ingest_return_type():
@@ -74,7 +76,7 @@ async def test_rag_ingest_creates_correct_chunk_count():
     assert isinstance(result, IngestResult)
     assert result.document_id == "d1"
     assert result.collection == "col"
-    assert result.chunks_created == 1
+    assert result.chunks_stored == 1
 
 
 async def test_rag_chunk_ids_follow_document_id_colon_chunk_index_format():
@@ -153,7 +155,7 @@ async def test_rag_ingest_file_eml_dispatches_extraction():
         document_id="d5",
     )
     assert isinstance(result, IngestResult)
-    assert result.chunks_created >= 1
+    assert result.chunks_stored >= 1
 
 
 async def test_rag_ingest_file_text_plain_uses_text_directly():
@@ -166,12 +168,12 @@ async def test_rag_ingest_file_text_plain_uses_text_directly():
         document_id="d3",
     )
     assert isinstance(result, IngestResult)
-    assert result.chunks_created >= 1
+    assert result.chunks_stored >= 1
 
 
 async def test_rag_ingest_file_unsupported_content_type_raises():
     svc = RagService(_make_mock_embedding(), _make_mock_vector_store())
-    with pytest.raises(ValueError, match="No extractor available"):
+    with pytest.raises(UnsupportedFileTypeError):
         await svc.ingest_file(
             "col", b"binary",
             filename="blob.bin", content_type="application/octet-stream",

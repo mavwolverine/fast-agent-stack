@@ -150,11 +150,15 @@ It is responsible for:
 - Streaming response helpers (SSE wired into auth/middleware stack)
 
 ### 11. RAG Pipeline
-- Composable retrieval service
-- Pluggable vector store backends: Qdrant, pgvector, OpenSearch, Weaviate
-- Pluggable embedding backends: Bedrock, OpenAI, local
+- Composable retrieval service (`RagService` — concrete, not a Protocol; ADR-040)
+- Pluggable vector store backends: Qdrant, pgvector, OpenSearch, Weaviate (ADR-038 signatures)
+- Pluggable embedding backends: Bedrock, OpenAI, local/fastembed (ADR-038, ADR-039)
 - Document extraction: PDF (`extract-pdf`), DOCX (`extract-docx`), XLSX (`extract-xlsx`), EML (stdlib `email` module — no extra required)
-- Chunking strategies
+- Chunking strategies: `fixed` (default, ~512 tokens with 64-token overlap) and `paragraph`
+- RagService takes `EmbeddingProtocol` + `VectorStoreProtocol` at construction (DI, not factory calls)
+- Public API: `ingest()`, `ingest_file()`, `retrieve()`, `delete_document()`
+- Chunk IDs: `{document_id}:{chunk_index}` (deterministic, enables idempotent re-ingestion)
+- Returns `RagChunk` dataclass (content, score, metadata, document_id, chunk_index)
 
 ### 12. Storage
 - Pluggable backends: S3, local filesystem, MinIO
@@ -181,16 +185,16 @@ Inspired by Django's database backends. Each service type has:
 | `openai` | `openai>=1.0` | ADR-021 |
 | `anthropic` | `anthropic>=0.25` | ADR-021 |
 | `litellm` | `litellm>=1.30` | ADR-021 |
-| `vector-qdrant` | `qdrant-client>=1.7` | — |
-| `vector-pgvector` | `pgvector>=0.2` | — |
-| `vector-opensearch` | `opensearch-py[async]>=2.3` | — |
-| `vector-weaviate` | `weaviate-client>=4` | — |
-| `embedding-bedrock` | `aioboto3>=12` | — |
-| `embedding-openai` | `openai>=1.0` | — |
-| `embedding-local` | *(no extra deps — uses local model)* | — |
-| `storage-s3` | `aioboto3>=12` | — |
-| `storage-local` | `aiofiles>=23` | — |
-| `storage-minio` | `aioboto3>=12` | — |
+| `vector-qdrant` | `qdrant-client>=1.7` | ADR-038 |
+| `vector-pgvector` | `pgvector>=0.2` | ADR-038 |
+| `vector-opensearch` | `opensearch-py[async]>=2.3` | ADR-038 |
+| `vector-weaviate` | `weaviate-client>=4` | ADR-038 |
+| `embedding-bedrock` | `aioboto3>=12` | ADR-038 |
+| `embedding-openai` | `openai>=1.0` | ADR-038 |
+| `embedding-local` | `fastembed>=0.8` | ADR-038, ADR-039 |
+| `storage-s3` | `aioboto3>=12` | ADR-038 |
+| `storage-local` | `aiofiles>=23` | ADR-038 |
+| `storage-minio` | `aioboto3>=12` | ADR-038 |
 | `tasks` | `dramatiq[redis]>=1.15` | ADR-005, ADR-020 |
 | `scheduler` | `periodiq>=0.9` | ADR-005 |
 | `rate-limit` | `redis>=5` | ADR-016 |
@@ -228,11 +232,11 @@ class AzureStorage:
     def __init__(self, settings) -> None:
         self._client = BlobServiceClient(settings.azure_storage_url)
 
-    async def upload(self, key: str, data: bytes) -> None: ...
+    async def upload(self, key: str, data: bytes, *, content_type: str = "application/octet-stream") -> str: ...
     async def download(self, key: str) -> bytes: ...
     async def delete(self, key: str) -> None: ...
     async def exists(self, key: str) -> bool: ...
-    async def url(self, key: str) -> str: ...
+    async def url(self, key: str, *, expires_in: int = 3600) -> str: ...
 ```
 
 ### Factory dispatch logic (inside fastagentstack)
@@ -276,7 +280,7 @@ Chain delegation rules (see ADR-034):
 |---|---|---|
 | Auth | `AuthBackend` | `authenticate`, `create_token`, `verify_token`, `revoke_token`, `refresh_token` |
 | LLM | `LLMBackend` | `complete`, `stream`, `count_tokens`, `model_id` (property) |
-| Vector store | `VectorStoreProtocol` | `upsert`, `search`, `delete`, `create_collection`, `close` |
+| Vector store | `VectorStoreProtocol` | `create_collection`, `upsert`, `search`, `delete`, `close` |
 | Embedding | `EmbeddingProtocol` | `embed`, `embed_batch`, `dimensions` (property) |
 | Storage | `StorageProtocol` | `upload`, `download`, `delete`, `exists`, `url` |
 
@@ -284,6 +288,28 @@ Chain delegation rules (see ADR-034):
 `AsyncIterator[str | CompletionResult]` where the final item is always a `CompletionResult`
 sentinel (content="", full token counts). See Module 9 above for the full Protocol definition
 and streaming sentinel contract.
+
+**Phase 5 Protocol signatures (ADR-038):** Full typed signatures for Storage, Vector, and Embedding protocols:
+
+| Protocol | Method | Signature |
+|---|---|---|
+| `StorageProtocol` | `upload` | `async def upload(self, key: str, data: bytes, *, content_type: str = "application/octet-stream") -> str` |
+| | `download` | `async def download(self, key: str) -> bytes` |
+| | `delete` | `async def delete(self, key: str) -> None` |
+| | `exists` | `async def exists(self, key: str) -> bool` |
+| | `url` | `async def url(self, key: str, *, expires_in: int = 3600) -> str` |
+| `VectorStoreProtocol` | `create_collection` | `async def create_collection(self, name: str, dimensions: int, *, distance_metric: str = "cosine") -> None` |
+| | `upsert` | `async def upsert(self, collection: str, id: str, vector: list[float], metadata: dict[str, str\|int\|float\|bool], *, content: str\|None = None) -> None` |
+| | `search` | `async def search(self, collection: str, vector: list[float], *, top_k: int = 10, filter: dict[...]\|None = None) -> list[VectorSearchResult]` |
+| | `delete` | `async def delete(self, collection: str, id: str) -> None` |
+| | `close` | `async def close(self) -> None` |
+| `EmbeddingProtocol` | `embed` | `async def embed(self, text: str) -> list[float]` |
+| | `embed_batch` | `async def embed_batch(self, texts: list[str]) -> list[list[float]]` |
+| | `dimensions` | `@property def dimensions(self) -> int` |
+
+`VectorSearchResult` (dataclass, `core/vector/__init__.py`): `id: str`, `score: float`, `metadata: dict[str, str|int|float|bool]`, `content: str|None`.
+
+`search()` takes a pre-computed `vector: list[float]`, not a text query. Embedding is a separate concern. Metadata is constrained to `dict[str, str|int|float|bool]` (intersection of all four backends). See ADR-038 for full design rationale.
 
 ### Database
 

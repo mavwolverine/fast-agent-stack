@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import uuid
+from dataclasses import dataclass
 from typing import Literal
 
 from fast_agent_stack.core.ai.embedding import EmbeddingProtocol
@@ -8,9 +9,16 @@ from fast_agent_stack.core.ai.extraction import get_extractor
 from fast_agent_stack.core.ai.rag.chunking import fixed_chunker, paragraph_chunker
 from fast_agent_stack.core.vector import VectorSearchResult, VectorStoreProtocol
 
-__all__ = ["RagService", "RagChunk", "IngestResult", "ChunkingStrategy"]
+__all__ = [
+    "RagService", "RagChunk", "IngestResult", "ChunkingStrategy",
+    "UnsupportedFileTypeError",
+]
 
 ChunkingStrategy = Literal["fixed", "paragraph"]
+
+
+class UnsupportedFileTypeError(Exception):
+    """Raised when ingest_file receives a MIME type with no registered extractor."""
 
 
 @dataclass(frozen=True)
@@ -18,14 +26,14 @@ class RagChunk:
     content: str
     score: float
     metadata: dict[str, str | int | float | bool]
-    document_id: str
+    document_id: str | None
     chunk_index: int
 
 
 @dataclass(frozen=True)
 class IngestResult:
     document_id: str
-    chunks_created: int
+    chunks_stored: int
     collection: str
 
 
@@ -57,12 +65,14 @@ class RagService:
         collection: str,
         content: str,
         *,
-        document_id: str,
+        document_id: str | None = None,
         metadata: dict[str, str | int | float | bool] | None = None,
     ) -> IngestResult:
+        if document_id is None:
+            document_id = uuid.uuid4().hex
         chunks = self._chunk(content)
         if not chunks:
-            return IngestResult(document_id=document_id, chunks_created=0, collection=collection)
+            return IngestResult(document_id=document_id, chunks_stored=0, collection=collection)
         base_meta: dict[str, str | int | float | bool] = dict(metadata or {})
         base_meta["_chunk_count"] = len(chunks)
         vectors = await self._embedding.embed_batch(chunks)
@@ -79,7 +89,7 @@ class RagService:
             )
         return IngestResult(
             document_id=document_id,
-            chunks_created=len(chunks),
+            chunks_stored=len(chunks),
             collection=collection,
         )
 
@@ -89,8 +99,8 @@ class RagService:
         data: bytes,
         *,
         filename: str,
-        content_type: str,
-        document_id: str,
+        content_type: str = "application/octet-stream",
+        document_id: str | None = None,
         metadata: dict[str, str | int | float | bool] | None = None,
     ) -> IngestResult:
         if content_type == "text/plain":
@@ -98,7 +108,7 @@ class RagService:
         else:
             extractor = get_extractor(content_type)
             if extractor is None:
-                raise ValueError(
+                raise UnsupportedFileTypeError(
                     f"No extractor available for content_type={content_type!r}. "
                     "Supported: application/pdf, application/vnd...docx, "
                     "application/vnd...xlsx, message/rfc822, text/plain."
@@ -116,7 +126,7 @@ class RagService:
         collection: str,
         query: str,
         *,
-        top_k: int = 10,
+        top_k: int = 5,
         filter: dict[str, str | int | float | bool] | None = None,
     ) -> list[RagChunk]:
         vector = await self._embedding.embed(query)

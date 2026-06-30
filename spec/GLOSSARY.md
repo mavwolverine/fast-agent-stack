@@ -24,6 +24,10 @@ thread-level usage attribution (ADR-035).
 
 **Custom backend** — a user-supplied backend implementation that lives in the user's project (not in the fastagentstack package). Registered by setting the relevant settings field to a dotted Python path (e.g., `"myproject.backends.AzureStorage"`). Must fully implement the family's Protocol. See ADR-012.
 
+**EmbeddingProtocol** — the Protocol for embedding backends (ADR-038). Methods: `embed(text) -> list[float]`, `embed_batch(texts) -> list[list[float]]`, `dimensions` (property). Returns `list[float]` (not numpy). Built-in implementations: Bedrock, OpenAI, local (fastembed). See ADR-039 for the local backend.
+
+**ExtractionProtocol** — the Protocol for document text extraction (ADR-040). Single method: `extract(data: bytes) -> str`. Built-in implementations: PDF (pdfplumber), DOCX (python-docx), XLSX (openpyxl), EML (stdlib). Each is extras-gated (I3).
+
 **Extras gate** — a guard around an optional import that raises a clear error pointing to the correct install command:
 ```python
 try:
@@ -52,6 +56,16 @@ contribute models and admin views. See `spec/ARCHITECTURE.md` Module 1.
 **Preset** — a named set of copier answers that bypasses the interactive CLI. Defined in `spec/SCAFFOLDER.md`. Current presets: `minimal`, `standard`, `full`, `agent`.
 
 **Protocol/ABC** — the abstract interface all backends of a family must fully implement. Defined in code; documented in `spec/ARCHITECTURE.md`. Partial implementation is forbidden (see Invariant I1).
+
+**RagChunk** — a frozen dataclass returned by `RagService.retrieve()` (ADR-040). Fields: `content: str`, `score: float`, `metadata: dict`, `document_id: str | None`, `chunk_index: int`. Represents a single retrieved chunk with relevance score and source traceability.
+
+**RagService** — the concrete RAG orchestration service (ADR-040) in `core/ai/rag/`. Takes `EmbeddingProtocol` + `VectorStoreProtocol` at construction. Not a Protocol — not pluggable via ADR-012. Public API: `ingest()`, `ingest_file()`, `retrieve()`, `delete_document()`. Composes embedding and vector search with chunking strategies.
+
+**StorageProtocol** — the Protocol for object storage backends (ADR-038). Methods: `upload`, `download`, `delete`, `exists`, `url`. Built-in implementations: S3, local filesystem, MinIO. Takes `bytes` input (not streams); returns pre-signed URLs for remote backends.
+
+**VectorSearchResult** — a frozen dataclass returned by `VectorStoreProtocol.search()` (ADR-038). Fields: `id: str`, `score: float`, `metadata: dict[str, str|int|float|bool]`, `content: str | None`. Defined in `core/vector/__init__.py`.
+
+**VectorStoreProtocol** — the Protocol for vector store backends (ADR-038). Methods: `create_collection`, `upsert`, `search`, `delete`, `close`. Search takes a pre-computed `vector: list[float]`, not a text query (embedding is a separate concern). Built-in implementations: Qdrant, pgvector, OpenSearch, Weaviate.
 
 **Escape hatch** — direct access to the underlying third-party object (e.g., `app.fastapi_app`, the raw SQLAlchemy engine). Every wrapped component must expose one.
 
