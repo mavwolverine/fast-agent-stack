@@ -1043,7 +1043,7 @@ See `spec/adr/ADR-041.md` for full interface definition.
 async def get_usage(
     self, *, user_id=None, api_key_id=None, agent_name=None,
     period_start=None, period_end=None, db: AsyncSession,
-) -> UsageSummary: ...
+) -> UsageSummary | None: ...
 
 async def get_usage_by_model(
     self, *, user_id=None, api_key_id=None, agent_name=None,
@@ -1055,7 +1055,7 @@ async def get_usage_by_model(
 
 `UsageByModel`: per-model breakdown with the same fields plus `model: str`.
 
-Filters are ANDed. At least one filter required (prevents full-table scans). Default period: last 24h. I21 does NOT apply to reads — exceptions propagate normally.
+Filters are ANDed. At least one filter required (prevents full-table scans). Default period: last 24h. Returns `None` when no rows match (distinguishes "no activity" from "activity with zero tokens"). I21 does NOT apply to reads — exceptions propagate normally.
 
 **Consequences:**
 - `UsageSummary` and `UsageByModel` exported from `fast_agent_stack.core.ai.usage`
