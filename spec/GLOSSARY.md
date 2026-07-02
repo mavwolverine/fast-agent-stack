@@ -82,7 +82,7 @@ contribute models and admin views. See `spec/ARCHITECTURE.md` Module 1.
 **UsageService** — the framework service (injected as a FastAPI dependency or called directly from
 `stream_sse`) responsible for writing token usage records to `token_usage_log`. Exposes
 `log_usage(result: CompletionResult, *, user_id, api_key_id, agent_name, conversation_id)`
-and `get_usage(*, user_id, api_key_id, agent_name, period_start, period_end, db) -> UsageSummary`.
+and `get_usage(*, user_id, api_key_id, agent_name, period_start, period_end, db) -> UsageSummary | None`.
 Write failures in `log_usage()` must be caught, logged, and swallowed — they must never propagate
 to the LLM caller (I21). Read failures in `get_usage()` propagate normally. See ADR-035, ADR-036,
 and ADR-042.
