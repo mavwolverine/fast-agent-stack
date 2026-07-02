@@ -85,17 +85,17 @@
 - [x] Tests
 
 ## Phase 7: Scaffolder Completion & Release (standard preset complete)
-- [ ] Full scaffolder: all presets (`minimal`, `standard`, `full`, `agent`), all copier questions
-- [ ] Docker + K8s template generation
-- [ ] Documentation site
-- [ ] CI/CD (GitHub Actions: lint, tox, integration, PyPI publish)
-- [ ] Tests
+- [x] Full scaffolder: all presets (`minimal`, `standard`, `full`, `agent`), all copier questions
+- [x] Docker + K8s template generation
+- [x] Documentation site
+- [x] CI/CD (GitHub Actions: lint, tox, integration, PyPI publish)
+- [x] Tests
 
 ## Phase 8: Redis SDK Migration (ADR-037)
-- [ ] Replace `redis>=5` with `fastapi-redis-sdk>=0.1` across `auth-jwt`, `auth-session`, `rate-limit` extras
-- [ ] Migrate `AuthLifespanHook` pool lifecycle to `FastAPIRedis(app).lifespan()` (amend I9)
-- [ ] Migrate `JWTAuthBackend` and `SessionAuthBackend` constructors to `AsyncRedisDep` DI pattern
-- [ ] Update rate-limit middleware to use `AsyncRedisDep`
-- [ ] Update I3 import guards: `redis_fastapi` replaces `redis.asyncio` guards
-- [ ] Update all affected tests
-- [ ] Unlock response caching (`cache()`, `cache_evict()`, `cache_put()`) for new routes
+- [x] Replace `redis>=5` with `fastapi-redis-sdk>=0.7` across `auth-jwt`, `auth-session`, `rate-limit` extras
+- [x] Migrate `AuthLifespanHook` pool lifecycle to `FastAPIRedis(app).lifespan()` (amend I9)
+- [x] Migrate `JWTAuthBackend` and `SessionAuthBackend` constructors to `AsyncRedisDep` DI pattern
+- [x] Update rate-limit middleware to use `AsyncRedisDep`
+- [x] Update I3 import guards: `redis_fastapi` replaces `redis.asyncio` guards
+- [x] Update all affected tests
+- [x] Unlock response caching (`cache()`, `cache_evict()`, `cache_put()`) for new routes

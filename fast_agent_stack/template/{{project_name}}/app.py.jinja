@@ -1,12 +1,47 @@
 from fast_agent_stack import FastAgentStack
 from fast_agent_stack.database import DatabaseLifespanHook
+{%- if include_auth or include_rate_limit %}
+from fast_agent_stack.core.redis import FastAPIRedisLifespanHook
+{%- endif %}
+{%- if include_auth %}
+from fast_agent_stack.core.auth import AuthLifespanHook
+from fast_agent_stack.core.auth.routes import router as auth_router
+{%- endif %}
+{%- if include_rate_limit %}
+from fast_agent_stack.core.ratelimit import RateLimitLifespanHook
+{%- endif %}
+{%- if tracing == "jaeger" %}
+from fast_agent_stack.core.observability import TracingLifespanHook
+{%- endif %}
+{%- if include_admin %}
+from fast_agent_stack.core.admin import AdminLifespanHook
+{%- endif %}
 from .routes import router
 from .settings import get_settings
 
 _settings = get_settings()
 _stack = FastAgentStack()
-_stack.add_lifespan_hook(DatabaseLifespanHook(_settings.database_url))
+app = _stack.fastapi_app  # I4: escape hatch to raw FastAPI instance
 
-app = _stack.fastapi_app  # ASGI entrypoint — see I4
+# I9 (amended, ADR-037): lifespan hooks must be registered in this fixed order
+_stack.add_lifespan_hook(DatabaseLifespanHook(_settings.database_url))
+{%- if include_auth or include_rate_limit %}
+_stack.add_lifespan_hook(FastAPIRedisLifespanHook(_settings, app=app))
+{%- endif %}
+{%- if include_auth %}
+_stack.add_lifespan_hook(AuthLifespanHook(_settings))
+{%- endif %}
+{%- if include_rate_limit %}
+_stack.add_lifespan_hook(RateLimitLifespanHook(_settings, app=app))
+{%- endif %}
+{%- if tracing == "jaeger" %}
+_stack.add_lifespan_hook(TracingLifespanHook(_settings))
+{%- endif %}
+{%- if include_admin %}
+_stack.add_lifespan_hook(AdminLifespanHook(_settings))
+{%- endif %}
 
 app.include_router(router)
+{%- if include_auth %}
+app.include_router(auth_router)
+{%- endif %}

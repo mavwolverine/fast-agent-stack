@@ -1,45 +1,38 @@
 """Health check routes and Redis probe (I13)."""
-
 from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from fast_agent_stack.core.database import check_db
 
 router = APIRouter(tags=["health"])
 
-_redis_url: str | None = None
 
+async def check_redis(request: Request | None = None) -> tuple[bool, str]:
+    """Ping the SDK-managed Redis pool.
 
-def configure_redis_health(url: str | None) -> None:
-    """Called by AuthLifespanHook to register the Redis URL for health checks."""
-    global _redis_url
-    _redis_url = url
-
-
-async def check_redis() -> tuple[bool, str]:
-    """Async PING check against the configured Redis URL.
-
-    Returns (True, "ok") when redis_url is None (not configured).
-    Import-guarded with I3 pattern.
+    Returns (True, "ok") when Redis is not configured (no FastAPIRedisLifespanHook
+    registered) or when no request is provided. This makes the health check
+    transparent for projects that do not use Redis.
     """
-    if _redis_url is None:
+    if request is None:
+        return True, "ok"
+    pool_state = getattr(request.app.state, "_redis", None)
+    if pool_state is None:
         return True, "ok"
     try:
-        import redis.asyncio as aioredis
+        from redis_fastapi.deps import get_async_redis
     except ImportError:
         return True, "ok"
-    client = aioredis.from_url(_redis_url, decode_responses=False)
     try:
+        client = await get_async_redis(request)
         await asyncio.wait_for(client.ping(), timeout=2.0)
         return True, "ok"
     except Exception as exc:
         return False, str(exc)
-    finally:
-        await client.aclose()
 
 
 @router.get("/health/live")
@@ -48,9 +41,9 @@ async def liveness() -> dict[str, str]:
 
 
 @router.get("/health/ready")
-async def readiness() -> JSONResponse:
+async def readiness(request: Request) -> JSONResponse:
     db_ok, db_msg = await check_db()
-    redis_ok, redis_msg = await check_redis()
+    redis_ok, redis_msg = await check_redis(request)
     if not db_ok or not redis_ok:
         return JSONResponse(
             status_code=503,

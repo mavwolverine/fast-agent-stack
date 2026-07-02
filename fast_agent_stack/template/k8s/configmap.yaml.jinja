@@ -1,0 +1,20 @@
+{%- if include_k8s %}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ project_name }}-config
+data:
+  # Non-sensitive configuration — sensitive values go in a Kubernetes Secret
+  {{ project_name | upper }}_DEBUG: "false"
+{%- if task_broker == "redis" or include_auth or include_rate_limit %}
+  {{ project_name | upper }}_REDIS_URL: "redis://redis:6379/0"
+{%- endif %}
+{%- if secrets_backend == "aws" %}
+  SECRETS_BACKEND: "aws"
+  SECRETS_AWS_SECRET_ID: "{{ project_name }}/secrets"
+  SECRETS_AWS_REGION: "us-east-1"
+{%- elif secrets_backend == "gcp" %}
+  SECRETS_BACKEND: "gcp"
+  SECRETS_GCP_PROJECT_ID: "your-gcp-project-id"
+{%- endif %}
+{%- endif %}

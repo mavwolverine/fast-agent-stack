@@ -1,7 +1,6 @@
 ---
 name: fas-phase-tracker
 description: Status report — roadmap progress + spec completeness. Shows implementation progress and remaining fill-in markers.
-model: auto
 tools:
   - Read
   - Bash

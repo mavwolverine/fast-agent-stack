@@ -70,14 +70,26 @@ tenant identifiers.
 
 ## I9 — Lifespan Hook Registration Order
 
-`DatabaseLifespanHook` must be registered before any hook that depends on the database. The
-canonical registration order is:
+`DatabaseLifespanHook` must be registered before any hook that depends on the database. When Redis
+is required (auth, rate-limit, or caching enabled), `FastAPIRedisLifespanHook` must be registered
+immediately after `DatabaseLifespanHook` and before any hook that accesses the pool. The canonical
+registration order is:
 
 1. `DatabaseLifespanHook` — initialises engine and session factory
-2. `AuthLifespanHook` — connects auth backend (may use Redis, but not DB directly)
-3. `RateLimitLifespanHook` — connects to Redis for rate-limit counters
-4. `TracingLifespanHook` — initialises OpenTelemetry exporters
-5. `AdminLifespanHook` — mounts SQLAdmin; requires the engine to already exist
+2. `FastAPIRedisLifespanHook` — wraps the app lifespan so the SDK-managed pool is created before
+   hook `__aenter__` calls run; performs the I11 connectivity check; **conditional** — only
+   registered when Redis is needed (auth, rate-limit, or caching enabled)
+3. `AuthLifespanHook` — validates settings and registers backend factory; no Redis I/O
+4. `RateLimitLifespanHook` — wires `RateLimitMiddleware`; Redis acquired per-request via SDK
+5. `TracingLifespanHook` — initialises OpenTelemetry exporters
+6. `AdminLifespanHook` — mounts SQLAdmin; requires the engine to already exist
+
+Projects that do not use Redis (minimal preset, database-only) omit step 2 entirely. The ordering
+constraint on `DatabaseLifespanHook` is unconditional; the Redis step is conditional.
+
+**I11 connectivity check:** `FastAPIRedisLifespanHook.__aenter__` performs the startup Redis
+connectivity check (ping within 5 s timeout). `AuthLifespanHook` no longer manages a Redis pool
+and no longer owns the I11 check.
 
 Any hook that reads `db_module._engine` or calls `get_async_session()` at startup will raise
 `RuntimeError` if registered before `DatabaseLifespanHook`. The generated `{{project_name}}/app.py`

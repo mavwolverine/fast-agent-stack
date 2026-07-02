@@ -1,0 +1,22 @@
+{% if task_broker != "none" %}
+"""Background task definitions (ADR-005).
+
+Decorate functions with @dramatiq.actor to register tasks.
+The broker is wired in app.py via configure_broker().
+"""
+from __future__ import annotations
+
+import dramatiq
+
+from fast_agent_stack.core.tasks import configure_broker
+
+from .settings import get_settings
+
+configure_broker(get_settings())
+
+
+@dramatiq.actor
+def example_task(payload: str) -> None:
+    """Replace with real background work."""
+    print(f"Processing: {payload}")
+{% endif %}

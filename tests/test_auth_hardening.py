@@ -1,4 +1,4 @@
-"""Phase 3c tests — JTI denylist, API keys, Redis health, Admin (5 families).
+"""Auth hardening tests — JTI denylist, API keys, Redis health, Admin (5 families).
 
 Uses fakeredis for Redis; no live Redis or admin server required.
 """
@@ -26,7 +26,7 @@ from fast_agent_stack.core.auth.api_keys import (
     hash_api_key,
     router as api_keys_router,
 )
-from fast_agent_stack.core.auth.backends.factory import _clear_backend, _set_backend
+from fast_agent_stack.core.auth.backends.factory import get_auth_backend
 from fast_agent_stack.core.auth.backends.jwt import JWTAuthBackend, _DENYLIST_PREFIX, _REFRESH_PREFIX
 from fast_agent_stack.core.auth.models import ApiKey, User
 from fast_agent_stack.core.auth.password import hash_password
@@ -39,7 +39,7 @@ from fast_agent_stack.core.database import (
     get_async_session,
     get_engine,
 )
-from fast_agent_stack.core.health import check_redis, configure_redis_health
+from fast_agent_stack.core.health import check_redis
 
 SQLITE_URL = "sqlite+aiosqlite:///:memory:"
 _SECRET = "test-secret-key-long-enough-for-hs256"
@@ -65,25 +65,30 @@ async def redis() -> FakeRedis:
     await r.aclose()
 
 
-@pytest.fixture(autouse=True)
-async def setup_backend(redis: FakeRedis) -> Any:
-    backend = JWTAuthBackend(
-        secret_key=_SECRET,
-        access_ttl=_TTL_ACCESS,
-        refresh_ttl=_TTL_REFRESH,
-        redis=redis,
-    )
-    _set_backend(backend)
-    yield
-    _clear_backend()
-
-
 @pytest.fixture
 def app() -> FastAPI:
     fa = FastAPI()
     fa.include_router(auth_router)
     fa.include_router(api_keys_router)
     return fa
+
+
+@pytest.fixture(autouse=True)
+async def setup_backend(app: FastAPI, redis: FakeRedis) -> Any:
+    """Wire a JWTAuthBackend with fakeredis via dependency override (ADR-037 migration)."""
+    backend = JWTAuthBackend(
+        secret_key=_SECRET,
+        access_ttl=_TTL_ACCESS,
+        refresh_ttl=_TTL_REFRESH,
+        redis=redis,
+    )
+
+    async def _override() -> JWTAuthBackend:
+        return backend
+
+    app.dependency_overrides[get_auth_backend] = _override
+    yield
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -236,9 +241,7 @@ async def test_b6_revoke_sets_revoked_at_not_delete(
 
 
 async def test_b7_health_ready_includes_redis_ok(monkeypatch: pytest.MonkeyPatch) -> None:
-    configure_redis_health("redis://fake:6379")
-
-    async def _fake_check() -> tuple[bool, str]:
+    async def _fake_check(request: Any = None) -> tuple[bool, str]:
         return True, "ok"
 
     from fast_agent_stack.core import health as _health_mod
@@ -252,7 +255,6 @@ async def test_b7_health_ready_includes_redis_ok(monkeypatch: pytest.MonkeyPatch
         resp = await c.get("/health/ready")
     assert resp.status_code == 200
     assert resp.json()["redis"] == "ok"
-    configure_redis_health(None)
 
 
 # ===========================================================================
@@ -369,9 +371,7 @@ def test_a5_i19_api_key_admin_excludes_key_hash() -> None:
 
 
 async def test_n1_health_ready_reports_redis_down(monkeypatch: pytest.MonkeyPatch) -> None:
-    configure_redis_health("redis://fake:6379")
-
-    async def _fake_check() -> tuple[bool, str]:
+    async def _fake_check(request: Any = None) -> tuple[bool, str]:
         return False, "connection refused"
 
     from fast_agent_stack.core import health as _health_mod
@@ -385,12 +385,10 @@ async def test_n1_health_ready_reports_redis_down(monkeypatch: pytest.MonkeyPatc
         resp = await c.get("/health/ready")
     assert resp.status_code == 503
     assert "redis" in resp.json()
-    configure_redis_health(None)
 
 
 async def test_n2_check_redis_returns_ok_when_not_configured() -> None:
-    configure_redis_health(None)
-    ok, msg = await check_redis()
+    ok, msg = await check_redis()  # no request → not configured → ok
     assert ok is True
     assert msg == "ok"
 

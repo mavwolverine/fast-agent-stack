@@ -231,7 +231,7 @@ async def test_b10_chain_tries_jwt_then_session(
     session_backend: SessionAuthBackend,
     active_user: User,
 ) -> None:
-    from fast_agent_stack.core.auth.lifespan import _AuthBackendChain
+    from fast_agent_stack.core.auth.backends.factory import _AuthBackendChain
 
     chain = _AuthBackendChain([jwt_backend, session_backend])
     # Session-only request — JWT returns None, chain falls through to session
@@ -264,7 +264,7 @@ def test_c3_chain_implements_auth_backend_protocol(
     jwt_backend: JWTAuthBackend,
     session_backend: SessionAuthBackend,
 ) -> None:
-    from fast_agent_stack.core.auth.lifespan import _AuthBackendChain
+    from fast_agent_stack.core.auth.backends.factory import _AuthBackendChain
 
     chain = _AuthBackendChain([jwt_backend, session_backend])
     assert isinstance(chain, AuthBackend)

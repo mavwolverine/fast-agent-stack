@@ -1,4 +1,4 @@
-"""Phase 4c tests: ConversationService, TokenUsageLog, agent dispatcher, migrations."""
+"""AI agent tests — ConversationService, TokenUsageLog, agent dispatcher, migrations."""
 
 from __future__ import annotations
 

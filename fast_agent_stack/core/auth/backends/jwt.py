@@ -15,9 +15,10 @@ try:
     import jwt as pyjwt
     from redis.asyncio import Redis
     from redis.exceptions import RedisError
+    import redis_fastapi as _redis_fastapi_check  # noqa: F401 — I3: gate on SDK presence
 except ImportError:
     raise ImportError(
-        "redis is required for JWT authentication. "
+        "fastapi-redis-sdk is required for JWT authentication. "
         "Install it with: pip install fast-agent-stack[auth-jwt]"
     )
 
