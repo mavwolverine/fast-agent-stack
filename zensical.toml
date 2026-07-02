@@ -1,0 +1,24 @@
+[site]
+name = "fast-agent-stack"
+description = "FastAPI framework for production AI agents"
+url = "https://fast-agent-stack.readthedocs.io"
+
+[theme]
+palette = { primary = "indigo", accent = "blue" }
+features = ["navigation.tabs", "navigation.sections", "search.highlight"]
+
+[[nav]]
+title = "Home"
+file = "index.md"
+
+[[nav]]
+title = "Getting Started"
+file = "getting-started.md"
+
+[[nav]]
+title = "Configuration"
+file = "configuration.md"
+
+[[nav]]
+title = "API Reference"
+file = "api-reference.md"

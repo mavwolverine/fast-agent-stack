@@ -12,7 +12,8 @@ from fast_agent_stack.core.config import BaseSettings
 
 
 def _settings(**kw) -> BaseSettings:
-    return BaseSettings(app_name="test", redis_url="redis://localhost:6379", **kw)
+    kw.setdefault("redis_url", "redis://localhost:6379")
+    return BaseSettings(app_name="test", **kw)
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +93,7 @@ def test_configure_broker_returns_broker_instance():
     from fast_agent_stack.core.tasks import configure_broker
     settings = _settings()
     with patch("dramatiq.set_broker"), \
-         patch("dramatiq.brokers.redis.RedisBroker") as mock_broker_cls:
+         patch("fast_agent_stack.core.tasks.RedisBroker") as mock_broker_cls:
         mock_broker = MagicMock(spec=dramatiq.Broker)
         mock_broker_cls.return_value = mock_broker
         result = configure_broker(settings)
@@ -104,7 +105,7 @@ def test_configure_broker_uses_tasks_broker_url_over_redis_url():
     from fast_agent_stack.core.tasks import configure_broker
     settings = _settings(tasks_broker_url="redis://tasks:6379")
     captured = {}
-    with patch("dramatiq.brokers.redis.RedisBroker") as mock_cls, \
+    with patch("fast_agent_stack.core.tasks.RedisBroker") as mock_cls, \
          patch("dramatiq.set_broker"):
         mock_cls.side_effect = lambda url, **kw: captured.update({"url": url}) or MagicMock()
         configure_broker(settings)
@@ -116,7 +117,7 @@ def test_configure_broker_falls_back_to_redis_url():
     from fast_agent_stack.core.tasks import configure_broker
     settings = _settings(redis_url="redis://primary:6379")
     captured = {}
-    with patch("dramatiq.brokers.redis.RedisBroker") as mock_cls, \
+    with patch("fast_agent_stack.core.tasks.RedisBroker") as mock_cls, \
          patch("dramatiq.set_broker"):
         mock_cls.side_effect = lambda url, **kw: captured.update({"url": url}) or MagicMock()
         configure_broker(settings)

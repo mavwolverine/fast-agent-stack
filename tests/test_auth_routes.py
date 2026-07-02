@@ -13,7 +13,7 @@ from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
 
 import fast_agent_stack.core.auth.models as _auth_mod  # noqa: F401
-from fast_agent_stack.core.auth.backends.factory import _clear_backend, _set_backend
+from fast_agent_stack.core.auth.backends.factory import get_auth_backend
 from fast_agent_stack.core.auth.backends.jwt import JWTAuthBackend
 from fast_agent_stack.core.auth.models import User
 from fast_agent_stack.core.auth.password import hash_password
@@ -49,16 +49,20 @@ async def redis() -> FakeRedis:
 
 
 @pytest.fixture(autouse=True)
-async def setup_backend(redis: FakeRedis) -> Any:
+async def setup_backend(app: FastAPI, redis: FakeRedis) -> Any:
     backend = JWTAuthBackend(
         secret_key=_SECRET,
         access_ttl=900,
         refresh_ttl=2592000,
         redis=redis,
     )
-    _set_backend(backend)
+
+    async def _override() -> JWTAuthBackend:
+        return backend
+
+    app.dependency_overrides[get_auth_backend] = _override
     yield
-    _clear_backend()
+    app.dependency_overrides.pop(get_auth_backend, None)
 
 
 @pytest.fixture

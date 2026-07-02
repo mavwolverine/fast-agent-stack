@@ -45,8 +45,8 @@ db-sqlite   = ["aiosqlite>=0.19"]
 db-mysql    = ["aiomysql>=0.2"]
 
 # Auth — JWT library TBD (NEEDS-DECISION before Phase 3)
-auth-jwt     = ["pwdlib[argon2]>=0.3", "pyjwt[crypto]>=2.8", "redis>=5"]
-auth-session = ["pwdlib[argon2]>=0.3", "redis>=5"]
+auth-jwt     = ["pwdlib[argon2]>=0.3", "pyjwt[crypto]>=2.8", "fastapi-redis-sdk>=0.7"]
+auth-session = ["pwdlib[argon2]>=0.3", "fastapi-redis-sdk>=0.7"]
 
 # Admin (ADR-007)
 admin = ["sqladmin>=0.16"]
@@ -78,7 +78,10 @@ tasks     = ["dramatiq[redis]>=1.15"]
 scheduler = ["periodiq>=0.9"]
 
 # Rate limiting (ADR-016)
-rate-limit = ["redis>=5"]
+rate-limit = ["fastapi-redis-sdk>=0.7"]
+
+# Response caching (ADR-037)
+caching = ["fastapi-redis-sdk>=0.7"]
 
 # Email (ADR-018)
 email-smtp = ["aiosmtplib>=3"]
@@ -118,6 +121,9 @@ dev = [
     "tox>=4.15",
     "tox-uv>=1.15",
 ]
+docs = [
+    "zensical",
+]
 
 [tool.ruff]
 target-version = "py311"
@@ -154,6 +160,22 @@ isolated_build = true
 [testenv]
 runner = uv-venv-runner
 dependency_groups = dev
-extras = db-sqlite,auth-jwt
+extras =
+    db-sqlite,
+    auth-jwt,
+    auth-session,
+    admin,
+    rate-limit,
+    caching,
+    tasks,
+    tracing,
+    email-smtp,
+    storage-local,
+    embedding-local,
+    extract-pdf,
+    extract-docx,
+    extract-xlsx,
+    vector-qdrant,
+    vector-pgvector
 commands = pytest {posargs}
 """

@@ -1,0 +1,59 @@
+{%- if include_k8s %}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ project_name }}
+  labels:
+    app: {{ project_name }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: {{ project_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ project_name }}
+    spec:
+      containers:
+        - name: {{ project_name }}
+          image: {{ project_name }}:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: {{ project_name }}-config
+          env:
+            # Sensitive values — create a Kubernetes Secret named {{ project_name }}-secrets
+{%- if include_auth %}
+            - name: {{ project_name | upper }}_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ project_name }}-secrets
+                  key: secret-key
+{%- endif %}
+            - name: {{ project_name | upper }}_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ project_name }}-secrets
+                  key: database-url
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+{%- endif %}

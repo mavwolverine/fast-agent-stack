@@ -1,7 +1,6 @@
 """Redis fixed-window rate limiting middleware and lifespan hook (ADR-016, ADR-033)."""
 from __future__ import annotations
 
-import importlib
 import logging
 import time
 from typing import Any
@@ -12,6 +11,14 @@ from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp
 
 from fast_agent_stack.core.config import BaseSettings
+
+try:
+    from redis_fastapi.deps import get_async_redis as _get_async_redis
+except ImportError:
+    raise ImportError(
+        "fastapi-redis-sdk is required for rate limiting. "
+        "Install it with: pip install fast-agent-stack[rate-limit]"
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +35,8 @@ return count
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Fixed-window rate limiter keyed by client IP (ADR-016, ADR-033).
 
-    The ``redis`` parameter must be an already-connected async redis client
-    (e.g. ``redis.asyncio.Redis``); the middleware does not create connections.
+    Redis client is acquired per-request from the SDK-managed pool via
+    ``request.app.state._redis`` (set by ``FastAPIRedisLifespanHook``).
     WebSocket connections are passed through without rate limiting.
     """
 
@@ -37,12 +44,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self,
         app: ASGIApp,
         *,
-        redis: Any,
         requests: int,
         period: int,
     ) -> None:
         super().__init__(app)
-        self._redis = redis
         self._requests = requests
         self._period = period
 
@@ -50,6 +55,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # WebSocket passthrough (no rate-limit)
         if request.scope.get("type") == "websocket":
             return await call_next(request)
+
+        redis = await _get_async_redis(request)
 
         ip = (
             request.headers.get("x-forwarded-for", "").split(",")[0].strip()
@@ -59,7 +66,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # ADR-033: key prefix fas:rl:
         key = f"fas:rl:{ip}:{window_start}"
 
-        count = await self._redis.eval(_RATE_LIMIT_LUA, 1, key, self._period)
+        count = await redis.eval(_RATE_LIMIT_LUA, 1, key, self._period)
         remaining = max(0, self._requests - count)
         reset_at = window_start + self._period
 
@@ -83,25 +90,24 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 
 class RateLimitLifespanHook:
-    """Lifespan hook that creates and owns a redis.asyncio connection pool (I4)."""
+    """Lifespan hook that wires RateLimitMiddleware to the app.
 
-    def __init__(self, settings: BaseSettings) -> None:
+    Redis pool lifecycle is managed by FastAPIRedisLifespanHook (I9 step 2).
+    This hook only registers the middleware; no pool ownership.
+    """
+
+    def __init__(self, settings: BaseSettings, *, app: Any = None) -> None:
         self._settings = settings
-        self.redis: Any = None
+        self._app = app
 
     async def __aenter__(self) -> "RateLimitLifespanHook":
-        try:
-            redis_asyncio = importlib.import_module("redis.asyncio")
-        except ImportError as exc:
-            raise ImportError(
-                f"redis is required for rate limiting: {exc}. "
-                "Install it with: pip install fast-agent-stack[rate-limit]"
-            ) from exc
-
-        self.redis = redis_asyncio.from_url(self._settings.redis_url)
-        await self.redis.ping()
+        if self._app is not None:
+            self._app.add_middleware(
+                RateLimitMiddleware,
+                requests=self._settings.rate_limit_requests,
+                period=self._settings.rate_limit_period,
+            )
         return self
 
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        if self.redis is not None:
-            await self.redis.aclose()
+        pass  # pool owned by FastAPIRedisLifespanHook / SDK

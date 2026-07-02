@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main, first-cut]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      - run: uv pip install --system ruff
+      - run: ruff check fast_agent_stack/
+      - run: ruff format --check fast_agent_stack/
+
+  mypy:
+    name: Type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      - run: uv pip install --system -e ".[dev,auth-jwt,bedrock,openai,anthropic,litellm,email-smtp,tracing,tasks,rate-limit,admin,vector-qdrant,storage-s3,secrets-aws]"
+      - run: mypy --strict fast_agent_stack/
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: uv pip install --system -e ".[dev,auth-jwt,bedrock,openai,anthropic,litellm,email-smtp,tracing,tasks,rate-limit,admin,vector-qdrant,storage-s3,secrets-aws,db-sqlite]"
+      - name: Run tests
+        run: pytest --tb=short -q

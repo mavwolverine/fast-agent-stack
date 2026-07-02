@@ -1,0 +1,15 @@
+# Pydantic schemas (request bodies and response models).
+# Keep schemas separate from SQLAlchemy models — models are ORM state; schemas are API contract.
+#
+# Example:
+#   from pydantic import BaseModel
+#
+#   class PostCreate(BaseModel):
+#       title: str
+#       body: str
+#
+#   class PostResponse(BaseModel):
+#       model_config = {"from_attributes": True}
+#       id: int
+#       title: str
+#       body: str

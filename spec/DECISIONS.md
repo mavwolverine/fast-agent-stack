@@ -890,20 +890,20 @@ The `LLMBackend.complete()` and `LLMBackend.stream()` methods return token count
 
 ## ADR-037 — Redis Integration: fastapi-redis-sdk
 
-**Phase:** 8 (deferred — allow library to mature; Phase 3c through Phase 6 remain on `redis.asyncio` directly)
+**Phase:** 8 (deferred — Phases 3c through Phase 6 remain on `redis.asyncio` directly)
 
 **Context:** The framework needs Redis for sessions, JWT denylist, rate limiting, and response caching. Options:
 
 - **`redis.asyncio` (raw)** — manual connection pool lifecycle, lifespan hook, DI wiring. Used in Phases 3c–6.
-- **`fastapi-redis-sdk`** — official Redis org library for FastAPI. Manages connection pools via lifespan, provides `AsyncRedisDep` for DI, includes response caching with ETag/304/Cache-Control.
+- **`fastapi-redis-sdk`** — official Redis org library for FastAPI (PyPI: `fastapi-redis-sdk`, import: `redis_fastapi`). Manages connection pools via lifespan, provides `AsyncRedisDep` for DI, includes response caching with ETag/304/Cache-Control. Published by Redis Inc, v0.7.0 available (Jun 2026). Requires redis-py 6.0+, Redis server 7.4+, Python 3.10+.
 
-**Decision:** Migrate to `fastapi-redis-sdk` as the Redis integration layer in Phase 8, after all Redis usage patterns (auth, rate-limit, caching) are established and the library has had time to stabilize.
+**Decision:** Migrate to `fastapi-redis-sdk` as the Redis integration layer in Phase 8, after all Redis usage patterns (auth, rate-limit, caching) are established.
 
 **Current state (Phases 3c–6):** `redis>=5` (`redis.asyncio`) used directly. `AuthLifespanHook` manages pool lifecycle. Backends (`JWTAuthBackend`, `SessionAuthBackend`) take `Redis` at construction time.
 
 ```toml
 # Phase 8 target — in auth-jwt, auth-session, rate-limit extras
-"fastapi-redis-sdk>=0.1"
+"fastapi-redis-sdk>=0.7"
 ```
 
 Usage:
@@ -919,7 +919,7 @@ async def get_session(redis: AsyncRedisDep):
 ```
 
 **Phase 8 migration scope:**
-- Replace `redis>=5` with `fastapi-redis-sdk>=0.1` across `auth-jwt`, `auth-session`, `rate-limit` extras
+- Replace `redis>=5` with `fastapi-redis-sdk>=0.7` across `auth-jwt`, `auth-session`, `rate-limit` extras
 - Migrate `AuthLifespanHook` pool lifecycle to `FastAPIRedis(app).lifespan()` — amend I9 accordingly
 - Migrate `JWTAuthBackend` and `SessionAuthBackend` constructors from `Redis`-at-init to `AsyncRedisDep` request-time DI
 - Update rate-limit middleware to use `AsyncRedisDep`
@@ -933,8 +933,49 @@ async def get_session(redis: AsyncRedisDep):
 - Pydantic-validated config (REDIS_URL, TLS, cluster mode) from env — aligns with our settings pattern
 - Cluster-ready out of the box
 - Sessions, denylist, rate-limiting logic stays ours — built on top of `AsyncRedisDep`
-- Replaces `redis>=5` in extras with `fastapi-redis-sdk>=0.1` (which depends on redis-py internally)
-- I9 must be amended in Phase 8 before code changes begin
+- Replaces `redis>=5` in extras with `fastapi-redis-sdk>=0.7` (which depends on redis-py internally)
+- I9 must be amended atomically with the Phase 8 code changes (see amendment text below)
+
+**I9 amendment to apply atomically with Phase 8 implementation:**
+
+Replace the I9 body in `spec/INVARIANTS.md` with the following. `INVARIANTS.md` must not be updated
+before the code lands — doing so would create a spec/implementation mismatch while the codebase still
+uses `redis.asyncio` directly.
+
+```
+## I9 — Lifespan Hook Registration Order
+
+`DatabaseLifespanHook` must be registered before any hook that depends on the database. When Redis is
+required (auth, rate-limit, or caching enabled), `FastAPIRedis(app).lifespan()` must be registered
+immediately after `DatabaseLifespanHook` and before any hook that accesses the pool. The canonical
+registration order is:
+
+1. `DatabaseLifespanHook` — initialises engine and session factory
+2. `FastAPIRedis(app).lifespan()` — initialises Redis connection pool (SDK-managed; I11 connectivity
+   check); conditional — only registered when Redis is needed (auth, rate-limit, or caching enabled)
+3. `AuthLifespanHook` — constructs auth backends; no Redis I/O; backends acquire the client via
+   `AsyncRedisDep` at request time
+4. `RateLimitLifespanHook` — wires `RateLimitMiddleware`; middleware acquires Redis via
+   `request.app.state` (SDK-managed pool reference)
+5. `TracingLifespanHook` — initialises OpenTelemetry exporters
+6. `AdminLifespanHook` — mounts SQLAdmin; requires the engine to already exist
+
+Projects that do not use Redis (minimal preset, database-only) omit step 2 entirely. The ordering
+constraint on DatabaseLifespanHook is unconditional; the Redis step is conditional.
+
+**I11 connectivity check:** `FastAPIRedis(app).lifespan()` performs the startup Redis connectivity
+check (ping + timeout). `AuthLifespanHook` no longer manages a Redis pool and no longer owns the I11
+check.
+
+Any hook that reads `db_module._engine` or calls `get_async_session()` at startup will raise
+`RuntimeError` if registered before `DatabaseLifespanHook`. The generated `{{project_name}}/app.py`
+template must enforce this order. Agents must BLOCK any template or code change that violates it.
+
+**`install_app()` ordering contract:** All `install_app()` calls must complete before the lifespan
+sequence begins (i.e., before `__aenter__` is called on the first hook). `AdminLifespanHook`
+collects admin views from previously-installed modules — calling `install_app()` after lifespan
+start results in views not appearing in the admin panel.
+```
 
 ---
 
