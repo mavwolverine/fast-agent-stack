@@ -999,3 +999,67 @@ Chunking strategies: `fixed` (default, 512 tokens / 64 overlap) and `paragraph`.
 - Settings: `rag_chunk_size`, `rag_chunk_overlap`, `rag_chunking_strategy`
 
 See `spec/adr/ADR-040.md` for complete API definitions.
+
+---
+
+## ADR-041 — EmailProtocol Interface
+
+**Phase:** 6
+
+**Context:** ADR-018 defined email delivery via aiosmtplib with a custom backend dotted-path escape hatch, but never defined an `EmailProtocol`. I1 explicitly noted this as a known gap.
+
+**Decision:** Define `EmailProtocol` with a single method:
+
+```python
+class EmailProtocol(Protocol):
+    async def send(
+        self, *, to: str, subject: str, body_text: str, body_html: str | None = None
+    ) -> None: ...
+```
+
+Built-in: `SmtpEmailBackend` (extras-gated: `email-smtp`). Factory: `get_email_backend(settings)`. Exception: `EmailDeliveryError`. Module location: `core/email/` (not under `core/auth/` — email is a general-purpose service).
+
+Fire-and-forget at the route level: delivery failures are logged and swallowed (prevents email enumeration attacks). No batch sending, no attachments at protocol level.
+
+**Consequences:**
+- Resolves I1 known gap
+- I1 `Applies to` section amended to include `core/email/`
+- Auth verification routes use `get_email_backend(settings).send(...)` for token delivery
+- Custom backends (SES, SendGrid) via ADR-012 dotted-path: `email_backend = "myproject.email.SESBackend"`
+
+See `spec/adr/ADR-041.md` for full interface definition.
+
+---
+
+## ADR-042 — UsageService.get_usage() Query API
+
+**Phase:** 6
+
+**Context:** ADR-035 promises `get_usage(user_id, period)` in Phase 6 but defines no signature or return type.
+
+**Decision:** Two query methods on `UsageService`:
+
+```python
+async def get_usage(
+    self, *, user_id=None, api_key_id=None, agent_name=None,
+    period_start=None, period_end=None, db: AsyncSession,
+) -> UsageSummary: ...
+
+async def get_usage_by_model(
+    self, *, user_id=None, api_key_id=None, agent_name=None,
+    period_start=None, period_end=None, db: AsyncSession,
+) -> list[UsageByModel]: ...
+```
+
+`UsageSummary`: `total_tokens`, `prompt_tokens`, `completion_tokens`, `total_cost_microcents`, `request_count`, `period_start`, `period_end`.
+
+`UsageByModel`: per-model breakdown with the same fields plus `model: str`.
+
+Filters are ANDed. At least one filter required (prevents full-table scans). Default period: last 24h. I21 does NOT apply to reads — exceptions propagate normally.
+
+**Consequences:**
+- `UsageSummary` and `UsageByModel` exported from `fast_agent_stack.core.ai.usage`
+- Budget enforcement is user-code: call `get_usage()`, compare, reject if over
+- Single SQL aggregate query per call — efficient with existing `created_at` index
+
+See `spec/adr/ADR-042.md` for full API definition.

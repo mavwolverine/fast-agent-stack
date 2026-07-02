@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import DateTime, Index, Integer, String, Uuid, func
+from sqlalchemy import DateTime, Index, Integer, String, Uuid, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,6 +43,27 @@ class TokenUsageLog(Base):
     )
 
 
+@dataclass(frozen=True)
+class UsageSummary:
+    total_tokens: int
+    prompt_tokens: int
+    completion_tokens: int
+    total_cost_microcents: int
+    request_count: int
+    period_start: datetime | None = None
+    period_end: datetime | None = None
+
+
+@dataclass(frozen=True)
+class UsageByModel:
+    model: str
+    total_tokens: int
+    prompt_tokens: int
+    completion_tokens: int
+    cost_microcents: int
+    request_count: int
+
+
 class UsageService:
     async def log_usage(
         self,
@@ -71,3 +93,112 @@ class UsageService:
         )
         db.add(row)
         await db.flush()
+
+    def _build_filters(
+        self,
+        *,
+        user_id: UUID | None,
+        api_key_id: UUID | None,
+        agent_name: str | None,
+        period_start: datetime | None,
+        period_end: datetime | None,
+    ) -> tuple[list, datetime, datetime]:
+        if user_id is None and api_key_id is None and agent_name is None:
+            raise ValueError(
+                "At least one identity filter (user_id, api_key_id, agent_name) must be provided."
+            )
+        now = datetime.now(tz=timezone.utc)
+        start = period_start or (now - timedelta(hours=24))
+        end = period_end or now
+        conditions = [
+            TokenUsageLog.created_at >= start,
+            TokenUsageLog.created_at <= end,
+        ]
+        if user_id is not None:
+            conditions.append(TokenUsageLog.user_id == user_id)
+        if api_key_id is not None:
+            conditions.append(TokenUsageLog.api_key_id == api_key_id)
+        if agent_name is not None:
+            conditions.append(TokenUsageLog.agent_name == agent_name)
+        return conditions, start, end
+
+    async def get_usage(
+        self,
+        *,
+        user_id: UUID | None = None,
+        api_key_id: UUID | None = None,
+        agent_name: str | None = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
+        db: AsyncSession,
+    ) -> UsageSummary | None:
+        conditions, start, end = self._build_filters(
+            user_id=user_id,
+            api_key_id=api_key_id,
+            agent_name=agent_name,
+            period_start=period_start,
+            period_end=period_end,
+        )
+        stmt = select(
+            func.sum(TokenUsageLog.total_tokens).label("total_tokens"),
+            func.sum(TokenUsageLog.prompt_tokens).label("prompt_tokens"),
+            func.sum(TokenUsageLog.completion_tokens).label("completion_tokens"),
+            func.coalesce(func.sum(TokenUsageLog.cost_microcents), 0).label("total_cost_microcents"),
+            func.count(TokenUsageLog.id).label("request_count"),
+        ).where(*conditions)
+        result = await db.execute(stmt)
+        row = result.one_or_none()
+        if row is None or row.request_count == 0:
+            return None
+        return UsageSummary(
+            total_tokens=row.total_tokens or 0,
+            prompt_tokens=row.prompt_tokens or 0,
+            completion_tokens=row.completion_tokens or 0,
+            total_cost_microcents=row.total_cost_microcents or 0,
+            request_count=row.request_count,
+            period_start=start,
+            period_end=end,
+        )
+
+    async def get_usage_by_model(
+        self,
+        *,
+        user_id: UUID | None = None,
+        api_key_id: UUID | None = None,
+        agent_name: str | None = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
+        db: AsyncSession,
+    ) -> list[UsageByModel]:
+        conditions, _start, _end = self._build_filters(
+            user_id=user_id,
+            api_key_id=api_key_id,
+            agent_name=agent_name,
+            period_start=period_start,
+            period_end=period_end,
+        )
+        stmt = (
+            select(
+                TokenUsageLog.model,
+                func.sum(TokenUsageLog.total_tokens).label("total_tokens"),
+                func.sum(TokenUsageLog.prompt_tokens).label("prompt_tokens"),
+                func.sum(TokenUsageLog.completion_tokens).label("completion_tokens"),
+                func.coalesce(func.sum(TokenUsageLog.cost_microcents), 0).label("cost_microcents"),
+                func.count(TokenUsageLog.id).label("request_count"),
+            )
+            .where(*conditions)
+            .group_by(TokenUsageLog.model)
+            .order_by(func.sum(TokenUsageLog.total_tokens).desc())
+        )
+        result = await db.execute(stmt)
+        return [
+            UsageByModel(
+                model=row.model,
+                total_tokens=row.total_tokens or 0,
+                prompt_tokens=row.prompt_tokens or 0,
+                completion_tokens=row.completion_tokens or 0,
+                cost_microcents=row.cost_microcents or 0,
+                request_count=row.request_count,
+            )
+            for row in result.all()
+        ]

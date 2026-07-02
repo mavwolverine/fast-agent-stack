@@ -76,13 +76,13 @@
 - [x] Tests
 
 ## Phase 6: Background Tasks & Hardening
-- [ ] Background tasks (Dramatiq) + scheduling (periodiq)
-- [ ] Rate limiting (Redis fixed-window, ADR-016)
-- [ ] Observability (OpenTelemetry + Jaeger, config-driven)
-- [ ] Password reset + email verification (aiosmtplib)
-- [ ] Secrets manager backends (AWS, GCP)
-- [ ] `UsageService.get_usage(user_id, period)` query API (ADR-035)
-- [ ] Tests
+- [x] Background tasks (Dramatiq) + scheduling (periodiq)
+- [x] Rate limiting (Redis fixed-window, ADR-016)
+- [x] Observability (OpenTelemetry + Jaeger, config-driven)
+- [x] Password reset + email verification (aiosmtplib)
+- [x] Secrets manager backends (AWS, GCP)
+- [x] `UsageService.get_usage(user_id, period)` query API (ADR-035)
+- [x] Tests
 
 ## Phase 7: Scaffolder Completion & Release (standard preset complete)
 - [ ] Full scaffolder: all presets (`minimal`, `standard`, `full`, `agent`), all copier questions

@@ -26,6 +26,10 @@ thread-level usage attribution (ADR-035).
 
 **EmbeddingProtocol** — the Protocol for embedding backends (ADR-038). Methods: `embed(text) -> list[float]`, `embed_batch(texts) -> list[list[float]]`, `dimensions` (property). Returns `list[float]` (not numpy). Built-in implementations: Bedrock, OpenAI, local (fastembed). See ADR-039 for the local backend.
 
+**EmailDeliveryError** — exception raised by `EmailProtocol.send()` when delivery fails (ADR-041). Auth routes catch this, log it, and return success to the user (fire-and-forget; prevents email enumeration).
+
+**EmailProtocol** — the Protocol for email delivery backends (ADR-041). Single method: `send(*, to, subject, body_text, body_html) -> None`. Built-in: `SmtpEmailBackend` (aiosmtplib). Custom backends via ADR-012 dotted-path in `email_backend` setting. Located in `core/email/`.
+
 **ExtractionProtocol** — the Protocol for document text extraction (ADR-040). Single method: `extract(data: bytes) -> str`. Built-in implementations: PDF (pdfplumber), DOCX (python-docx), XLSX (openpyxl), EML (stdlib). Each is extras-gated (I3).
 
 **Extras gate** — a guard around an optional import that raises a clear error pointing to the correct install command:
@@ -78,8 +82,17 @@ contribute models and admin views. See `spec/ARCHITECTURE.md` Module 1.
 **UsageService** — the framework service (injected as a FastAPI dependency or called directly from
 `stream_sse`) responsible for writing token usage records to `token_usage_log`. Exposes
 `log_usage(result: CompletionResult, *, user_id, api_key_id, agent_name, conversation_id)`
-and `get_usage(user_id, period)`. Write failures in `log_usage()` must be caught, logged, and
-swallowed — they must never propagate to the LLM caller (I21). See ADR-035 and ADR-036.
+and `get_usage(*, user_id, api_key_id, agent_name, period_start, period_end, db) -> UsageSummary`.
+Write failures in `log_usage()` must be caught, logged, and swallowed — they must never propagate
+to the LLM caller (I21). Read failures in `get_usage()` propagate normally. See ADR-035, ADR-036,
+and ADR-042.
+
+**UsageSummary** — frozen dataclass returned by `UsageService.get_usage()` (ADR-042). Fields:
+`total_tokens`, `prompt_tokens`, `completion_tokens`, `total_cost_microcents`, `request_count`,
+`period_start`, `period_end`. Represents aggregated token usage for a filtered time period.
+
+**UsageByModel** — frozen dataclass returned by `UsageService.get_usage_by_model()` (ADR-042).
+Same fields as `UsageSummary` plus `model: str`. One entry per model with activity in the period.
 
 **copier.yml** — the Copier question definition file that drives interactive project generation. Variable names defined here are the only valid names for template conditionals.
 
