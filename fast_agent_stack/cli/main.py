@@ -15,7 +15,9 @@ from fast_agent_stack.cli.db import seed as _seed
 from fast_agent_stack.cli.new import new as _new
 from fast_agent_stack.cli.run import dev as _dev
 from fast_agent_stack.cli.run import run as _run
+from fast_agent_stack.cli.scheduler_cmd import scheduler as _scheduler
 from fast_agent_stack.cli.update import update as _update
+from fast_agent_stack.cli.worker import worker as _worker
 
 console = Console()
 
@@ -81,3 +83,5 @@ app.command(name="migrate")(_migrate)
 app.command(name="makemigrations")(_makemigrations)
 app.command(name="seed")(_seed)
 app.command(name="createsuperuser")(_createsuperuser)
+app.command(name="worker")(_worker)
+app.command(name="scheduler")(_scheduler)

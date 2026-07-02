@@ -78,6 +78,27 @@ class BaseSettings(_BaseSettings):
     rag_chunk_overlap: int = 64
     rag_chunking_strategy: str = "fixed"
 
+    # Background tasks (Phase 6, ADR-005, ADR-020)
+    tasks_broker_url: str | None = None  # falls back to redis_url when None
+
+    # Rate limiting (Phase 6, ADR-016)
+    rate_limit_requests: int = 100
+    rate_limit_period: int = 60  # seconds per fixed window
+
+    # Email delivery (Phase 6, ADR-018, ADR-041)
+    email_backend: str = "smtp"
+    smtp_host: str = "localhost"
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+    email_from: str = "noreply@example.com"
+    email_from_name: str = "FastAgentStack"
+
+    # Observability (Phase 6, ADR-009)
+    tracing_enabled: bool = False
+    otel_exporter_endpoint: str = "http://localhost:4317"
+
     # Token / session TTLs (ADR-015, ADR-032)
     access_token_ttl_seconds: int = 900        # 15 minutes
     refresh_token_ttl_seconds: int = 2592000   # 30 days

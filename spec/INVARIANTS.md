@@ -6,11 +6,7 @@ These rules are non-negotiable. No implementation may violate them. Agents must 
 
 Every pluggable backend must implement every method of its Protocol/ABC. Partial implementations are forbidden — they silently break user projects at runtime.
 
-**Applies to:** all backends under `core/ai/` (including `core/ai/embedding/`), `core/vector/`, `core/storage/`, `core/auth/backends/`
-
-**Known gap (Phase 6):** ADR-018 allows a custom email backend via dotted path in `email_backend`
-setting. Unlike other backend families, there is no `EmailProtocol` defined yet and no extras gate
-for user-supplied email implementations. This must be resolved when email support is implemented.
+**Applies to:** all backends under `core/ai/` (including `core/ai/embedding/`), `core/vector/`, `core/storage/`, `core/auth/backends/`, `core/email/`
 
 ## I2 — Async-Only I/O
 
