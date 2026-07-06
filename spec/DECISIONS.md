@@ -1104,3 +1104,26 @@ Filters are ANDed. At least one filter required (prevents full-table scans). Def
 - Single SQL aggregate query per call — efficient with existing `created_at` index
 
 See `spec/adr/ADR-042.md` for full API definition.
+
+---
+
+## ADR-043 — Integration Test Strategy: Two-Tier Scaffolder Verification
+
+**Phase:** 9
+
+**Context:** Template errors are silent — Copier produces broken projects with no error. Unit tests mock everything and can't catch these.
+
+**Decision:** Two test tiers:
+
+- **Tier 1 (every PR, ~10s, no Docker):** Scaffold each preset → `py_compile` all generated `.py` files → verify `pyproject.toml` parseable → `pip install -e .` → app module imports without error.
+- **Tier 2 (release gate, ~60s, Docker):** Testcontainers (Postgres + Redis) → scaffold → `fas migrate` → start app → hit endpoints → verify responses.
+
+Tier 2 uses `testcontainers[postgres,redis]>=4.0` in dev deps. Not a hard block on PRs — only on releases.
+
+**Consequences:**
+- Template regressions caught every PR (no Docker needed)
+- Integration bugs caught before release (Docker required)
+- New presets/copier questions must add assertions to both tiers
+- CI: `ci.yml` runs Tier 1; `e2e.yml` runs Tier 2 on tag push / nightly / manual dispatch
+
+See `spec/adr/ADR-043.md` for full CI config and test layout.
