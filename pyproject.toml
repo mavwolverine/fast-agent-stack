@@ -59,7 +59,7 @@ litellm   = ["litellm>=1.30"]
 
 # Vector stores
 vector-qdrant     = ["qdrant-client>=1.7"]
-vector-pgvector   = ["pgvector>=0.2"]
+vector-pgvector   = ["pgvector>=0.2", "asyncpg>=0.29"]
 vector-opensearch = ["opensearch-py[async]>=2.3"]
 vector-weaviate   = ["weaviate-client>=4"]
 

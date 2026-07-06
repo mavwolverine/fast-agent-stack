@@ -28,6 +28,9 @@ def _make_settings(**kwargs):  # type: ignore[no-untyped-def]
     m.weaviate_url = kwargs.get("weaviate_url", "http://localhost:8080")
     m.weaviate_api_key = kwargs.get("weaviate_api_key", None)
     m.vector_timeout = kwargs.get("vector_timeout", 30.0)
+    m.pgvector_database_url = kwargs.get(
+        "pgvector_database_url", "postgresql+asyncpg://localhost/test"
+    )
     return m
 
 
@@ -95,10 +98,12 @@ def test_qdrant_store_exposes_client_attribute_i4():
 
 
 def test_pgvector_store_exposes_client_attribute_i4():
+    from unittest.mock import patch
     pytest.importorskip("pgvector")
     settings = _make_settings(vector_db="pgvector")
     from fast_agent_stack.core.vector.backends.pgvector import PgVectorStore
-    store = PgVectorStore(settings)
+    with patch("fast_agent_stack.core.vector.backends.pgvector.create_async_engine"):
+        store = PgVectorStore(settings)
     assert hasattr(store, "_client")
 
 
