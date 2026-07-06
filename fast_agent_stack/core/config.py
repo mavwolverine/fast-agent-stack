@@ -57,6 +57,7 @@ class BaseSettings(_BaseSettings):
     vector_db: str = "qdrant"
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: str | None = None
+    pgvector_database_url: str | None = None   # postgresql+asyncpg://... required for PgVectorStore
     pgvector_collection_schema: str = "public"
     opensearch_url: str = "http://localhost:9200"
     opensearch_username: str | None = None
