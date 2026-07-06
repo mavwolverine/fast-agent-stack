@@ -99,3 +99,23 @@
 - [x] Update I3 import guards: `redis_fastapi` replaces `redis.asyncio` guards
 - [x] Update all affected tests
 - [x] Unlock response caching (`cache()`, `cache_evict()`, `cache_put()`) for new routes
+
+## Phase 9: Documentation & Release Readiness
+- [ ] README.md (PyPI landing page — install, quick start, features, badges)
+- [ ] pyproject.toml: `readme = "README.md"` field
+- [ ] Getting Started tutorial (install → scaffold → run → deploy)
+- [ ] Authentication & authorization guide (JWT, sessions, RBAC, API keys, email verification)
+- [ ] AI module guide (LLM backends, agents, streaming, token metering)
+- [ ] RAG pipeline guide (embedding, vector stores, ingestion, retrieval)
+- [ ] Storage & extraction guide
+- [ ] Background tasks & scheduling guide (Dramatiq, Periodiq)
+- [ ] Rate limiting & observability guide (Redis fixed-window, OpenTelemetry)
+- [ ] Deployment guide (Docker, K8s, production checklist)
+- [ ] Custom backends guide (ADR-012 dotted-path pattern)
+- [ ] API reference (auto-generated from docstrings/type hints)
+- [ ] Configuration reference (all settings fields, env vars, secrets backends)
+- [ ] Migration & upgrade guide
+- [ ] CHANGELOG.md: set 0.1.0 release date
+- [ ] Integration test: scaffold each preset → build → run → smoke test
+- [ ] E2E test: testcontainers (Postgres + Redis) → scaffold → migrate → hit endpoints (release gate)
+- [ ] PyPI test publish (TestPyPI dry-run)
