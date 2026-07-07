@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "fast-agent-stack"
 dynamic = ["version"]
 description = "An opinionated FastAPI framework for AI/agent production applications"
+readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
 classifiers = [
@@ -120,6 +121,7 @@ dev = [
     "mypy>=1.10",
     "tox>=4.15",
     "tox-uv>=1.15",
+    "testcontainers[postgres,redis]>=4.0",
 ]
 docs = [
     "zensical",
@@ -142,6 +144,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "integration: marks tests that require real external services (deselect with '-m not integration')",
+    "e2e: marks Tier 2 E2E tests that require Docker (Postgres + Redis containers)",
 ]
 
 [tool.coverage.run]
