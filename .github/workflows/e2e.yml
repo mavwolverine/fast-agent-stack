@@ -23,6 +23,9 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
       - name: Install dependencies
-        run: uv pip install --system -e ".[db-postgres,auth-jwt]" "testcontainers[postgres,redis]>=4.0"
+        run: |
+          uv pip install --system \
+            -e ".[db-postgres,auth-jwt,admin,tracing,bedrock,vector-qdrant,tasks,scheduler,rate-limit,storage-s3,embedding-bedrock]" \
+            "testcontainers[postgres,redis]>=4.0"
       - name: Run E2E tests
-        run: python -m pytest tests/integration/test_e2e.py -k ${{ matrix.preset }} --tb=short -q
+        run: python -m pytest tests/integration/test_e2e.py -k ${{ matrix.preset }} -m e2e --tb=short -q
