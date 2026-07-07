@@ -1,0 +1,28 @@
+name: E2E
+
+on:
+  push:
+    tags: ["v*"]
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: E2E (${{ matrix.preset }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [minimal, standard, full, agent]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      - name: Set up Python
+        run: uv python install 3.11
+      - name: Install dependencies
+        run: uv pip install --system -e ".[db-postgres,auth-jwt]" "testcontainers[postgres,redis]>=4.0"
+      - name: Run E2E tests
+        run: python -m pytest tests/integration/test_e2e.py -k ${{ matrix.preset }} --tb=short -q
