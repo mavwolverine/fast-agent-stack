@@ -17,12 +17,14 @@ class OpenAILLMBackend:
         api_key: str | None = None,
         base_url: str | None = None,
         timeout: float = 30.0,
+        settings: Any | None = None,
     ) -> None:
         self._model_id = model_id
+        _timeout = settings.llm_timeout if settings is not None else timeout
         self._client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
-            timeout=timeout,
+            timeout=_timeout,
         )
 
     @property

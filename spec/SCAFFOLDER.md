@@ -45,10 +45,12 @@ fast_agent_stack/
 - The generated `Dockerfile` uses `python:{python_version}-slim` — the version matches the
   `python_version` copier answer, not a hardcoded value.
 - **Lifespan hook registration order** (see Invariant I9): the generated `{{project_name}}/app.py`
-  always registers hooks in this sequence: `DatabaseLifespanHook` → `AuthLifespanHook` (if
+  always registers hooks in this sequence: `DatabaseLifespanHook` → `FastAPIRedisLifespanHook` (if
+  `include_auth` or `include_rate_limit`; SDK-managed pool, ADR-037) → `AuthLifespanHook` (if
   `include_auth`) → `RateLimitLifespanHook` (if `include_rate_limit`) → `TracingLifespanHook` (if
   `tracing == "jaeger"`) → `AdminLifespanHook` (if `include_admin`). Any hook that depends on the
-  database must follow `DatabaseLifespanHook`.
+  database must follow `DatabaseLifespanHook`. Any hook that depends on Redis must follow
+  `FastAPIRedisLifespanHook`.
 
 ## copier.yml Question Definitions
 

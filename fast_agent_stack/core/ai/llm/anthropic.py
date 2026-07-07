@@ -17,12 +17,14 @@ class AnthropicLLMBackend:
         api_key: str | None = None,
         timeout: float = 30.0,
         max_tokens: int = 4096,
+        settings: Any | None = None,
     ) -> None:
         self._model_id = model_id
         self._max_tokens = max_tokens
+        _timeout = settings.llm_timeout if settings is not None else timeout
         self._client = AsyncAnthropic(
             api_key=api_key,
-            timeout=timeout,
+            timeout=_timeout,
         )
 
     @property
