@@ -178,8 +178,8 @@ Inspired by Django's database backends. Each service type has:
 | `db-postgres` | `asyncpg>=0.29` (driver only — SQLAlchemy and Alembic are core) | ADR-002, ADR-025 |
 | `db-sqlite` | `aiosqlite>=0.19` (driver only — SQLAlchemy and Alembic are core) | ADR-002, ADR-025 |
 | `db-mysql` | `aiomysql>=0.2` (driver only — SQLAlchemy and Alembic are core) | ADR-002, ADR-025 |
-| `auth-jwt` | `pwdlib[argon2]>=0.3`, `pyjwt[crypto]>=2.8`, `redis>=5` | ADR-015, ADR-029, ADR-030 |
-| `auth-session` | `pwdlib[argon2]>=0.3`, `redis>=5` | ADR-015, ADR-030 |
+| `auth-jwt` | `pwdlib[argon2]>=0.3`, `pyjwt[crypto]>=2.8`, `fastapi-redis-sdk>=0.7` | ADR-015, ADR-029, ADR-030, ADR-037 |
+| `auth-session` | `pwdlib[argon2]>=0.3`, `fastapi-redis-sdk>=0.7` | ADR-015, ADR-030, ADR-037 |
 | `admin` | `sqladmin>=0.16` | ADR-007 |
 | `bedrock` | `aioboto3>=12` | ADR-021 |
 | `openai` | `openai>=1.0` | ADR-021 |
@@ -197,7 +197,7 @@ Inspired by Django's database backends. Each service type has:
 | `storage-minio` | `aioboto3>=12` | ADR-038 |
 | `tasks` | `dramatiq[redis]>=1.15` | ADR-005, ADR-020 |
 | `scheduler` | `periodiq>=0.9` | ADR-005 |
-| `rate-limit` | `redis>=5` | ADR-016 |
+| `rate-limit` | `fastapi-redis-sdk>=0.7` | ADR-016, ADR-037 |
 | `email-smtp` | `aiosmtplib>=3` | ADR-018 |
 | `extract-pdf` | `pdfplumber>=0.10` | — |
 | `extract-docx` | `python-docx>=1.1` | — |

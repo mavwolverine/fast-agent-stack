@@ -20,18 +20,20 @@ class BedrockLLMBackend:
         aws_secret_access_key: str | None = None,
         aws_session_token: str | None = None,
         timeout: float = 30.0,
+        settings: Any | None = None,
     ) -> None:
         self._model_id = model_id
         self._region = region_name
-        self._timeout = timeout
+        _timeout = settings.llm_timeout if settings is not None else timeout
+        self._timeout = _timeout
         self._session = aioboto3.Session(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
         )
         self._boto_config = BotocoreConfig(
-            connect_timeout=timeout,
-            read_timeout=timeout,
+            connect_timeout=_timeout,
+            read_timeout=_timeout,
         )
 
     @property

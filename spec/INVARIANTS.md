@@ -279,3 +279,28 @@ Missing usage rows are recoverable (re-derivable from logs); an aborted response
 
 **Applies to:** `core/ai/streaming.py` (`stream_sse` helper), `core/ai/agents.py` (agent dispatcher),
 and any other call site of `UsageService.log_usage()`
+
+---
+
+## I22 — Backend Operations Must Enforce Configurable Timeouts
+
+Every pluggable backend that performs network I/O must read a `*_timeout: float` setting from
+`BaseSettings` and enforce it on all external calls. Default: 30 seconds. Operations that exceed
+the timeout must raise `TimeoutError` rather than hanging indefinitely.
+
+Settings by family:
+- `llm_timeout` — LLM provider API calls (`complete`, `stream`)
+- `vector_timeout` — vector store operations (`upsert`, `search`, `create_collection`)
+- `storage_timeout` — storage operations (`upload`, `download`, `url`)
+- `embedding_timeout` — embedding API calls (`embed`, `embed_batch`)
+
+**Exemption:** Pure-arithmetic operations that make no network I/O (e.g., character-count
+`count_tokens` heuristics, local fastembed inference via `run_in_executor`) are exempt — they
+cannot block the event loop for a meaningful duration.
+
+**Applies to:** all backends under `core/ai/llm/`, `core/ai/embedding/`, `core/vector/`,
+`core/storage/` that perform network calls
+
+**Rationale:** A hung backend with no timeout keeps an async worker occupied indefinitely,
+eventually exhausting the worker pool and degrading the entire application. Timeouts convert
+silent hangs into actionable errors.

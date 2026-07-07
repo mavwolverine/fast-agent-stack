@@ -17,10 +17,11 @@ class LiteLLMLLMBackend:
         self,
         model_id: str,
         timeout: float = 30.0,
+        settings: Any | None = None,
         **litellm_kwargs: Any,
     ) -> None:
         self._model_id = model_id
-        self._timeout = timeout
+        self._timeout = settings.llm_timeout if settings is not None else timeout
         self._litellm_kwargs = litellm_kwargs
 
     @property
