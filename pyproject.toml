@@ -164,21 +164,21 @@ isolated_build = true
 runner = uv-venv-runner
 dependency_groups = dev
 extras =
-    db-sqlite,
-    auth-jwt,
-    auth-session,
-    admin,
-    rate-limit,
-    caching,
-    tasks,
-    tracing,
-    email-smtp,
-    storage-local,
-    embedding-local,
-    extract-pdf,
-    extract-docx,
-    extract-xlsx,
-    vector-qdrant,
+    db-sqlite
+    auth-jwt
+    auth-session
+    admin
+    rate-limit
+    caching
+    tasks
+    tracing
+    email-smtp
+    storage-local
+    embedding-local
+    extract-pdf
+    extract-docx
+    extract-xlsx
+    vector-qdrant
     vector-pgvector
 commands = pytest {posargs}
 """
