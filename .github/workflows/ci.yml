@@ -15,9 +15,10 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
-      - run: uv pip install --system ruff
-      - run: ruff check fast_agent_stack/
-      - run: ruff format --check fast_agent_stack/
+      - run: uv venv
+      - run: uv pip install ruff
+      - run: uv run ruff check fast_agent_stack/
+      - run: uv run ruff format --check fast_agent_stack/
 
   mypy:
     name: Type check
@@ -27,8 +28,10 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
-      - run: uv pip install --system -e ".[dev,auth-jwt,bedrock,openai,anthropic,litellm,email-smtp,tracing,tasks,rate-limit,admin,vector-qdrant,storage-s3,secrets-aws]"
-      - run: mypy --strict fast_agent_stack/
+      - run: uv venv
+      - run: uv pip install -e ".[auth-jwt,bedrock,openai,anthropic,litellm,email-smtp,tracing,tasks,rate-limit,admin,vector-qdrant,storage-s3,secrets-aws]"
+      - run: uv pip install mypy
+      - run: uv run mypy --strict fast_agent_stack/
 
   test:
     name: Test (Python ${{ matrix.python-version }})
@@ -53,6 +56,6 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
       - name: Install tox
-        run: uv pip install --system tox tox-uv
+        run: uv venv && uv pip install tox tox-uv
       - name: Run tox
-        run: tox -e ${{ matrix.tox-env }}
+        run: uv run tox -e ${{ matrix.tox-env }}
