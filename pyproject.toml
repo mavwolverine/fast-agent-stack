@@ -122,6 +122,7 @@ dev = [
     "tox>=4.15",
     "tox-uv>=1.15",
     "testcontainers[postgres,redis]>=4.0",
+    "fakeredis>=2.21",
 ]
 docs = [
     "zensical",
