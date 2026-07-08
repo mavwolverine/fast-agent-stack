@@ -119,3 +119,17 @@
 - [x] Integration test: scaffold each preset → build → run → smoke test
 - [x] E2E test: testcontainers (Postgres + Redis) → scaffold → migrate → hit endpoints (release gate)
 - [x] PyPI test publish (TestPyPI dry-run)
+
+## Phase 10: Progressive Tutorial (scenario-based documentation)
+- [ ] Tutorial Part 1 — Hello World: scaffold `minimal` preset, add a route, run dev server, hit the API
+- [ ] Tutorial Part 2 — Database & Models: add a model, generate migration, seed data, CRUD routes
+- [ ] Tutorial Part 3 — Authentication: enable JWT auth, create a user, protect routes, test with curl
+- [ ] Tutorial Part 4 — Build a Chat Agent: add an LLM backend, register an agent, streaming responses
+- [ ] Tutorial Part 5 — RAG Pipeline: upload a PDF, ingest → embed → store, query with context retrieval
+- [ ] Tutorial Part 6 — Background Tasks: add a Dramatiq actor, schedule with periodiq, monitor worker
+- [ ] Tutorial Part 7 — Production: rate limiting, observability (Jaeger), Docker Compose, K8s deploy
+
+Tutorial builds a "Document Q&A Assistant" as the through-line application (each part adds a layer).
+Each part is progressive (builds on previous) but self-contained enough to jump into independently.
+All code snippets must be runnable — validated by Tier 1 scaffold smoke tests extracting and compiling them.
+Lives in `docs/tutorial/` as Zensical pages (part-1.md through part-7.md). No separate repo.
