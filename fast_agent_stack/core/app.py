@@ -97,7 +97,7 @@ class FastAgentStack:
                 path or f"/agents/{name}",
                 route_func,
                 methods=["POST"],
-                tags=tags or ["agents"],
+                tags=tags or ["agents"],  # type: ignore[arg-type]
                 summary=summary or f"Agent: {name}",
             )
             return handler

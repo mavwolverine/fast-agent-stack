@@ -47,9 +47,9 @@ class FastAPIRedisLifespanHook:
             import redis.asyncio as aioredis
         except ImportError:
             return self
-        client = aioredis.from_url(self._settings.redis_url, decode_responses=False)
+        client = aioredis.from_url(self._settings.redis_url, decode_responses=False)  # type: ignore[arg-type]
         try:
-            await asyncio.wait_for(client.ping(), timeout=5.0)
+            await asyncio.wait_for(client.ping(), timeout=5.0)  # type: ignore[arg-type]
         except (TimeoutError, Exception) as exc:
             await client.aclose()
             raise RuntimeError(

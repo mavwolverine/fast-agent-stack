@@ -53,7 +53,7 @@ class _AuthBackendChain:
         return None
 
     async def create_token(self, user: object, response: Response) -> TokenResponse:
-        return await self._primary.create_token(user, response)
+        return await self._primary.create_token(user, response)  # type: ignore[arg-type]
 
     async def refresh_token(self, refresh_tok: str) -> TokenResponse:
         return await self._primary.refresh_token(refresh_tok)
@@ -70,7 +70,7 @@ class _AuthBackendChain:
 
 
 async def get_auth_backend(
-    redis: _Redis = Depends(AsyncRedisDep),  # type: ignore[assignment]
+    redis: _Redis = Depends(AsyncRedisDep),
 ) -> AuthBackend:
     """Per-request factory — builds auth backend instances with the injected Redis client."""
     if _stored_settings is None:
@@ -90,14 +90,14 @@ async def get_auth_backend(
                     secret_key=s.secret_key,
                     access_ttl=s.access_token_ttl_seconds,
                     refresh_ttl=s.refresh_token_ttl_seconds,
-                    redis=redis,  # type: ignore[arg-type]
+                    redis=redis,
                 )
             )
         elif name == "session":
             backends.append(
                 SessionAuthBackend(
                     session_ttl=s.session_ttl_seconds,
-                    redis=redis,  # type: ignore[arg-type]
+                    redis=redis,
                     debug=s.debug,
                 )
             )
@@ -109,7 +109,7 @@ async def get_auth_backend(
 
     if len(backends) == 1:
         return backends[0]
-    return _AuthBackendChain(backends)  # type: ignore[return-value]
+    return _AuthBackendChain(backends)
 
 
 __all__ = ["get_auth_backend", "_set_backend_settings", "_clear_backend_settings"]

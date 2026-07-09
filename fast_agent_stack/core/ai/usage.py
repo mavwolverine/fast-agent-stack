@@ -98,7 +98,7 @@ class UsageService:
         agent_name: str | None,
         period_start: datetime | None,
         period_end: datetime | None,
-    ) -> tuple[list, datetime, datetime]:
+    ) -> tuple[list, datetime, datetime]:  # type: ignore[type-arg]
         if user_id is None and api_key_id is None and agent_name is None:
             raise ValueError("At least one identity filter (user_id, api_key_id, agent_name) must be provided.")
         now = datetime.now(tz=UTC)

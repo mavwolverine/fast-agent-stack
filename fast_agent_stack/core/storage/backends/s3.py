@@ -45,7 +45,7 @@ class S3Storage:
         try:
             async with self._session.client("s3", region_name=self._region) as client:
                 resp = await client.get_object(Bucket=self._bucket, Key=key)
-                return await resp["Body"].read()
+                return await resp["Body"].read()  # type: ignore[no-any-return]
         except ClientError as exc:
             if exc.response["Error"]["Code"] in ("NoSuchKey", "404"):
                 raise KeyNotFoundError(key) from exc
@@ -65,7 +65,7 @@ class S3Storage:
 
     async def url(self, key: str, *, expires_in: int = 3600) -> str:
         async with self._session.client("s3", region_name=self._region) as client:
-            return await client.generate_presigned_url(
+            return await client.generate_presigned_url(  # type: ignore[no-any-return]
                 "get_object",
                 Params={"Bucket": self._bucket, "Key": key},
                 ExpiresIn=expires_in,

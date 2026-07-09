@@ -60,4 +60,4 @@ def require_permission(permission: str) -> Callable[..., object]:
             raise HTTPException(status_code=403, detail="Permission denied")
         return user
 
-    return Depends(_check)
+    return Depends(_check)  # type: ignore[no-any-return]

@@ -43,7 +43,7 @@ class MinIOStorage:
         *,
         content_type: str = "application/octet-stream",
     ) -> str:
-        async with self._client_ctx() as client:
+        async with self._client_ctx() as client:  # type: ignore[no-untyped-call]
             await client.put_object(
                 Bucket=self._bucket,
                 Key=key,
@@ -54,29 +54,29 @@ class MinIOStorage:
 
     async def download(self, key: str) -> bytes:
         try:
-            async with self._client_ctx() as client:
+            async with self._client_ctx() as client:  # type: ignore[no-untyped-call]
                 resp = await client.get_object(Bucket=self._bucket, Key=key)
-                return await resp["Body"].read()
+                return await resp["Body"].read()  # type: ignore[no-any-return]
         except ClientError as exc:
             if exc.response["Error"]["Code"] in ("NoSuchKey", "404"):
                 raise KeyNotFoundError(key) from exc
             raise
 
     async def delete(self, key: str) -> None:
-        async with self._client_ctx() as client:
+        async with self._client_ctx() as client:  # type: ignore[no-untyped-call]
             await client.delete_object(Bucket=self._bucket, Key=key)
 
     async def exists(self, key: str) -> bool:
         try:
-            async with self._client_ctx() as client:
+            async with self._client_ctx() as client:  # type: ignore[no-untyped-call]
                 await client.head_object(Bucket=self._bucket, Key=key)
             return True
         except ClientError:
             return False
 
     async def url(self, key: str, *, expires_in: int = 3600) -> str:
-        async with self._client_ctx() as client:
-            return await client.generate_presigned_url(
+        async with self._client_ctx() as client:  # type: ignore[no-untyped-call]
+            return await client.generate_presigned_url(  # type: ignore[no-any-return]
                 "get_object",
                 Params={"Bucket": self._bucket, "Key": key},
                 ExpiresIn=expires_in,

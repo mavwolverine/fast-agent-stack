@@ -41,7 +41,7 @@ def decode_access_token(
 ) -> dict[str, object]:
     """Decode and validate. Raises HTTPException(401) on any failure."""
     try:
-        return pyjwt.decode(token, secret_key, algorithms=[algorithm])  # type: ignore[no-any-return]
+        return pyjwt.decode(token, secret_key, algorithms=[algorithm])
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except pyjwt.PyJWTError:

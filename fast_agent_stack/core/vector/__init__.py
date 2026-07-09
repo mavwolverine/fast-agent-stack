@@ -83,4 +83,4 @@ def get_vector_store(settings: BaseSettings) -> VectorStoreProtocol:
     module_path, _, class_name = backend.rpartition(".")
     mod = importlib.import_module(module_path)
     cls = getattr(mod, class_name)
-    return cls(settings)
+    return cls(settings)  # type: ignore[no-any-return]

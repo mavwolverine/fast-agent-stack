@@ -41,7 +41,7 @@ class LocalStorage:
         if not dest.exists():
             raise KeyNotFoundError(key)
         async with aiofiles.open(dest, "rb") as f:
-            return await f.read()
+            return await f.read()  # type: ignore[no-any-return]
 
     async def delete(self, key: str) -> None:
         dest = self._path(key)

@@ -33,7 +33,7 @@ class QdrantStore:
         self._client = AsyncQdrantClient(
             url=settings.qdrant_url,
             api_key=settings.qdrant_api_key,
-            timeout=settings.vector_timeout,
+            timeout=settings.vector_timeout,  # type: ignore[arg-type]
         )
 
     async def create_collection(
@@ -76,7 +76,7 @@ class QdrantStore:
     ) -> list[VectorSearchResult]:
         try:
             qdrant_filter = _build_filter(filter) if filter else None
-            results = await self._client.search(
+            results = await self._client.search(  # type: ignore[attr-defined]
                 collection_name=collection,
                 query_vector=vector,
                 limit=top_k,

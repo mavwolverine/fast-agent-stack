@@ -10,7 +10,7 @@ console = Console()
 
 def _resolve(app_path: str) -> str:
     if ":" in app_path:
-        return get_import_data_from_import_string(app_path, from_pyproject=False).import_string
+        return get_import_data_from_import_string(app_path, from_pyproject=False).import_string  # type: ignore[call-arg]
     return get_import_data(path=Path(app_path)).import_string
 
 
@@ -44,7 +44,4 @@ def run(
     """Run a FastAgentStack app in production mode. :rocket:"""
     import_string = _resolve(app_path)
     console.print(f"  [dim]→[/] [bold green]{import_string}[/] on [cyan]http://{host}:{port}[/]")
-    kwargs: dict[str, object] = {"app": import_string, "host": host, "port": port, "reload": False}
-    if workers is not None:
-        kwargs["workers"] = workers
-    uvicorn.run(**kwargs)
+    uvicorn.run(app=import_string, host=host, port=port, reload=False, workers=workers)

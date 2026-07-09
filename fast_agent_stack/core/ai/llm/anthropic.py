@@ -48,7 +48,7 @@ class AnthropicLLMBackend:
             model=self._model_id,
             max_tokens=self._max_tokens,
             system=system_text,
-            messages=conv,  # type: ignore[arg-type]
+            messages=conv,
             **kwargs,
         )
         content = response.content[0].text if response.content else ""
@@ -70,7 +70,7 @@ class AnthropicLLMBackend:
             model=self._model_id,
             max_tokens=self._max_tokens,
             system=system_text,
-            messages=conv,  # type: ignore[arg-type]
+            messages=conv,
             **kwargs,
         ) as stream:
             async for text in stream.text_stream:
@@ -93,6 +93,6 @@ class AnthropicLLMBackend:
         response = await self._client.messages.count_tokens(
             model=self._model_id,
             system=system_text,
-            messages=conv,  # type: ignore[arg-type]
+            messages=conv,
         )
-        return response.input_tokens
+        return response.input_tokens  # type: ignore[no-any-return]
