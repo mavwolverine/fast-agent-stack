@@ -180,9 +180,6 @@ module = [
     "qdrant_client.*",
 ]
 ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["numpy", "numpy.*"]
 follow_imports = "skip"
 
 [tool.pytest.ini_options]
