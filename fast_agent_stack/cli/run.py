@@ -44,4 +44,7 @@ def run(
     """Run a FastAgentStack app in production mode. :rocket:"""
     import_string = _resolve(app_path)
     console.print(f"  [dim]→[/] [bold green]{import_string}[/] on [cyan]http://{host}:{port}[/]")
-    uvicorn.run(app=import_string, host=host, port=port, reload=False, workers=workers)
+    if workers is not None:
+        uvicorn.run(app=import_string, host=host, port=port, reload=False, workers=workers)
+    else:
+        uvicorn.run(app=import_string, host=host, port=port, reload=False)
