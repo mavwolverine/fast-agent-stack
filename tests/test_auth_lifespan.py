@@ -43,6 +43,7 @@ async def test_b2_hook_sets_backend_settings_on_enter() -> None:
         redis_url="redis://localhost:6379",
     )
     from fast_agent_stack.core.auth.backends import factory as _factory
+
     hook = AuthLifespanHook(s)
     await hook.__aenter__()
     assert _factory._stored_settings is s
@@ -56,6 +57,7 @@ async def test_b3_hook_clears_backend_settings_on_exit() -> None:
         redis_url="redis://localhost:6379",
     )
     from fast_agent_stack.core.auth.backends import factory as _factory
+
     hook = AuthLifespanHook(s)
     await hook.__aenter__()
     await hook.__aexit__(None, None, None)
@@ -108,10 +110,7 @@ def test_a1_lifespan_has_no_redis_asyncio_import() -> None:
     import ast
     import pathlib
 
-    src = (
-        pathlib.Path(__file__).parent.parent
-        / "fast_agent_stack" / "core" / "auth" / "lifespan.py"
-    )
+    src = pathlib.Path(__file__).parent.parent / "fast_agent_stack" / "core" / "auth" / "lifespan.py"
     tree = ast.parse(src.read_text())
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module:
@@ -121,9 +120,7 @@ def test_a1_lifespan_has_no_redis_asyncio_import() -> None:
             )
         elif isinstance(node, ast.Import):
             for alias in node.names:
-                assert "redis" not in alias.name, (
-                    f"lifespan.py imports redis module '{alias.name}'"
-                )
+                assert "redis" not in alias.name, f"lifespan.py imports redis module '{alias.name}'"
 
 
 def test_a2_auth_backend_chain_not_in_lifespan() -> None:
@@ -131,10 +128,7 @@ def test_a2_auth_backend_chain_not_in_lifespan() -> None:
     import ast
     import pathlib
 
-    src = (
-        pathlib.Path(__file__).parent.parent
-        / "fast_agent_stack" / "core" / "auth" / "lifespan.py"
-    )
+    src = pathlib.Path(__file__).parent.parent / "fast_agent_stack" / "core" / "auth" / "lifespan.py"
     tree = ast.parse(src.read_text())
     class_names = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
     assert "_AuthBackendChain" not in class_names

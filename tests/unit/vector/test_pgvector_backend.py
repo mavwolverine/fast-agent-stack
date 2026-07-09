@@ -2,11 +2,12 @@
 
 All tests mock the SQLAlchemy AsyncEngine so no real PostgreSQL server is needed.
 """
+
 from __future__ import annotations
 
 import json
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -20,16 +21,14 @@ from fast_agent_stack.core.vector.backends.pgvector import (
     _vec_literal,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_settings(**kwargs: Any) -> MagicMock:
     m = MagicMock()
-    m.pgvector_database_url = kwargs.get(
-        "pgvector_database_url", "postgresql+asyncpg://localhost/test"
-    )
+    m.pgvector_database_url = kwargs.get("pgvector_database_url", "postgresql+asyncpg://localhost/test")
     m.pgvector_collection_schema = kwargs.get("pgvector_collection_schema", "public")
     m.vector_timeout = kwargs.get("vector_timeout", 30.0)
     return m
@@ -118,9 +117,11 @@ async def test_b3_upsert_embeds_vector_literal(store):
 
 async def test_b4_search_returns_results(engine_and_conn):
     mock_engine, mock_conn = engine_and_conn
-    mock_conn.execute = AsyncMock(return_value=_make_conn_result(
-        {"id": "abc", "score": 0.95, "content": "hello", "metadata": {"tag": "x"}},
-    ))
+    mock_conn.execute = AsyncMock(
+        return_value=_make_conn_result(
+            {"id": "abc", "score": 0.95, "content": "hello", "metadata": {"tag": "x"}},
+        )
+    )
     settings = _make_settings()
     with patch(
         "fast_agent_stack.core.vector.backends.pgvector.create_async_engine",
@@ -145,10 +146,7 @@ async def test_b5_search_applies_filter_as_jsonb_containment(store):
     assert any("@>" in s for s in call_sqls)
     # verify filter JSON is passed as a parameter
     call_params = [c.args[1] if len(c.args) > 1 else {} for c in conn.execute.call_args_list]
-    assert any(
-        "meta" in p and json.loads(p["meta"]) == {"tag": "news"}
-        for p in call_params
-    )
+    assert any("meta" in p and json.loads(p["meta"]) == {"tag": "news"} for p in call_params)
 
 
 async def test_b6_delete_sends_delete_sql(store):
@@ -206,9 +204,7 @@ def test_c2_client_is_async_engine_i4():
     from sqlalchemy.ext.asyncio import AsyncEngine
 
     settings = _make_settings()
-    with patch(
-        "fast_agent_stack.core.vector.backends.pgvector.create_async_engine"
-    ) as mock_cae:
+    with patch("fast_agent_stack.core.vector.backends.pgvector.create_async_engine") as mock_cae:
         mock_engine = MagicMock(spec=AsyncEngine)
         mock_cae.return_value = mock_engine
         store = PgVectorStore(settings)
@@ -218,9 +214,11 @@ def test_c2_client_is_async_engine_i4():
 
 async def test_c3_search_returns_vector_search_result_instances(engine_and_conn):
     mock_engine, mock_conn = engine_and_conn
-    mock_conn.execute = AsyncMock(return_value=_make_conn_result(
-        {"id": "x", "score": 0.8, "content": None, "metadata": {}},
-    ))
+    mock_conn.execute = AsyncMock(
+        return_value=_make_conn_result(
+            {"id": "x", "score": 0.8, "content": None, "metadata": {}},
+        )
+    )
     settings = _make_settings()
     with patch(
         "fast_agent_stack.core.vector.backends.pgvector.create_async_engine",
@@ -336,9 +334,7 @@ async def test_n4_search_score_is_one_minus_distance(store):
 
 def test_n5_create_engine_called_with_asyncpg_url():
     settings = _make_settings(pgvector_database_url="postgresql://localhost/test")
-    with patch(
-        "fast_agent_stack.core.vector.backends.pgvector.create_async_engine"
-    ) as mock_cae:
+    with patch("fast_agent_stack.core.vector.backends.pgvector.create_async_engine") as mock_cae:
         mock_cae.return_value = MagicMock()
         PgVectorStore(settings)
 
@@ -367,9 +363,7 @@ def test_f2_invalid_schema_name_raises_at_init():
 
 async def test_f3_upsert_raises_collection_not_found_on_missing_table(engine_and_conn):
     mock_engine, mock_conn = engine_and_conn
-    mock_conn.execute = AsyncMock(
-        side_effect=Exception("relation \"public\".\"docs\" does not exist")
-    )
+    mock_conn.execute = AsyncMock(side_effect=Exception('relation "public"."docs" does not exist'))
     settings = _make_settings()
     with patch(
         "fast_agent_stack.core.vector.backends.pgvector.create_async_engine",
@@ -383,9 +377,7 @@ async def test_f3_upsert_raises_collection_not_found_on_missing_table(engine_and
 
 async def test_f4_search_raises_collection_not_found_on_missing_table(engine_and_conn):
     mock_engine, mock_conn = engine_and_conn
-    mock_conn.execute = AsyncMock(
-        side_effect=Exception("relation does not exist")
-    )
+    mock_conn.execute = AsyncMock(side_effect=Exception("relation does not exist"))
     settings = _make_settings()
     with patch(
         "fast_agent_stack.core.vector.backends.pgvector.create_async_engine",
@@ -399,9 +391,7 @@ async def test_f4_search_raises_collection_not_found_on_missing_table(engine_and
 
 async def test_f5_delete_raises_collection_not_found_on_missing_table(engine_and_conn):
     mock_engine, mock_conn = engine_and_conn
-    mock_conn.execute = AsyncMock(
-        side_effect=Exception("table does not exist")
-    )
+    mock_conn.execute = AsyncMock(side_effect=Exception("table does not exist"))
     settings = _make_settings()
     with patch(
         "fast_agent_stack.core.vector.backends.pgvector.create_async_engine",
@@ -415,9 +405,7 @@ async def test_f5_delete_raises_collection_not_found_on_missing_table(engine_and
 
 async def test_f6_other_db_errors_propagate_unchanged(engine_and_conn):
     mock_engine, mock_conn = engine_and_conn
-    mock_conn.execute = AsyncMock(
-        side_effect=Exception("permission denied for table docs")
-    )
+    mock_conn.execute = AsyncMock(side_effect=Exception("permission denied for table docs"))
     settings = _make_settings()
     with patch(
         "fast_agent_stack.core.vector.backends.pgvector.create_async_engine",

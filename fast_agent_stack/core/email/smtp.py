@@ -1,4 +1,5 @@
 """SMTP email backend using aiosmtplib (ADR-018, ADR-041)."""
+
 from __future__ import annotations
 
 import logging
@@ -9,8 +10,7 @@ try:
     import aiosmtplib
 except ImportError as _exc:
     raise ImportError(
-        "aiosmtplib is required for the SMTP email backend. "
-        "Install it with: pip install fast-agent-stack[email-smtp]"
+        "aiosmtplib is required for the SMTP email backend. Install it with: pip install fast-agent-stack[email-smtp]"
     ) from _exc
 
 from fast_agent_stack.core.config import BaseSettings

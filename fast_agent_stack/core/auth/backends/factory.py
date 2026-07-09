@@ -1,22 +1,21 @@
 """Auth backend per-request factory and FastAPI dependency (ADR-008, ADR-034)."""
+
 from __future__ import annotations
 
 import importlib
 import uuid
-from types import TracebackType
 
-from fastapi import Depends, HTTPException, Request, Response
+from fastapi import Depends, Request, Response
 
 from fast_agent_stack.core.auth.backends import AuthBackend, TokenResponse
 from fast_agent_stack.core.config import BaseSettings
 
 try:
-    from redis_fastapi import AsyncRedisDep
     from redis.asyncio import Redis as _Redis
+    from redis_fastapi import AsyncRedisDep
 except ImportError:
     raise ImportError(
-        "fastapi-redis-sdk is required for authentication. "
-        "Install it with: pip install fast-agent-stack[auth-jwt]"
+        "fastapi-redis-sdk is required for authentication. Install it with: pip install fast-agent-stack[auth-jwt]"
     )
 
 _stored_settings: BaseSettings | None = None
@@ -76,8 +75,7 @@ async def get_auth_backend(
     """Per-request factory — builds auth backend instances with the injected Redis client."""
     if _stored_settings is None:
         raise RuntimeError(
-            "Auth backend not initialised. "
-            "Ensure AuthLifespanHook is registered before requests are served (I9)."
+            "Auth backend not initialised. Ensure AuthLifespanHook is registered before requests are served (I9)."
         )
     s = _stored_settings
     from fast_agent_stack.core.auth.backends.jwt import JWTAuthBackend
@@ -87,18 +85,22 @@ async def get_auth_backend(
     for name in s.auth_backends:
         if name == "jwt":
             assert s.secret_key is not None
-            backends.append(JWTAuthBackend(
-                secret_key=s.secret_key,
-                access_ttl=s.access_token_ttl_seconds,
-                refresh_ttl=s.refresh_token_ttl_seconds,
-                redis=redis,  # type: ignore[arg-type]
-            ))
+            backends.append(
+                JWTAuthBackend(
+                    secret_key=s.secret_key,
+                    access_ttl=s.access_token_ttl_seconds,
+                    refresh_ttl=s.refresh_token_ttl_seconds,
+                    redis=redis,  # type: ignore[arg-type]
+                )
+            )
         elif name == "session":
-            backends.append(SessionAuthBackend(
-                session_ttl=s.session_ttl_seconds,
-                redis=redis,  # type: ignore[arg-type]
-                debug=s.debug,
-            ))
+            backends.append(
+                SessionAuthBackend(
+                    session_ttl=s.session_ttl_seconds,
+                    redis=redis,  # type: ignore[arg-type]
+                    debug=s.debug,
+                )
+            )
         else:
             # Custom dotted-path backend (ADR-034)
             module_path, cls_name = name.rsplit(".", 1)

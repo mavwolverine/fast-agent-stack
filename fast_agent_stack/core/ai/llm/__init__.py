@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 __all__ = ["Message", "CompletionResult", "LLMBackend"]
 
@@ -27,12 +28,8 @@ class LLMBackend(Protocol):
     @property
     def model_id(self) -> str: ...
 
-    async def complete(
-        self, messages: list[Message], **kwargs: Any
-    ) -> CompletionResult: ...
+    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult: ...
 
-    async def stream(
-        self, messages: list[Message], **kwargs: Any
-    ) -> AsyncIterator[str | CompletionResult]: ...
+    async def stream(self, messages: list[Message], **kwargs: Any) -> AsyncIterator[str | CompletionResult]: ...
 
     async def count_tokens(self, messages: list[Message]) -> int: ...

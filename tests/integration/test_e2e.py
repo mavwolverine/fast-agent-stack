@@ -10,6 +10,7 @@ Strategy:
 Run with: pytest tests/integration/test_e2e.py -m e2e
 Requires Docker — tests are skipped automatically if Docker is unavailable.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -72,14 +73,12 @@ def _app_context(project_dir: Path, preset: str, pg_url: str, redis_url: str):
     )
     if result.returncode != 0:
         pytest.fail(
-            f"fas migrate failed for preset {preset!r} (exit {result.returncode}):\n"
-            f"{result.stdout}\n{result.stderr}"
+            f"fas migrate failed for preset {preset!r} (exit {result.returncode}):\n{result.stdout}\n{result.stderr}"
         )
 
     # Step 6: start uvicorn.
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "main:app",
-         "--host", "127.0.0.1", "--port", str(port)],
+        [sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", str(port)],
         cwd=str(project_dir),
         env=env,
         stdout=subprocess.PIPE,
@@ -116,10 +115,7 @@ class TestMinimalE2E:
     def app_url(self, e2e_scaffolded, pg_container, redis_container):
         project_dir = e2e_scaffolded["minimal"]
         pg_url = pg_container.get_connection_url(driver="asyncpg")
-        redis_url = (
-            f"redis://{redis_container.get_container_host_ip()}"
-            f":{redis_container.get_exposed_port(6379)}/0"
-        )
+        redis_url = f"redis://{redis_container.get_container_host_ip()}:{redis_container.get_exposed_port(6379)}/0"
         with _app_context(project_dir, "minimal", pg_url, redis_url) as url:
             yield url
 
@@ -143,10 +139,7 @@ class TestStandardE2E:
     def app_url(self, e2e_scaffolded, pg_container, redis_container):
         project_dir = e2e_scaffolded["standard"]
         pg_url = pg_container.get_connection_url(driver="asyncpg")
-        redis_url = (
-            f"redis://{redis_container.get_container_host_ip()}"
-            f":{redis_container.get_exposed_port(6379)}/0"
-        )
+        redis_url = f"redis://{redis_container.get_container_host_ip()}:{redis_container.get_exposed_port(6379)}/0"
         with _app_context(project_dir, "standard", pg_url, redis_url) as url:
             yield url
 
@@ -181,10 +174,7 @@ class TestFullE2E:
     def app_url(self, e2e_scaffolded, pg_container, redis_container):
         project_dir = e2e_scaffolded["full"]
         pg_url = pg_container.get_connection_url(driver="asyncpg")
-        redis_url = (
-            f"redis://{redis_container.get_container_host_ip()}"
-            f":{redis_container.get_exposed_port(6379)}/0"
-        )
+        redis_url = f"redis://{redis_container.get_container_host_ip()}:{redis_container.get_exposed_port(6379)}/0"
         with _app_context(project_dir, "full", pg_url, redis_url) as url:
             yield url
 
@@ -209,9 +199,7 @@ class TestFullE2E:
 
     def test_c1_rate_limit_header_present(self, app_url):
         r = httpx.get(f"{app_url}/")
-        assert "x-ratelimit-limit" in r.headers, (
-            "Full preset must expose X-RateLimit-Limit header (ADR-016)"
-        )
+        assert "x-ratelimit-limit" in r.headers, "Full preset must expose X-RateLimit-Limit header (ADR-016)"
 
 
 # ---------------------------------------------------------------------------
@@ -225,10 +213,7 @@ class TestAgentE2E:
     def app_url(self, e2e_scaffolded, pg_container, redis_container):
         project_dir = e2e_scaffolded["agent"]
         pg_url = pg_container.get_connection_url(driver="asyncpg")
-        redis_url = (
-            f"redis://{redis_container.get_container_host_ip()}"
-            f":{redis_container.get_exposed_port(6379)}/0"
-        )
+        redis_url = f"redis://{redis_container.get_container_host_ip()}:{redis_container.get_exposed_port(6379)}/0"
         with _app_context(project_dir, "agent", pg_url, redis_url) as url:
             yield url
 
@@ -254,6 +239,4 @@ class TestAgentE2E:
     def test_c1_agent_endpoint_rejects_unauthenticated(self, app_url):
         """Agent endpoint must return 4xx — either 401 (auth) or 422 (validation)."""
         r = httpx.post(f"{app_url}/agents/chat", json={})
-        assert r.status_code in (400, 401, 422), (
-            f"Expected auth/validation rejection, got {r.status_code}"
-        )
+        assert r.status_code in (400, 401, 422), f"Expected auth/validation rejection, got {r.status_code}"

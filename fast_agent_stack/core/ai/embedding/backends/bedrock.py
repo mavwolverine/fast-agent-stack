@@ -20,7 +20,7 @@ _DIMENSION_MAP = {
 
 
 class BedrockEmbedding:
-    def __init__(self, settings: "BaseSettings") -> None:
+    def __init__(self, settings: BaseSettings) -> None:
         self._model_id = settings.embedding_bedrock_model_id
         self._timeout = settings.embedding_timeout
         self._client = aioboto3.Session()

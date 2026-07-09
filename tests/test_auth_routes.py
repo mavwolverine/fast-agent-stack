@@ -9,8 +9,8 @@ from typing import Any
 
 import pytest
 from fakeredis.aioredis import FakeRedis
-from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 
 import fast_agent_stack.core.auth.models as _auth_mod  # noqa: F401
 from fast_agent_stack.core.auth.backends.factory import get_auth_backend
@@ -103,9 +103,7 @@ async def active_user(user_password: str) -> User:
 # ===========================================================================
 
 
-async def test_b1_login_success_returns_tokens(
-    client: AsyncClient, active_user: User, user_password: str
-) -> None:
+async def test_b1_login_success_returns_tokens(client: AsyncClient, active_user: User, user_password: str) -> None:
     resp = await client.post("/auth/token", json={"email": "alice@example.com", "password": user_password})
     assert resp.status_code == 200
     data = resp.json()
@@ -114,9 +112,7 @@ async def test_b1_login_success_returns_tokens(
     assert data["token_type"] == "bearer"
 
 
-async def test_b2_login_wrong_password_returns_401(
-    client: AsyncClient, active_user: User
-) -> None:
+async def test_b2_login_wrong_password_returns_401(client: AsyncClient, active_user: User) -> None:
     resp = await client.post("/auth/token", json={"email": "alice@example.com", "password": "wrong"})
     assert resp.status_code == 401
 
@@ -140,18 +136,14 @@ async def test_b4_refresh_valid_token_returns_new_pair(
     assert data["refresh_token"] != refresh_tok  # rotated
 
 
-async def test_b5_logout_returns_204(
-    client: AsyncClient, active_user: User, user_password: str
-) -> None:
+async def test_b5_logout_returns_204(client: AsyncClient, active_user: User, user_password: str) -> None:
     login = await client.post("/auth/token", json={"email": "alice@example.com", "password": user_password})
     refresh_tok = login.json()["refresh_token"]
     resp = await client.post("/auth/logout", json={"refresh_token": refresh_tok})
     assert resp.status_code == 204
 
 
-async def test_b6_logout_invalidates_refresh_token(
-    client: AsyncClient, active_user: User, user_password: str
-) -> None:
+async def test_b6_logout_invalidates_refresh_token(client: AsyncClient, active_user: User, user_password: str) -> None:
     login = await client.post("/auth/token", json={"email": "alice@example.com", "password": user_password})
     refresh_tok = login.json()["refresh_token"]
     await client.post("/auth/logout", json={"refresh_token": refresh_tok})
@@ -160,8 +152,7 @@ async def test_b6_logout_invalidates_refresh_token(
 
 
 async def test_b7_verification_routes_are_registered(client: AsyncClient) -> None:
-    for path in ["/auth/send-verification", "/auth/verify-email",
-                 "/auth/forgot-password", "/auth/reset-password"]:
+    for path in ["/auth/send-verification", "/auth/verify-email", "/auth/forgot-password", "/auth/reset-password"]:
         resp = await client.post(path)
         assert resp.status_code != 404, f"{path} must be a registered route"
 
@@ -180,9 +171,7 @@ async def test_c1_login_response_matches_token_response_schema(
     assert "token_type" in data
 
 
-async def test_c2_refresh_response_matches_schema(
-    client: AsyncClient, active_user: User, user_password: str
-) -> None:
+async def test_c2_refresh_response_matches_schema(client: AsyncClient, active_user: User, user_password: str) -> None:
     login = await client.post("/auth/token", json={"email": "alice@example.com", "password": user_password})
     resp = await client.post("/auth/refresh", json={"refresh_token": login.json()["refresh_token"]})
     data = resp.json()
@@ -194,9 +183,7 @@ async def test_c2_refresh_response_matches_schema(
 # ===========================================================================
 
 
-async def test_a1_login_uses_get_async_session(
-    client: AsyncClient, active_user: User, user_password: str
-) -> None:
+async def test_a1_login_uses_get_async_session(client: AsyncClient, active_user: User, user_password: str) -> None:
     """Route must hit the DB — proves get_async_session is wired."""
     resp = await client.post("/auth/token", json={"email": "alice@example.com", "password": user_password})
     assert resp.status_code == 200
@@ -214,9 +201,7 @@ async def test_a2_logout_with_no_body_returns_204(
 # ===========================================================================
 
 
-async def test_n1_login_inactive_user_returns_401(
-    client: AsyncClient, user_password: str
-) -> None:
+async def test_n1_login_inactive_user_returns_401(client: AsyncClient, user_password: str) -> None:
     async for session in get_async_session():
         user = User(
             email="inactive@example.com",
@@ -226,9 +211,7 @@ async def test_n1_login_inactive_user_returns_401(
         session.add(user)
         await session.commit()
         break
-    resp = await client.post(
-        "/auth/token", json={"email": "inactive@example.com", "password": user_password}
-    )
+    resp = await client.post("/auth/token", json={"email": "inactive@example.com", "password": user_password})
     assert resp.status_code == 401
 
 
@@ -242,9 +225,7 @@ async def test_f1_refresh_invalid_token_returns_401(client: AsyncClient) -> None
     assert resp.status_code == 401
 
 
-async def test_f2_double_logout_is_idempotent(
-    client: AsyncClient, active_user: User, user_password: str
-) -> None:
+async def test_f2_double_logout_is_idempotent(client: AsyncClient, active_user: User, user_password: str) -> None:
     login = await client.post("/auth/token", json={"email": "alice@example.com", "password": user_password})
     refresh_tok = login.json()["refresh_token"]
     r1 = await client.post("/auth/logout", json={"refresh_token": refresh_tok})

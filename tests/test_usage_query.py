@@ -1,18 +1,18 @@
 """Tests for Phase 6-6: UsageService read methods (ADR-035, ADR-042)."""
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from fast_agent_stack.core.ai.usage import UsageService, UsageSummary, UsageByModel
-
+from fast_agent_stack.core.ai.usage import UsageByModel, UsageService, UsageSummary
 
 # ---------------------------------------------------------------------------
 # CONTRACT — dataclass shape
 # ---------------------------------------------------------------------------
+
 
 def test_usage_summary_has_total_prefix():
     s = UsageSummary(
@@ -42,15 +42,15 @@ def test_usage_by_model_has_no_total_prefix():
 
 
 def test_usage_summary_is_frozen():
-    s = UsageSummary(total_tokens=0, prompt_tokens=0, completion_tokens=0,
-                     total_cost_microcents=0, request_count=0)
+    s = UsageSummary(total_tokens=0, prompt_tokens=0, completion_tokens=0, total_cost_microcents=0, request_count=0)
     with pytest.raises((AttributeError, TypeError)):
         s.total_tokens = 999  # type: ignore[misc]
 
 
 def test_usage_by_model_is_frozen():
-    m = UsageByModel(model="gpt-4o", total_tokens=0, prompt_tokens=0, completion_tokens=0,
-                     cost_microcents=0, request_count=0)
+    m = UsageByModel(
+        model="gpt-4o", total_tokens=0, prompt_tokens=0, completion_tokens=0, cost_microcents=0, request_count=0
+    )
     with pytest.raises((AttributeError, TypeError)):
         m.model = "other"  # type: ignore[misc]
 
@@ -58,6 +58,7 @@ def test_usage_by_model_is_frozen():
 # ---------------------------------------------------------------------------
 # BEHAVIOR — get_usage()
 # ---------------------------------------------------------------------------
+
 
 async def test_get_usage_raises_value_error_when_all_filters_none():
     svc = UsageService()
@@ -121,6 +122,7 @@ async def test_get_usage_returns_none_when_no_rows():
 # BEHAVIOR — get_usage_by_model()
 # ---------------------------------------------------------------------------
 
+
 async def test_get_usage_by_model_raises_value_error_when_all_filters_none():
     svc = UsageService()
     mock_db = AsyncMock()
@@ -174,6 +176,7 @@ async def test_get_usage_by_model_returns_empty_list_when_no_rows():
 # ---------------------------------------------------------------------------
 # NFR — I21 (exceptions propagate)
 # ---------------------------------------------------------------------------
+
 
 async def test_i21_get_usage_propagates_db_exceptions():
     svc = UsageService()

@@ -5,8 +5,6 @@ from __future__ import annotations
 from types import TracebackType
 from typing import TYPE_CHECKING
 
-from fast_agent_stack.core.protocols import LifespanHook
-
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
@@ -20,7 +18,7 @@ class AdminLifespanHook:
 
     def __init__(
         self,
-        fastapi_app: "FastAPI",
+        fastapi_app: FastAPI,
         *,
         admin_secret_key: str,
         title: str = "Admin",
@@ -38,8 +36,7 @@ class AdminLifespanHook:
             from starlette.responses import Response
         except ImportError:
             raise ImportError(
-                "sqladmin is required for the admin panel. "
-                "Install it with: pip install fast-agent-stack[admin]"
+                "sqladmin is required for the admin panel. Install it with: pip install fast-agent-stack[admin]"
             )
 
         from fast_agent_stack.core.database import get_engine
@@ -47,8 +44,7 @@ class AdminLifespanHook:
         engine = get_engine()
         if engine is None:
             raise RuntimeError(
-                "Database engine not initialized. "
-                "DatabaseLifespanHook must run before AdminLifespanHook (I9)."
+                "Database engine not initialized. DatabaseLifespanHook must run before AdminLifespanHook (I9)."
             )
 
         secret = self._admin_secret_key

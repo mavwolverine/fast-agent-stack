@@ -1,4 +1,5 @@
 """OpenTelemetry tracing lifespan hook (ADR-009)."""
+
 from __future__ import annotations
 
 import asyncio
@@ -21,13 +22,15 @@ class TracingLifespanHook:
         self._settings = settings
         self.tracer_provider: Any | None = None
 
-    async def __aenter__(self) -> "TracingLifespanHook":
+    async def __aenter__(self) -> TracingLifespanHook:
         if not self._settings.tracing_enabled:
             return self
 
         try:
             from opentelemetry import trace
-            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+                OTLPSpanExporter,
+            )
             from opentelemetry.sdk.trace import TracerProvider
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
         except ImportError as exc:
@@ -41,8 +44,7 @@ class TracingLifespanHook:
         provider.add_span_processor(BatchSpanProcessor(exporter))
         trace.set_tracer_provider(provider)
         self.tracer_provider = provider
-        logger.info("OpenTelemetry tracing initialised (endpoint=%s)",
-                    self._settings.otel_exporter_endpoint)
+        logger.info("OpenTelemetry tracing initialised (endpoint=%s)", self._settings.otel_exporter_endpoint)
         return self
 
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:

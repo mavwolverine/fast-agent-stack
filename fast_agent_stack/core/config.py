@@ -1,4 +1,3 @@
-
 import os
 from typing import Self
 
@@ -57,7 +56,7 @@ class BaseSettings(_BaseSettings):
     vector_db: str = "qdrant"
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: str | None = None
-    pgvector_database_url: str | None = None   # postgresql+asyncpg://... required for PgVectorStore
+    pgvector_database_url: str | None = None  # postgresql+asyncpg://... required for PgVectorStore
     pgvector_collection_schema: str = "public"
     opensearch_url: str = "http://localhost:9200"
     opensearch_username: str | None = None
@@ -101,17 +100,14 @@ class BaseSettings(_BaseSettings):
     otel_exporter_endpoint: str = "http://localhost:4317"
 
     # Token / session TTLs (ADR-015, ADR-032)
-    access_token_ttl_seconds: int = 900        # 15 minutes
-    refresh_token_ttl_seconds: int = 2592000   # 30 days
-    session_ttl_seconds: int = 86400           # 24 hours
+    access_token_ttl_seconds: int = 900  # 15 minutes
+    refresh_token_ttl_seconds: int = 2592000  # 30 days
+    session_ttl_seconds: int = 86400  # 24 hours
 
     @model_validator(mode="after")
     def _validate_required_secrets(self) -> Self:
         builtin = [b for b in self.auth_backends if b in _BUILTIN_AUTH_BACKENDS]
-        unknown_builtins = [
-            b for b in self.auth_backends
-            if b not in _BUILTIN_AUTH_BACKENDS and "." not in b
-        ]
+        unknown_builtins = [b for b in self.auth_backends if b not in _BUILTIN_AUTH_BACKENDS and "." not in b]
         if unknown_builtins:
             raise ValueError(
                 f"Unknown auth backend(s): {unknown_builtins!r}. "
@@ -119,19 +115,14 @@ class BaseSettings(_BaseSettings):
                 "For custom backends use a dotted Python path."
             )
         if "jwt" in builtin and not self.secret_key:
-            raise RuntimeError(
-                "secret_key must be set when 'jwt' is in auth_backends (I11)"
-            )
+            raise RuntimeError("secret_key must be set when 'jwt' is in auth_backends (I11)")
         if (builtin or self.include_rate_limit) and not self.redis_url:
             raise RuntimeError(
                 "redis_url must be set when auth_backends includes built-in backends "
                 "or include_rate_limit is True (I11, ADR-016)"
             )
         if self.admin_enabled and not (self.admin_secret_key or self.secret_key):
-            raise RuntimeError(
-                "admin_secret_key (or secret_key) must be set"
-                " when admin is enabled (I11)"
-            )
+            raise RuntimeError("admin_secret_key (or secret_key) must be set when admin is enabled (I11)")
         return self
 
     @classmethod
@@ -146,10 +137,7 @@ class BaseSettings(_BaseSettings):
         secrets_backend = os.environ.get("SECRETS_BACKEND", "none").lower().strip()
 
         if secrets_backend not in _VALID_SECRETS_BACKENDS:
-            raise ValueError(
-                f"Invalid SECRETS_BACKEND={secrets_backend!r}. "
-                "Expected 'aws', 'gcp', or 'none'."
-            )
+            raise ValueError(f"Invalid SECRETS_BACKEND={secrets_backend!r}. Expected 'aws', 'gcp', or 'none'.")
 
         if secrets_backend == "aws":
             cloud = _make_aws_source(settings_cls)
@@ -179,9 +167,7 @@ def _make_aws_source(settings_cls: type[_BaseSettings]) -> PydanticBaseSettingsS
     secret_id = os.environ.get("SECRETS_AWS_SECRET_ID", "")
     region = os.environ.get("SECRETS_AWS_REGION", "us-east-1")
     try:
-        return AWSSecretsManagerSettingsSource(
-            settings_cls, secret_id=secret_id, region_name=region
-        )
+        return AWSSecretsManagerSettingsSource(settings_cls, secret_id=secret_id, region_name=region)
     except ImportError as exc:
         raise ImportError("pip install fast-agent-stack[secrets-aws]") from exc
 

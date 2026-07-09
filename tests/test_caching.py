@@ -3,11 +3,11 @@
 5 families: Behavior, Contract, Architectural, NFR, Failure-mode.
 Uses fakeredis where a real Redis client is needed.
 """
+
 from __future__ import annotations
 
 import ast
 import pathlib
-from unittest.mock import MagicMock, patch
 
 import pytest
 from fakeredis.aioredis import FakeRedis
@@ -27,6 +27,7 @@ def _make_cached_app(ttl: int = 60) -> tuple[FastAPI, FakeRedis]:
 
     # Patch get_async_redis so cache() picks up our FakeRedis
     from redis_fastapi.deps import get_async_redis
+
     app.dependency_overrides[get_async_redis] = lambda: fake_redis
 
     enable_caching(app)
@@ -78,8 +79,9 @@ async def test_b3_enable_caching_is_idempotent():
 
 async def test_b4_cache_evict_clears_group():
     """After a cache_evict dependency runs, the next GET must hit the endpoint again."""
-    from fast_agent_stack.core.caching import cache, cache_evict, enable_caching
     from redis_fastapi.deps import get_async_redis
+
+    from fast_agent_stack.core.caching import cache, cache_evict, enable_caching
 
     fake_redis = FakeRedis()
     app = FastAPI()
@@ -108,8 +110,9 @@ async def test_b4_cache_evict_clears_group():
 
 async def test_b5_cache_put_writes_on_every_call():
     """cache_put() must always execute the endpoint and store the result."""
-    from fast_agent_stack.core.caching import cache, cache_put, enable_caching
     from redis_fastapi.deps import get_async_redis
+
+    from fast_agent_stack.core.caching import cache_put, enable_caching
 
     fake_redis = FakeRedis()
     app = FastAPI()
@@ -171,6 +174,7 @@ def test_c4_all_symbols_in_module_all():
 def test_c5_enable_caching_accepts_fastapi_app():
     """enable_caching must accept a FastAPI instance (not just Any)."""
     import inspect
+
     from fast_agent_stack.core.caching import enable_caching
 
     sig = inspect.signature(enable_caching)
@@ -197,9 +201,7 @@ def test_a1_caching_module_has_i3_guard():
                     for alias in child.names:
                         guarded.append(alias.name)
 
-    assert any("redis_fastapi" in m for m in guarded), (
-        "caching/__init__.py must guard on redis_fastapi (I3)"
-    )
+    assert any("redis_fastapi" in m for m in guarded), "caching/__init__.py must guard on redis_fastapi (I3)"
 
 
 def test_a2_caching_has_no_direct_redis_asyncio_import():
@@ -246,8 +248,9 @@ def test_n1_pyproject_has_caching_extra():
 
 async def test_n2_cache_requires_enable_caching_first():
     """Using cache() without enable_caching() means the endpoint always runs (no cache hit short-circuit)."""
-    from fast_agent_stack.core.caching import cache
     from redis_fastapi.deps import get_async_redis
+
+    from fast_agent_stack.core.caching import cache
 
     fake_redis = FakeRedis()
     app = FastAPI()
@@ -276,9 +279,9 @@ async def test_n2_cache_requires_enable_caching_first():
 
 def test_f1_import_error_without_sdk(monkeypatch):
     """Importing from fast_agent_stack.core.caching without SDK must raise ImportError."""
-    import sys
     import builtins
     import importlib
+    import sys
 
     monkeypatch.delitem(sys.modules, "fast_agent_stack.core.caching", raising=False)
     real_import = builtins.__import__
@@ -292,6 +295,7 @@ def test_f1_import_error_without_sdk(monkeypatch):
 
     with pytest.raises(ImportError, match="fastapi-redis-sdk"):
         import fast_agent_stack.core.caching as _m
+
         importlib.reload(_m)
 
 

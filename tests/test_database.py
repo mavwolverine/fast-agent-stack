@@ -7,20 +7,18 @@ Module-level globals in session.py are reset between tests via the
 
 import time
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import fast_agent_stack.core.database.session as _session_mod
 from fast_agent_stack.core.app import FastAgentStack
 from fast_agent_stack.core.database import (
+    FRAMEWORK_TABLES,
     Base,
     BaseModel,
     DatabaseLifespanHook,
-    FRAMEWORK_TABLES,
     check_db,
     configure_engine,
     dispose_engine,
@@ -54,7 +52,8 @@ def test_b2_base_model_is_abstract() -> None:
 
 
 def test_b3_base_model_has_required_columns() -> None:
-    cols = {c.key for c in BaseModel.__table_args__} if hasattr(BaseModel, "__table_args__") else set()
+    {c.key for c in BaseModel.__table_args__} if hasattr(BaseModel, "__table_args__") else set()
+
     # Check via mapper inspect on a concrete subclass
     class _M(BaseModel):
         __tablename__ = "test_base_model_cols"
@@ -139,9 +138,7 @@ def test_c2_framework_tables_is_frozenset() -> None:
 
 async def test_c3_liveness_returns_200() -> None:
     app = FastAgentStack()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.get("/health/live")
     assert r.status_code == 200
     assert r.json() == {"status": "ok"}
@@ -150,9 +147,7 @@ async def test_c3_liveness_returns_200() -> None:
 async def test_c4_readiness_returns_200_when_db_ok() -> None:
     configure_engine(SQLITE_URL)
     app = FastAgentStack()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.get("/health/ready")
     assert r.status_code == 200
     assert r.json()["database"] == "ok"
@@ -160,9 +155,7 @@ async def test_c4_readiness_returns_200_when_db_ok() -> None:
 
 async def test_c5_readiness_returns_503_when_db_not_configured() -> None:
     app = FastAgentStack()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.get("/health/ready")
     assert r.status_code == 503
     assert "database" in r.json()
@@ -180,6 +173,7 @@ def test_a1_get_engine_escape_hatch_exists() -> None:
     assert engine is not None
     # The escape hatch exposes the raw AsyncEngine
     from sqlalchemy.ext.asyncio import AsyncEngine
+
     assert isinstance(engine, AsyncEngine)
 
 
@@ -193,16 +187,12 @@ def test_a2_session_module_does_not_read_os_environ_directly() -> None:
     for node in ast.walk(tree):
         # Check for os.environ["DATABASE_URL"] or os.environ.get("DATABASE_URL")
         if isinstance(node, ast.Subscript):
-            if (
-                isinstance(node.value, ast.Attribute)
-                and node.value.attr == "environ"
-            ):
+            if isinstance(node.value, ast.Attribute) and node.value.attr == "environ":
                 pytest.fail("session.py reads os.environ directly (I15 violation)")
 
 
 def test_a3_schema_regex_matches_invariant_i8() -> None:
     """I8: regex must be ^[a-zA-Z_][a-zA-Z0-9_]*$."""
-    import re
     regex = _session_mod._SCHEMA_RE
     assert regex.pattern == r"^[a-zA-Z_][a-zA-Z0-9_]*$"
 
@@ -210,6 +200,7 @@ def test_a3_schema_regex_matches_invariant_i8() -> None:
 def test_a4_lifespan_hook_is_in_public_init() -> None:
     """DatabaseLifespanHook is exported from the public fast_agent_stack.database package."""
     from fast_agent_stack.database import DatabaseLifespanHook as _hook
+
     assert _hook is DatabaseLifespanHook
 
 
@@ -219,14 +210,13 @@ def test_a5_no_cross_module_internal_import_in_health() -> None:
     import pathlib
 
     from fast_agent_stack.core import health as health_mod
+
     source = pathlib.Path(health_mod.__file__).read_text()
     tree = ast.parse(source)
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             if node.module and "core.database.health" in node.module:
-                pytest.fail(
-                    "core/health.py imports from core.database.health directly (I12 violation)"
-                )
+                pytest.fail("core/health.py imports from core.database.health directly (I12 violation)")
 
 
 # ---------------------------------------------------------------------------
@@ -236,9 +226,7 @@ def test_a5_no_cross_module_internal_import_in_health() -> None:
 
 async def test_n1_liveness_responds_under_100ms() -> None:
     app = FastAgentStack()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         start = time.monotonic()
         r = await client.get("/health/live")
         elapsed = time.monotonic() - start
@@ -249,9 +237,7 @@ async def test_n1_liveness_responds_under_100ms() -> None:
 async def test_n2_readiness_responds_under_100ms_when_db_ok() -> None:
     configure_engine(SQLITE_URL)
     app = FastAgentStack()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         start = time.monotonic()
         r = await client.get("/health/ready")
         elapsed = time.monotonic() - start
@@ -293,9 +279,7 @@ async def test_f4_hook_aexit_disposes_engine_even_after_exception() -> None:
 async def test_f5_readiness_names_database_in_503_body() -> None:
     """I13: /health/ready must name the failing service in 503 body."""
     app = FastAgentStack()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.get("/health/ready")
     assert r.status_code == 503
     body = r.json()

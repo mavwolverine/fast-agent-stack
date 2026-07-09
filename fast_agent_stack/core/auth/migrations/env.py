@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import asyncio
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
-
-from alembic import context
 
 import fast_agent_stack.core.auth.models  # noqa: F401 — registers auth models on Base.metadata
 from fast_agent_stack.core.database import Base
@@ -45,8 +44,6 @@ async def run_migrations_online() -> None:
 
 
 if context.is_offline_mode():
-    raise RuntimeError(
-        "Offline migration mode is not supported for framework migrations."
-    )
+    raise RuntimeError("Offline migration mode is not supported for framework migrations.")
 else:
     asyncio.run(run_migrations_online())

@@ -1,4 +1,5 @@
 """Redis lifespan hook wrapping fastapi-redis-sdk (ADR-037, I9 step 2)."""
+
 from __future__ import annotations
 
 import asyncio
@@ -33,16 +34,14 @@ class FastAPIRedisLifespanHook:
                 "Install it with: pip install fast-agent-stack[auth-jwt]"
             )
         if not settings.redis_url:
-            raise RuntimeError(
-                "redis_url must be set when Redis integration is enabled (I11)"
-            )
+            raise RuntimeError("redis_url must be set when Redis integration is enabled (I11)")
         self._settings = settings
         self._app = app
         # Wrap the app's lifespan at setup time (before startup).
         # The SDK creates the pool BEFORE our hook chain runs, so all hooks can use Redis.
         FastAPIRedis(app).lifespan()
 
-    async def __aenter__(self) -> "FastAPIRedisLifespanHook":
+    async def __aenter__(self) -> FastAPIRedisLifespanHook:
         # I11: connectivity check — the SDK pool is already initialised at this point
         try:
             import redis.asyncio as aioredis
@@ -51,11 +50,10 @@ class FastAPIRedisLifespanHook:
         client = aioredis.from_url(self._settings.redis_url, decode_responses=False)
         try:
             await asyncio.wait_for(client.ping(), timeout=5.0)
-        except (asyncio.TimeoutError, Exception) as exc:
+        except (TimeoutError, Exception) as exc:
             await client.aclose()
             raise RuntimeError(
-                f"Cannot connect to Redis at {self._settings.redis_url} "
-                "— required for auth/rate-limit (I11)"
+                f"Cannot connect to Redis at {self._settings.redis_url} — required for auth/rate-limit (I11)"
             ) from exc
         await client.aclose()
         return self

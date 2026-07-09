@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -24,10 +23,7 @@ def _discover_database_url() -> str | None:
     candidates = ["settings"] + [
         f"{p.name}.settings"
         for p in Path.cwd().iterdir()
-        if p.is_dir()
-        and not p.name.startswith(".")
-        and not p.name.startswith("_")
-        and (p / "settings.py").exists()
+        if p.is_dir() and not p.name.startswith(".") and not p.name.startswith("_") and (p / "settings.py").exists()
     ]
     for module_name in candidates:
         try:
@@ -72,8 +68,8 @@ async def _do_createsuperuser(email: str, password: str) -> None:
 
 @app.command()
 def createsuperuser(
-    email: Optional[str] = typer.Option(None, "--email", "-e", help="Superuser email."),
-    password: Optional[str] = typer.Option(
+    email: str | None = typer.Option(None, "--email", "-e", help="Superuser email."),
+    password: str | None = typer.Option(
         None,
         "--password",
         "-p",

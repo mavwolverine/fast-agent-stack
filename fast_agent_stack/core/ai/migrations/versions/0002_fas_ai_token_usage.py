@@ -39,12 +39,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_token_usage_log_user_id", "token_usage_log", ["user_id"])
-    op.create_index(
-        "ix_token_usage_log_created_at", "token_usage_log", ["created_at"]
-    )
-    op.create_index(
-        "ix_token_usage_log_agent_name", "token_usage_log", ["agent_name"]
-    )
+    op.create_index("ix_token_usage_log_created_at", "token_usage_log", ["created_at"])
+    op.create_index("ix_token_usage_log_agent_name", "token_usage_log", ["agent_name"])
 
 
 def downgrade() -> None:

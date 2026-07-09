@@ -37,9 +37,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_conversation_log_user_id", "conversation_log", ["user_id"])
-    op.create_index(
-        "ix_conversation_log_agent_name", "conversation_log", ["agent_name"]
-    )
+    op.create_index("ix_conversation_log_agent_name", "conversation_log", ["agent_name"])
 
     op.create_table(
         "conversation_messages",
@@ -63,9 +61,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_conversation_messages_conversation_id", table_name="conversation_messages"
-    )
+    op.drop_index("ix_conversation_messages_conversation_id", table_name="conversation_messages")
     op.drop_table("conversation_messages")
     op.drop_index("ix_conversation_log_agent_name", table_name="conversation_log")
     op.drop_index("ix_conversation_log_user_id", table_name="conversation_log")

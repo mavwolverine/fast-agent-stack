@@ -1,4 +1,5 @@
 """Unit tests for chunking functions."""
+
 from __future__ import annotations
 
 from fast_agent_stack.core.ai.rag.chunking import fixed_chunker, paragraph_chunker
@@ -58,4 +59,4 @@ def test_fixed_chunker_overlap_region():
 def test_fixed_chunker_first_chunk_starts_at_zero():
     text = "HELLO" * 1000
     result = fixed_chunker(text)
-    assert result[0] == text[:512 * 4]
+    assert result[0] == text[: 512 * 4]

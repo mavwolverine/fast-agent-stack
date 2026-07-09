@@ -32,17 +32,20 @@ class StorageProtocol(Protocol):
     async def url(self, key: str, *, expires_in: int = 3600) -> str: ...
 
 
-def get_storage(settings: "BaseSettings") -> StorageProtocol:
+def get_storage(settings: BaseSettings) -> StorageProtocol:
     """Factory: resolves alias or ADR-012 dotted path."""
     backend = settings.storage_backend
     if backend == "local":
         from fast_agent_stack.core.storage.backends.local import LocalStorage
+
         return LocalStorage(settings)
     if backend == "s3":
         from fast_agent_stack.core.storage.backends.s3 import S3Storage
+
         return S3Storage(settings)
     if backend == "minio":
         from fast_agent_stack.core.storage.backends.minio import MinIOStorage
+
         return MinIOStorage(settings)
     # ADR-012 dotted-path custom backend
     module_path, _, class_name = backend.rpartition(".")

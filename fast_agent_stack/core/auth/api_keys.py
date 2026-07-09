@@ -78,7 +78,7 @@ class ApiKeyCreatedResponse(BaseModel):
 
     id: uuid.UUID
     name: str
-    key: str          # full key — never returned again after creation (I19)
+    key: str  # full key — never returned again after creation (I19)
     key_prefix: str
     scopes: dict[str, Any] | None
     expires_at: datetime | None
@@ -137,9 +137,7 @@ async def list_api_keys(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> list[ApiKeyListItem]:
-    result = await session.execute(
-        select(ApiKey).where(ApiKey.user_id == current_user.id)
-    )
+    result = await session.execute(select(ApiKey).where(ApiKey.user_id == current_user.id))
     keys = result.scalars().all()
     return [
         ApiKeyListItem(
@@ -162,9 +160,7 @@ async def revoke_api_key(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
-    result = await session.execute(
-        select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == current_user.id)
-    )
+    result = await session.execute(select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == current_user.id))
     api_key = result.scalar_one_or_none()
     if api_key is None:
         raise HTTPException(status_code=404, detail="API key not found")
@@ -178,9 +174,7 @@ async def delete_api_key(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
-    result = await session.execute(
-        select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == current_user.id)
-    )
+    result = await session.execute(select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == current_user.id))
     api_key = result.scalar_one_or_none()
     if api_key is None:
         raise HTTPException(status_code=404, detail="API key not found")

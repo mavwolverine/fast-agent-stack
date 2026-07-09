@@ -65,9 +65,7 @@ async def dispatch(
             api_key_id=api_key_id,
             conversation_id=conversation_id,
         )
-        result: CompletionResult = await backend.complete(
-            [Message(role="user", content=text)]
-        )
+        result: CompletionResult = await backend.complete([Message(role="user", content=text)])
         try:
             await _usage_service.log_usage(
                 result,
@@ -78,9 +76,7 @@ async def dispatch(
                 db=db,
             )
         except Exception:
-            logger.warning(
-                "dispatch: log_usage raised (swallowed per I21)", exc_info=True
-            )
+            logger.warning("dispatch: log_usage raised (swallowed per I21)", exc_info=True)
         return JSONResponse({"content": result.content, "model": result.model})
 
 

@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class MinIOStorage:
-    def __init__(self, settings: "BaseSettings") -> None:
+    def __init__(self, settings: BaseSettings) -> None:
         self._bucket = settings.storage_minio_bucket
         self._endpoint = settings.storage_minio_endpoint
         self._timeout = settings.storage_timeout

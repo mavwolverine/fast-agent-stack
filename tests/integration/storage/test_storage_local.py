@@ -1,4 +1,5 @@
 """Integration tests for LocalStorage — uses real filesystem via tmpdir."""
+
 from __future__ import annotations
 
 import pytest

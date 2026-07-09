@@ -35,9 +35,7 @@ def get_engine() -> AsyncEngine | None:
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     if _session_factory is None:
-        raise RuntimeError(
-            "Database not initialized. Register DatabaseLifespanHook before use."
-        )
+        raise RuntimeError("Database not initialized. Register DatabaseLifespanHook before use.")
     async with _session_factory() as session:
         yield session
 
@@ -51,15 +49,11 @@ def get_async_session_for_schema(
     SET search_path — never interpolates unvalidated input into SQL.
     """
     if not _SCHEMA_RE.match(schema):
-        raise ValueError(
-            f"Invalid schema name: {schema!r}. Must match ^[a-zA-Z_][a-zA-Z0-9_]*$"
-        )
+        raise ValueError(f"Invalid schema name: {schema!r}. Must match ^[a-zA-Z_][a-zA-Z0-9_]*$")
 
     async def _dep() -> AsyncGenerator[AsyncSession, None]:
         if _session_factory is None:
-            raise RuntimeError(
-                "Database not initialized. Register DatabaseLifespanHook before use."
-            )
+            raise RuntimeError("Database not initialized. Register DatabaseLifespanHook before use.")
         async with _session_factory() as session:
             await session.execute(text(f"SET search_path TO {schema}, public"))
             yield session

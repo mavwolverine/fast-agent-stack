@@ -1,11 +1,12 @@
 """Tests for Phase 6-5: Email Protocol & SmtpEmailBackend (ADR-018, ADR-041)."""
+
 from __future__ import annotations
 
 import ast
 import inspect
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -20,14 +21,20 @@ def _settings(**kw) -> BaseSettings:
 # CONTRACT — EmailProtocol interface
 # ---------------------------------------------------------------------------
 
+
 def test_email_protocol_exported():
-    from fast_agent_stack.core.email import EmailProtocol, EmailDeliveryError, get_email_backend
+    from fast_agent_stack.core.email import (
+        EmailDeliveryError,
+        get_email_backend,
+    )
+
     assert callable(get_email_backend)
     assert issubclass(EmailDeliveryError, Exception)
 
 
 def test_email_protocol_send_signature():
     from fast_agent_stack.core.email import EmailProtocol
+
     sig = inspect.signature(EmailProtocol.send)
     params = dict(sig.parameters)
     assert "to" in params
@@ -36,13 +43,13 @@ def test_email_protocol_send_signature():
     assert "body_html" in params
     assert params["body_html"].default is None
     # All must be keyword-only (after *)
-    kw_only = {n for n, p in params.items()
-                if p.kind == inspect.Parameter.KEYWORD_ONLY}
+    kw_only = {n for n, p in params.items() if p.kind == inspect.Parameter.KEYWORD_ONLY}
     assert {"to", "subject", "body_text", "body_html"} <= kw_only
 
 
 def test_email_delivery_error_is_exception():
     from fast_agent_stack.core.email import EmailDeliveryError
+
     assert issubclass(EmailDeliveryError, Exception)
 
 
@@ -50,10 +57,12 @@ def test_email_delivery_error_is_exception():
 # BEHAVIOR — factory
 # ---------------------------------------------------------------------------
 
+
 def test_get_email_backend_smtp_returns_smtp_backend():
-    aiosmtplib = pytest.importorskip("aiosmtplib")
+    pytest.importorskip("aiosmtplib")
     from fast_agent_stack.core.email import get_email_backend
     from fast_agent_stack.core.email.smtp import SmtpEmailBackend
+
     settings = _settings(email_backend="smtp")
     backend = get_email_backend(settings)
     assert isinstance(backend, SmtpEmailBackend)
@@ -61,13 +70,14 @@ def test_get_email_backend_smtp_returns_smtp_backend():
 
 def test_get_email_backend_dotted_path():
     """ADR-012: dotted-path custom backend."""
-    from fast_agent_stack.core.email import get_email_backend, EmailProtocol
+    from fast_agent_stack.core.email import get_email_backend
 
     class FakeEmailBackend:
         async def send(self, *, to, subject, body_text, body_html=None) -> None:
             pass
 
     import tests as _tests_pkg
+
     _tests_pkg.FakeEmailBackend = FakeEmailBackend  # type: ignore[attr-defined]
     try:
         settings = _settings(email_backend="tests.FakeEmailBackend")
@@ -79,6 +89,7 @@ def test_get_email_backend_dotted_path():
 
 def test_get_email_backend_unknown_alias_raises_value_error():
     from fast_agent_stack.core.email import get_email_backend
+
     settings = _settings(email_backend="sendgrid")
     with pytest.raises(ValueError):
         get_email_backend(settings)
@@ -88,9 +99,11 @@ def test_get_email_backend_unknown_alias_raises_value_error():
 # BEHAVIOR — SmtpEmailBackend
 # ---------------------------------------------------------------------------
 
+
 def test_smtp_backend_send_is_coroutine():
     pytest.importorskip("aiosmtplib")
     from fast_agent_stack.core.email.smtp import SmtpEmailBackend
+
     settings = _settings()
     backend = SmtpEmailBackend(settings)
     assert inspect.iscoroutinefunction(backend.send)
@@ -99,6 +112,7 @@ def test_smtp_backend_send_is_coroutine():
 async def test_smtp_backend_send_invokes_aiosmtplib():
     pytest.importorskip("aiosmtplib")
     from fast_agent_stack.core.email.smtp import SmtpEmailBackend
+
     settings = _settings(smtp_host="smtp.example.com", smtp_port=587, smtp_use_tls=True)
     backend = SmtpEmailBackend(settings)
     with patch("aiosmtplib.send", new_callable=AsyncMock) as mock_send:
@@ -106,27 +120,33 @@ async def test_smtp_backend_send_invokes_aiosmtplib():
     mock_send.assert_awaited_once()
     call_kwargs = mock_send.call_args
     # Check hostname
-    assert call_kwargs.kwargs.get("hostname") == "smtp.example.com" or \
-           (len(call_kwargs.args) > 1 and call_kwargs.args[1] == "smtp.example.com")
+    assert call_kwargs.kwargs.get("hostname") == "smtp.example.com" or (
+        len(call_kwargs.args) > 1 and call_kwargs.args[1] == "smtp.example.com"
+    )
 
 
 async def test_smtp_backend_send_includes_html_when_provided():
     pytest.importorskip("aiosmtplib")
+
     from fast_agent_stack.core.email.smtp import SmtpEmailBackend
-    import email as email_mod
+
     settings = _settings()
     backend = SmtpEmailBackend(settings)
     sent_messages: list = []
+
     async def capture_send(msg, **kw):
         sent_messages.append(msg)
+
     with patch("aiosmtplib.send", side_effect=capture_send):
         await backend.send(
-            to="u@example.com", subject="S",
-            body_text="txt", body_html="<b>html</b>",
+            to="u@example.com",
+            subject="S",
+            body_text="txt",
+            body_html="<b>html</b>",
         )
     assert sent_messages
     msg = sent_messages[0]
-    content_type = msg.get_content_type()
+    msg.get_content_type()
     # Should be multipart/alternative or the payload should contain both parts
     body_str = msg.as_string()
     assert "txt" in body_str
@@ -136,8 +156,10 @@ async def test_smtp_backend_send_includes_html_when_provided():
 async def test_smtp_backend_send_wraps_errors_as_email_delivery_error():
     pytest.importorskip("aiosmtplib")
     import aiosmtplib
-    from fast_agent_stack.core.email.smtp import SmtpEmailBackend
+
     from fast_agent_stack.core.email import EmailDeliveryError
+    from fast_agent_stack.core.email.smtp import SmtpEmailBackend
+
     settings = _settings()
     backend = SmtpEmailBackend(settings)
     with patch("aiosmtplib.send", side_effect=aiosmtplib.SMTPException("connection refused")):
@@ -148,6 +170,7 @@ async def test_smtp_backend_send_wraps_errors_as_email_delivery_error():
 # ---------------------------------------------------------------------------
 # NFR — I2 (no smtplib)
 # ---------------------------------------------------------------------------
+
 
 def test_i2_smtp_backend_uses_aiosmtplib_not_smtplib():
     import fast_agent_stack.core.email.smtp as mod
@@ -165,6 +188,7 @@ def test_i2_smtp_backend_uses_aiosmtplib_not_smtplib():
 # ---------------------------------------------------------------------------
 # ARCHITECTURAL — I3
 # ---------------------------------------------------------------------------
+
 
 def test_i3_smtp_backend_raises_import_error_when_aiosmtplib_absent():
     cached = sys.modules.get("aiosmtplib")

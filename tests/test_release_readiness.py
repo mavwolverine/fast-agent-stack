@@ -2,6 +2,7 @@
 
 These tests are purely static — no network, no processes.
 """
+
 from __future__ import annotations
 
 import re
@@ -69,9 +70,7 @@ def test_b6_all_doc_guides_exist():
 
 
 def test_b7_integration_smoke_test_exists():
-    assert INTEGRATION_SMOKE.exists(), (
-        "tests/integration/test_scaffold_smoke.py must exist (ADR-043 Tier 1)"
-    )
+    assert INTEGRATION_SMOKE.exists(), "tests/integration/test_scaffold_smoke.py must exist (ADR-043 Tier 1)"
 
 
 def test_b8_testpypi_workflow_exists():
@@ -85,9 +84,7 @@ def test_b8_testpypi_workflow_exists():
 
 def test_c1_pyproject_has_readme_field():
     data = tomllib.loads(PYPROJECT.read_text())
-    assert data["project"].get("readme") == "README.md", (
-        "pyproject.toml must have readme = \"README.md\""
-    )
+    assert data["project"].get("readme") == "README.md", 'pyproject.toml must have readme = "README.md"'
 
 
 def test_c2_pyproject_has_description():
@@ -107,9 +104,7 @@ def test_c4_changelog_has_version_0_1_0():
 
 def test_c5_integration_smoke_imports_presets():
     text = INTEGRATION_SMOKE.read_text()
-    assert "PRESETS" in text or "minimal" in text, (
-        "Smoke tests must cover all presets"
-    )
+    assert "PRESETS" in text or "minimal" in text, "Smoke tests must cover all presets"
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +124,7 @@ def test_a2_docs_directory_is_not_empty():
 
 def test_a3_testpypi_workflow_triggers_on_workflow_dispatch():
     import yaml
+
     data = yaml.safe_load(TESTPYPI_YML.read_text())
     on = data.get("on") or data.get(True) or {}
     assert "workflow_dispatch" in on, "testpypi.yml must be manually triggerable"
@@ -136,9 +132,7 @@ def test_a3_testpypi_workflow_triggers_on_workflow_dispatch():
 
 def test_a4_integration_smoke_marked_integration():
     text = INTEGRATION_SMOKE.read_text()
-    assert "integration" in text, (
-        "Scaffold smoke tests must be marked with @pytest.mark.integration"
-    )
+    assert "integration" in text, "Scaffold smoke tests must be marked with @pytest.mark.integration"
 
 
 # ---------------------------------------------------------------------------
@@ -167,10 +161,7 @@ def test_n4_readme_length_adequate():
 
 
 def test_n5_all_guides_have_content():
-    thin = [
-        f for f in REQUIRED_DOC_FILES
-        if len((REPO / "docs" / f).read_text()) < 200
-    ]
+    thin = [f for f in REQUIRED_DOC_FILES if len((REPO / "docs" / f).read_text()) < 200]
     assert not thin, f"Guide files with too little content (<200 chars): {thin}"
 
 
@@ -181,9 +172,7 @@ def test_n5_all_guides_have_content():
 
 def test_f1_testpypi_workflow_does_not_publish_to_real_pypi():
     text = TESTPYPI_YML.read_text()
-    assert "test.pypi.org" in text or "testpypi" in text.lower(), (
-        "testpypi.yml must target TestPyPI, not real PyPI"
-    )
+    assert "test.pypi.org" in text or "testpypi" in text.lower(), "testpypi.yml must target TestPyPI, not real PyPI"
     assert "upload.pypi.org/legacy" not in text, "testpypi.yml must not target the real PyPI upload URL"
 
 

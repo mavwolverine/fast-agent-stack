@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class S3Storage:
-    def __init__(self, settings: "BaseSettings") -> None:
+    def __init__(self, settings: BaseSettings) -> None:
         self._bucket = settings.storage_s3_bucket
         self._region = settings.storage_s3_region
         self._timeout = settings.storage_timeout

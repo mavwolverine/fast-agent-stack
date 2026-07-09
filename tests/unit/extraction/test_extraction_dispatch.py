@@ -1,10 +1,10 @@
 """Unit tests for 5-D: document extraction protocol and dispatch."""
+
 from __future__ import annotations
 
 import importlib
 import inspect
 import sys
-from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -15,9 +15,11 @@ from fast_agent_stack.core.ai.extraction.backends.eml import EmlExtractor
 # BEHAVIOR
 # ---------------------------------------------------------------------------
 
+
 def test_get_extractor_pdf_returns_pdf_extractor():
     pytest.importorskip("pdfplumber")
     from fast_agent_stack.core.ai.extraction.backends.pdf import PdfExtractor
+
     result = get_extractor("application/pdf")
     assert isinstance(result, PdfExtractor)
 
@@ -25,18 +27,16 @@ def test_get_extractor_pdf_returns_pdf_extractor():
 def test_get_extractor_docx_returns_docx_extractor():
     pytest.importorskip("docx")
     from fast_agent_stack.core.ai.extraction.backends.docx import DocxExtractor
-    result = get_extractor(
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
+
+    result = get_extractor("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
     assert isinstance(result, DocxExtractor)
 
 
 def test_get_extractor_xlsx_returns_xlsx_extractor():
     pytest.importorskip("openpyxl")
     from fast_agent_stack.core.ai.extraction.backends.xlsx import XlsxExtractor
-    result = get_extractor(
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+
+    result = get_extractor("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     assert isinstance(result, XlsxExtractor)
 
 
@@ -60,7 +60,7 @@ async def test_eml_extractor_extract_returns_body_text():
 
 
 async def test_pdf_extractor_uses_to_thread():
-    pdfplumber = pytest.importorskip("pdfplumber")
+    pytest.importorskip("pdfplumber")
     import fast_agent_stack.core.ai.extraction.backends.pdf as mod
     with open(mod.__file__) as f:
         src = f.read()
@@ -87,6 +87,7 @@ async def test_xlsx_extractor_uses_to_thread():
 # CONTRACT
 # ---------------------------------------------------------------------------
 
+
 def test_extraction_protocol_extract_is_async():
     # ExtractionProtocol.extract should be a coroutine function
     assert inspect.iscoroutinefunction(ExtractionProtocol.extract)
@@ -94,6 +95,7 @@ def test_extraction_protocol_extract_is_async():
 
 def test_extraction_protocol_exports():
     from fast_agent_stack.core.ai.extraction import ExtractionProtocol, get_extractor
+
     assert callable(get_extractor)
     assert isinstance(ExtractionProtocol, type)
 
@@ -110,6 +112,7 @@ def test_extraction_protocol_extract_signature():
 # ---------------------------------------------------------------------------
 # FAILURE-MODE
 # ---------------------------------------------------------------------------
+
 
 def test_get_extractor_returns_none_for_unsupported_mime():
     assert get_extractor("image/jpeg") is None

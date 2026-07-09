@@ -1,4 +1,3 @@
-
 import uuid
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -61,9 +60,7 @@ def apply_request_id(app: FastAPI) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def _unhandled_exception_handler(
-    request: Request, exc: Exception
-) -> JSONResponse:
+async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     request_id = getattr(getattr(request, "state", None), "request_id", None)
     headers: dict[str, str] = {}
     if request_id:

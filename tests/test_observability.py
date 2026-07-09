@@ -1,9 +1,9 @@
 """Tests for Phase 6-3: Observability (ADR-009)."""
+
 from __future__ import annotations
 
-import asyncio
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -18,9 +18,11 @@ def _settings(**kw) -> BaseSettings:
 # BEHAVIOR
 # ---------------------------------------------------------------------------
 
+
 async def test_tracing_hook_noop_when_disabled():
     """tracing_enabled=False must be a pure no-op even when OTel is absent."""
     from fast_agent_stack.core.observability import TracingLifespanHook
+
     settings = _settings(tracing_enabled=False)
     hook = TracingLifespanHook(settings)
     # Should not raise even if opentelemetry not installed
@@ -30,17 +32,20 @@ async def test_tracing_hook_noop_when_disabled():
 
 
 async def test_tracing_hook_initialises_provider_when_enabled():
-    otel = pytest.importorskip("opentelemetry")
+    pytest.importorskip("opentelemetry")
     from fast_agent_stack.core.observability import TracingLifespanHook
+
     settings = _settings(tracing_enabled=True, otel_exporter_endpoint="http://collector:4317")
 
     mock_provider = MagicMock()
     mock_provider.shutdown = MagicMock()
 
-    with patch("opentelemetry.sdk.trace.TracerProvider", return_value=mock_provider), \
-         patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"), \
-         patch("opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"), \
-         patch("opentelemetry.trace.set_tracer_provider"):
+    with (
+        patch("opentelemetry.sdk.trace.TracerProvider", return_value=mock_provider),
+        patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
+        patch("opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"),
+        patch("opentelemetry.trace.set_tracer_provider"),
+    ):
         hook = TracingLifespanHook(settings)
         await hook.__aenter__()
         assert hook.tracer_provider is mock_provider
@@ -49,6 +54,7 @@ async def test_tracing_hook_initialises_provider_when_enabled():
 async def test_tracing_hook_shutdown_called_on_exit():
     pytest.importorskip("opentelemetry")
     from fast_agent_stack.core.observability import TracingLifespanHook
+
     settings = _settings(tracing_enabled=True)
 
     mock_provider = MagicMock()
@@ -59,11 +65,13 @@ async def test_tracing_hook_shutdown_called_on_exit():
         shutdown_calls.append("to_thread")
         fn()
 
-    with patch("opentelemetry.sdk.trace.TracerProvider", return_value=mock_provider), \
-         patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"), \
-         patch("opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"), \
-         patch("opentelemetry.trace.set_tracer_provider"), \
-         patch("asyncio.to_thread", side_effect=fake_to_thread):
+    with (
+        patch("opentelemetry.sdk.trace.TracerProvider", return_value=mock_provider),
+        patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
+        patch("opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"),
+        patch("opentelemetry.trace.set_tracer_provider"),
+        patch("asyncio.to_thread", side_effect=fake_to_thread),
+    ):
         hook = TracingLifespanHook(settings)
         await hook.__aenter__()
         await hook.__aexit__(None, None, None)
@@ -75,6 +83,7 @@ async def test_tracing_hook_shutdown_called_on_exit():
 async def test_tracing_hook_no_shutdown_when_provider_is_none():
     """No shutdown attempt when tracing was disabled (provider never set)."""
     from fast_agent_stack.core.observability import TracingLifespanHook
+
     settings = _settings(tracing_enabled=False)
     hook = TracingLifespanHook(settings)
     await hook.__aenter__()
@@ -85,6 +94,7 @@ async def test_tracing_hook_no_shutdown_when_provider_is_none():
 # ---------------------------------------------------------------------------
 # ARCHITECTURAL — I3
 # ---------------------------------------------------------------------------
+
 
 async def test_i3_tracing_raises_import_error_when_otel_absent_and_enabled():
     """When tracing=True but opentelemetry packages absent, ImportError with hint."""
@@ -97,6 +107,7 @@ async def test_i3_tracing_raises_import_error_when_otel_absent_and_enabled():
     cached = sys.modules.pop(obs_key, None)
     try:
         from fast_agent_stack.core.observability import TracingLifespanHook
+
         settings = _settings(tracing_enabled=True)
         hook = TracingLifespanHook(settings)
         with pytest.raises(ImportError, match="pip install fast-agent-stack\\[tracing\\]"):
@@ -119,6 +130,7 @@ async def test_i3_tracing_no_import_error_when_otel_absent_and_disabled():
     cached = sys.modules.pop(obs_key, None)
     try:
         from fast_agent_stack.core.observability import TracingLifespanHook
+
         settings = _settings(tracing_enabled=False)
         hook = TracingLifespanHook(settings)
         await hook.__aenter__()
@@ -135,6 +147,7 @@ async def test_i3_tracing_no_import_error_when_otel_absent_and_disabled():
 # ---------------------------------------------------------------------------
 # CONTRACT — settings defaults
 # ---------------------------------------------------------------------------
+
 
 def test_tracing_settings_defaults():
     s = BaseSettings(app_name="test")

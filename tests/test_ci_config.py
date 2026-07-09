@@ -2,12 +2,12 @@
 
 Parses YAML/TOML statically — no network, no processes.
 """
+
 from __future__ import annotations
 
 import tomllib
 from pathlib import Path
 
-import pytest
 import yaml
 
 REPO = Path(__file__).parent.parent
@@ -143,15 +143,11 @@ def test_a3_tox_envlist_matches_ci_matrix():
     ini = _tox_ini(toml)
 
     # Extract envlist line
-    envlist_line = next(
-        (l.strip() for l in ini.splitlines() if l.strip().startswith("envlist")), ""
-    )
+    envlist_line = next((line.strip() for line in ini.splitlines() if line.strip().startswith("envlist")), "")
     tox_envs = {e.strip() for e in envlist_line.split("=", 1)[-1].split(",")}
     tox_envs = {e for e in tox_envs if e.startswith("py3")}
 
-    assert REQUIRED_TOX_ENVS <= tox_envs, (
-        f"CI matrix versions {REQUIRED_TOX_ENVS} not all in tox envlist {tox_envs}"
-    )
+    assert REQUIRED_TOX_ENVS <= tox_envs, f"CI matrix versions {REQUIRED_TOX_ENVS} not all in tox envlist {tox_envs}"
 
 
 def test_a4_e2e_not_run_on_pr():
@@ -202,9 +198,7 @@ def test_f2_ci_uses_uv_setup_action():
     ci = _ci()
     for job_name, job in ci["jobs"].items():
         uses = [s.get("uses", "") for s in job["steps"]]
-        assert any("setup-uv" in u for u in uses), (
-            f"job '{job_name}' must use astral-sh/setup-uv@v4"
-        )
+        assert any("setup-uv" in u for u in uses), f"job '{job_name}' must use astral-sh/setup-uv@v4"
 
 
 def test_f3_tox_isolated_build():

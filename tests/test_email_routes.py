@@ -1,16 +1,15 @@
 """Tests for Phase 6-5: Auth email routes (ADR-018)."""
+
 from __future__ import annotations
 
 import ast
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # ARCHITECTURAL — I12, I18 (source scan)
 # ---------------------------------------------------------------------------
+
 
 def test_i12_auth_routes_imports_from_email_init_not_smtp():
     import fast_agent_stack.core.auth.routes as mod
@@ -35,19 +34,23 @@ def test_i18_reset_password_uses_password_hash_function():
 # BEHAVIOR — fire-and-forget email routes
 # ---------------------------------------------------------------------------
 
+
 async def _build_test_client(session_override=None, extra_overrides=None):
     """Build a minimal FastAPI test client with auth router and mocked deps."""
     import fastapi
     from httpx import ASGITransport, AsyncClient
-    from fast_agent_stack.core.database import get_async_session
+
     from fast_agent_stack.core.auth.routes import router
+    from fast_agent_stack.core.database import get_async_session
 
     app = fastapi.FastAPI()
     app.include_router(router)
 
     if session_override is not None:
+
         async def _session_dep():
             yield session_override
+
         app.dependency_overrides[get_async_session] = _session_dep
 
     if extra_overrides:
@@ -86,8 +89,7 @@ async def test_send_verification_swallows_email_delivery_error():
     mock_backend = AsyncMock()
     mock_backend.send = AsyncMock(side_effect=EmailDeliveryError("SMTP timeout"))
 
-    with patch("fast_agent_stack.core.auth.routes.get_email_backend",
-               return_value=mock_backend):
+    with patch("fast_agent_stack.core.auth.routes.get_email_backend", return_value=mock_backend):
         async with await _build_test_client(session_override=mock_session) as client:
             resp = await client.post(
                 "/auth/send-verification",

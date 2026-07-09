@@ -13,6 +13,7 @@ class EmlExtractor:
         html_body = msg.get_body(preferencelist=("html",))
         if html_body is not None:
             import re
+
             raw = html_body.get_content()  # type: ignore[union-attr]
             return re.sub(r"<[^>]+>", "", raw)
         return ""

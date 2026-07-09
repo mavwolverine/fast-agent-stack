@@ -10,11 +10,10 @@ import ast
 import pathlib
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.exc import IntegrityError
 
 import fast_agent_stack.core.auth.models as _auth_mod  # registers models on Base.metadata
@@ -27,8 +26,8 @@ from fast_agent_stack.core.auth.models import (
 )
 from fast_agent_stack.core.auth.password import hash_password, verify_password
 from fast_agent_stack.core.database import (
-    Base,
     FRAMEWORK_TABLES,
+    Base,
     configure_engine,
     dispose_engine,
     get_async_session,
@@ -94,7 +93,7 @@ async def test_b4_auth_verification_token_can_be_created() -> None:
             token="tok123",
             user_id=user.id,
             type="email_verification",
-            expires_at=datetime(2030, 1, 1, tzinfo=timezone.utc),
+            expires_at=datetime(2030, 1, 1, tzinfo=UTC),
         )
         session.add(token)
         await session.commit()
@@ -221,9 +220,7 @@ def test_c6_framework_tables_contains_all_auth_tables() -> None:
         "auth_verification_token",
         "api_keys",
     }
-    assert expected.issubset(FRAMEWORK_TABLES), (
-        f"Missing from FRAMEWORK_TABLES: {expected - FRAMEWORK_TABLES}"
-    )
+    assert expected.issubset(FRAMEWORK_TABLES), f"Missing from FRAMEWORK_TABLES: {expected - FRAMEWORK_TABLES}"
 
 
 def test_c7_hash_password_not_plaintext() -> None:
@@ -276,17 +273,9 @@ def test_a1_password_py_has_extras_gate_for_pwdlib() -> None:
     for node in ast.walk(tree):
         if isinstance(node, ast.Try):
             for handler in node.handlers:
-                if (
-                    handler.type
-                    and isinstance(handler.type, ast.Name)
-                    and handler.type.id == "ImportError"
-                ):
+                if handler.type and isinstance(handler.type, ast.Name) and handler.type.id == "ImportError":
                     for stmt in node.body:
-                        if (
-                            isinstance(stmt, ast.ImportFrom)
-                            and stmt.module
-                            and "pwdlib" in stmt.module
-                        ):
+                        if isinstance(stmt, ast.ImportFrom) and stmt.module and "pwdlib" in stmt.module:
                             return
     pytest.fail("password.py missing try/except ImportError gate for pwdlib (I3)")
 
@@ -296,9 +285,7 @@ def test_a2_argon2id_params_meet_owasp_minimums() -> None:
     hashed = hash_password("probe")
     assert "$argon2id$" in hashed, "Must use Argon2id (not argon2i or argon2d)"
     params_segment = hashed.split("$")[3]  # e.g. "m=65536,t=3,p=4"
-    params: dict[str, int] = {
-        k: int(v) for k, v in (p.split("=") for p in params_segment.split(","))
-    }
+    params: dict[str, int] = {k: int(v) for k, v in (p.split("=") for p in params_segment.split(","))}
     assert params["m"] >= 65536, f"memory_cost {params['m']} < 65536 (I18)"
     assert params["t"] >= 3, f"time_cost {params['t']} < 3 (I18)"
     assert params["p"] >= 4, f"parallelism {params['p']} < 4 (I18)"
@@ -419,6 +406,4 @@ def test_f4_user_model_has_correct_tablename() -> None:
 
 def test_f5_all_model_tablenames_in_framework_tables() -> None:
     for model in (User, Group, Permission, AuthVerificationToken, ApiKey):
-        assert model.__tablename__ in FRAMEWORK_TABLES, (
-            f"{model.__tablename__!r} not in FRAMEWORK_TABLES"
-        )
+        assert model.__tablename__ in FRAMEWORK_TABLES, f"{model.__tablename__!r} not in FRAMEWORK_TABLES"

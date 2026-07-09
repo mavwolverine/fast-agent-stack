@@ -1,4 +1,5 @@
 """Tests for Phase 6-4: Secrets Manager Backends (ADR-017)."""
+
 from __future__ import annotations
 
 import os

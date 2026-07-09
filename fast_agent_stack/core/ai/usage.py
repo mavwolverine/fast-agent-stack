@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import DateTime, Index, Integer, String, Uuid, func, select
@@ -32,9 +32,7 @@ class TokenUsageLog(Base):
     cost_microcents: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Soft reference to conversation_log.id — no FK, log survives conversation deletion.
     conversation_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (
         Index("ix_token_usage_log_user_id", "user_id"),
@@ -77,9 +75,7 @@ class UsageService:
     ) -> None:
         if db is None:
             return
-        cost_microcents: int | None = (
-            round(result.cost * 1_000_000) if result.cost is not None else None
-        )
+        cost_microcents: int | None = round(result.cost * 1_000_000) if result.cost is not None else None
         row = TokenUsageLog(
             user_id=user_id,
             api_key_id=api_key_id,
@@ -104,10 +100,8 @@ class UsageService:
         period_end: datetime | None,
     ) -> tuple[list, datetime, datetime]:
         if user_id is None and api_key_id is None and agent_name is None:
-            raise ValueError(
-                "At least one identity filter (user_id, api_key_id, agent_name) must be provided."
-            )
-        now = datetime.now(tz=timezone.utc)
+            raise ValueError("At least one identity filter (user_id, api_key_id, agent_name) must be provided.")
+        now = datetime.now(tz=UTC)
         start = period_start or (now - timedelta(hours=24))
         end = period_end or now
         conditions = [

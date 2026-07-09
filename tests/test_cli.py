@@ -1,12 +1,10 @@
 """CLI tests — 5 families (B/C/A/N/F)."""
 
-
 import re
 import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from fast_agent_stack import __version__
@@ -257,17 +255,13 @@ def test_a5_new_template_dir_contains_copier_yml() -> None:
 
 
 def test_f3_new_invalid_preset_exits_nonzero(tmp_path: Path) -> None:
-    result = runner.invoke(
-        app, ["new", "demo", "--preset", "bogus", "--output-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["new", "demo", "--preset", "bogus", "--output-dir", str(tmp_path)])
     assert result.exit_code != 0
 
 
 def test_f4_new_existing_dir_exits_nonzero(tmp_path: Path) -> None:
     (tmp_path / "demo").mkdir()  # pre-create the target dir
-    result = runner.invoke(
-        app, ["new", "demo", "--output-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["new", "demo", "--output-dir", str(tmp_path)])
     assert result.exit_code != 0
 
 

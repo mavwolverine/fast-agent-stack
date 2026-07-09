@@ -1,11 +1,12 @@
 """Unit tests for 5-A: storage protocol, factory dispatch, and invariants."""
+
 from __future__ import annotations
 
 import importlib
 import inspect
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -29,6 +30,7 @@ def _make_settings(**kwargs):  # type: ignore[no-untyped-def]
 # ---------------------------------------------------------------------------
 # CONTRACT
 # ---------------------------------------------------------------------------
+
 
 def test_storage_protocol_upload_signature():
     sig = inspect.signature(StorageProtocol.upload)
@@ -59,7 +61,12 @@ def test_key_not_found_error_is_exception():
 
 
 def test_storage_module_public_init_exports():
-    from fast_agent_stack.core.storage import KeyNotFoundError, StorageProtocol, get_storage
+    from fast_agent_stack.core.storage import (
+        KeyNotFoundError,
+        StorageProtocol,
+        get_storage,
+    )
+
     assert callable(get_storage)
     assert isinstance(StorageProtocol, type)
     assert issubclass(KeyNotFoundError, Exception)
@@ -69,20 +76,21 @@ def test_storage_module_public_init_exports():
 # BEHAVIOR — factory dispatch
 # ---------------------------------------------------------------------------
 
+
 def test_get_storage_returns_local_storage():
     pytest.importorskip("aiofiles")
     settings = _make_settings(storage_backend="local")
     from fast_agent_stack.core.storage.backends.local import LocalStorage
+
     backend = get_storage(settings)
     assert isinstance(backend, LocalStorage)
 
 
 def test_get_storage_dotted_path_dispatch(tmp_path):
     pytest.importorskip("aiofiles")
-    settings = _make_settings(
-        storage_backend="fast_agent_stack.core.storage.backends.local.LocalStorage"
-    )
+    settings = _make_settings(storage_backend="fast_agent_stack.core.storage.backends.local.LocalStorage")
     from fast_agent_stack.core.storage.backends.local import LocalStorage
+
     backend = get_storage(settings)
     assert isinstance(backend, LocalStorage)
 
@@ -91,10 +99,12 @@ def test_get_storage_dotted_path_dispatch(tmp_path):
 # ARCHITECTURAL — I4
 # ---------------------------------------------------------------------------
 
+
 def test_local_storage_exposes_root_attribute_i4(tmp_path):
     pytest.importorskip("aiofiles")
     settings = _make_settings(storage_local_root=str(tmp_path))
     from fast_agent_stack.core.storage.backends.local import LocalStorage
+
     backend = LocalStorage(settings)
     assert hasattr(backend, "_root")
     assert isinstance(backend._root, Path)
@@ -104,12 +114,17 @@ def test_no_storage_import_breaks_bare_install():
     """Public __init__ must not import aiofiles/aioboto3 at module load time (I3 modularity)."""
     # Just ensure importing the public __init__ doesn't raise when optional deps absent
     # (we test this by importing core.storage directly — guards are only in backend files)
-    from fast_agent_stack.core.storage import KeyNotFoundError, StorageProtocol, get_storage  # noqa: F401
+    from fast_agent_stack.core.storage import (  # noqa: F401
+        KeyNotFoundError,
+        StorageProtocol,
+        get_storage,
+    )
 
 
 # ---------------------------------------------------------------------------
 # NFR — I2 source check
 # ---------------------------------------------------------------------------
+
 
 def test_local_storage_uses_aiofiles_for_io():
     import fast_agent_stack.core.storage.backends.local as mod
@@ -121,6 +136,7 @@ def test_local_storage_uses_aiofiles_for_io():
 # ---------------------------------------------------------------------------
 # FAILURE-MODE — I3 import guards
 # ---------------------------------------------------------------------------
+
 
 def test_local_storage_import_guard_i3():
     saved = sys.modules.pop("aiofiles", None)

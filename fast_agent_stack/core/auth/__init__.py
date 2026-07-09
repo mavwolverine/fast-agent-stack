@@ -2,6 +2,8 @@ from fast_agent_stack.core.auth.api_keys import (
     authenticate_api_key,
     generate_api_key,
     hash_api_key,
+)
+from fast_agent_stack.core.auth.api_keys import (
     router as api_keys_router,
 )
 from fast_agent_stack.core.auth.backends import AuthBackend, TokenResponse

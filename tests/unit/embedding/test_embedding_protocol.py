@@ -1,11 +1,11 @@
 """Unit tests for 5-C: embedding protocol, factory dispatch, and invariants."""
+
 from __future__ import annotations
 
 import importlib
 import inspect
 import sys
-import types
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -27,6 +27,7 @@ def _make_settings(**kwargs):  # type: ignore[no-untyped-def]
 # CONTRACT
 # ---------------------------------------------------------------------------
 
+
 def test_embedding_protocol_embed_signature():
     sig = inspect.signature(EmbeddingProtocol.embed)
     params = sig.parameters
@@ -47,7 +48,8 @@ def test_embedding_protocol_dimensions_is_property():
 
 
 def test_embedding_module_public_init_exports():
-    from fast_agent_stack.core.ai.embedding import EmbeddingProtocol, get_embedding_provider
+    from fast_agent_stack.core.ai.embedding import EmbeddingProtocol
+
     assert callable(get_embedding_provider)
     assert isinstance(EmbeddingProtocol, type)
 
@@ -55,6 +57,7 @@ def test_embedding_module_public_init_exports():
 # ---------------------------------------------------------------------------
 # BEHAVIOR — OpenAI backend with mocked client
 # ---------------------------------------------------------------------------
+
 
 def test_openai_embedding_with_mocked_client():
     """OpenAIEmbedding.embed should call the API and return a list of floats."""
@@ -81,10 +84,11 @@ def test_openai_embedding_with_mocked_client():
 # ARCHITECTURAL — I4 attribute presence
 # ---------------------------------------------------------------------------
 
+
 def test_openai_embedding_exposes_client_attribute_i4():
     mock_openai = MagicMock(name="openai")
     mock_openai.AsyncOpenAI = MagicMock(return_value=MagicMock())
-    saved = sys.modules.get("openai")
+    sys.modules.get("openai")
     if "openai" not in sys.modules:
         sys.modules["openai"] = mock_openai
     mod_name = "fast_agent_stack.core.ai.embedding.backends.openai"
@@ -101,6 +105,7 @@ def test_openai_embedding_exposes_client_attribute_i4():
 # NFR — I2: local embedding uses run_in_executor
 # ---------------------------------------------------------------------------
 
+
 def test_local_embedding_uses_run_in_executor_i2():
     import fast_agent_stack.core.ai.embedding.backends.local as mod
     with open(mod.__file__) as f:
@@ -111,6 +116,7 @@ def test_local_embedding_uses_run_in_executor_i2():
 # ---------------------------------------------------------------------------
 # FAILURE-MODE — I3 import guards
 # ---------------------------------------------------------------------------
+
 
 def test_local_embedding_import_guard_i3():
     saved = sys.modules.pop("fastembed", None)

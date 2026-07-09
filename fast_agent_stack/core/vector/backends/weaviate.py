@@ -15,12 +15,8 @@ if TYPE_CHECKING:
 
 
 class WeaviateStore:
-    def __init__(self, settings: "BaseSettings") -> None:
-        auth = (
-            weaviate.auth.AuthApiKey(api_key=settings.weaviate_api_key)
-            if settings.weaviate_api_key
-            else None
-        )
+    def __init__(self, settings: BaseSettings) -> None:
+        auth = weaviate.auth.AuthApiKey(api_key=settings.weaviate_api_key) if settings.weaviate_api_key else None
         self._client = weaviate.use_async_with_custom(
             http_host=settings.weaviate_url.replace("http://", "").split(":")[0],
             http_port=int(settings.weaviate_url.split(":")[-1]) if ":" in settings.weaviate_url else 8080,
@@ -94,15 +90,16 @@ class WeaviateStore:
             props = dict(obj.properties)
             content = props.pop("_content", None)
             meta: dict[str, str | int | float | bool] = {
-                k: v for k, v in props.items()
-                if isinstance(v, (str, int, float, bool))
+                k: v for k, v in props.items() if isinstance(v, (str, int, float, bool))
             }
-            results.append(VectorSearchResult(
-                id=str(obj.uuid),
-                score=float(obj.metadata.score or 0.0),
-                metadata=meta,
-                content=content if isinstance(content, str) else None,
-            ))
+            results.append(
+                VectorSearchResult(
+                    id=str(obj.uuid),
+                    score=float(obj.metadata.score or 0.0),
+                    metadata=meta,
+                    content=content if isinstance(content, str) else None,
+                )
+            )
         return results
 
     async def delete(self, collection: str, id: str) -> None:
@@ -117,6 +114,7 @@ class WeaviateStore:
 def _to_uuid(id: str) -> str:
     import hashlib
     import uuid as _uuid
+
     try:
         _uuid.UUID(id)
         return id

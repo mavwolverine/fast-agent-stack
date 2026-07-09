@@ -1,6 +1,5 @@
 """Request-ID middleware tests — 5 families (B/C/A/N/F)."""
 
-
 import re
 import time
 
@@ -11,9 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fast_agent_stack import FastAgentStack
 from fast_agent_stack.core.middleware import RequestIDMiddleware, get_request_id
 
-_UUID4_RE = re.compile(
-    r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-)
+_UUID4_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 
 
 def _app_with_root() -> FastAgentStack:
@@ -123,9 +120,7 @@ def test_a2_request_id_middleware_outermost_relative_to_cors() -> None:
 
     cors_idx = types.index(CORSMiddleware)
     # user_middleware[0] is outermost; lower index = outermost
-    assert rid_idx < cors_idx, (
-        "RequestIDMiddleware must be at a lower index (outermost) than CORSMiddleware"
-    )
+    assert rid_idx < cors_idx, "RequestIDMiddleware must be at a lower index (outermost) than CORSMiddleware"
 
 
 def test_a3_get_request_id_returns_empty_outside_request() -> None:

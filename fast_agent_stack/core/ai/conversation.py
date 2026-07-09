@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Sequence
 from uuid import UUID
 
 from sqlalchemy import DateTime, Index, String, Text, Uuid, func, select
@@ -19,9 +19,7 @@ class ConversationLog(Base):
     # Soft reference to users.id — no DB-level FK so AI works without auth tables.
     user_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
     agent_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -42,13 +40,9 @@ class ConversationMessage(Base):
     conversation_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
     role: Mapped[str] = mapped_column(String(50), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    __table_args__ = (
-        Index("ix_conversation_messages_conversation_id", "conversation_id"),
-    )
+    __table_args__ = (Index("ix_conversation_messages_conversation_id", "conversation_id"),)
 
 
 class ConversationService:
@@ -87,9 +81,7 @@ class ConversationService:
         conversation_id: UUID,
         db: AsyncSession,
     ) -> ConversationLog | None:
-        result = await db.execute(
-            select(ConversationLog).where(ConversationLog.id == conversation_id)
-        )
+        result = await db.execute(select(ConversationLog).where(ConversationLog.id == conversation_id))
         return result.scalar_one_or_none()
 
     async def get_messages(

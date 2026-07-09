@@ -1,4 +1,5 @@
 """Email delivery protocol and factory (ADR-018, ADR-041)."""
+
 from __future__ import annotations
 
 import importlib
@@ -23,8 +24,7 @@ class EmailProtocol(Protocol):
         subject: str,
         body_text: str,
         body_html: str | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 def get_email_backend(settings: BaseSettings) -> EmailProtocol:
@@ -36,6 +36,7 @@ def get_email_backend(settings: BaseSettings) -> EmailProtocol:
 
     if alias == "smtp":
         from fast_agent_stack.core.email.smtp import SmtpEmailBackend
+
         return SmtpEmailBackend(settings)
 
     # Dotted-path custom backend (ADR-012)
@@ -44,13 +45,8 @@ def get_email_backend(settings: BaseSettings) -> EmailProtocol:
         try:
             mod = importlib.import_module(module_path)
         except ImportError as exc:
-            raise ImportError(
-                f"Could not import email backend '{alias}': {exc}"
-            ) from exc
+            raise ImportError(f"Could not import email backend '{alias}': {exc}") from exc
         cls = getattr(mod, cls_name)
         return cls()
 
-    raise ValueError(
-        f"Unknown email_backend alias '{alias}'. "
-        "Use 'smtp' or a dotted import path."
-    )
+    raise ValueError(f"Unknown email_backend alias '{alias}'. Use 'smtp' or a dotted import path.")

@@ -6,14 +6,13 @@ from typing import Any
 
 import pytest
 from fakeredis.aioredis import FakeRedis
-from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 import fast_agent_stack.core.auth.models as _auth_mod  # noqa: F401
 from fast_agent_stack.core.auth.backends.factory import get_auth_backend
 from fast_agent_stack.core.auth.backends.jwt import JWTAuthBackend
-from fast_agent_stack.core.auth.dependencies import get_current_user, require_permission
+from fast_agent_stack.core.auth.dependencies import require_permission
 from fast_agent_stack.core.auth.models import Group, Permission, User
 from fast_agent_stack.core.auth.password import hash_password
 from fast_agent_stack.core.auth.routes import router as auth_router
@@ -116,7 +115,6 @@ async def _create_user(
 
 
 async def _grant_permission(user: User, resource: str, action: str) -> None:
-    from sqlalchemy.orm import selectinload
 
     async for session in get_async_session():
         merged = await session.merge(user)
@@ -194,6 +192,7 @@ async def test_b6_direct_user_permission_allowed(client: AsyncClient) -> None:
 
 def test_c1_require_permission_returns_depends() -> None:
     from fastapi import params
+
     dep = require_permission("posts.delete")
     assert isinstance(dep, params.Depends)
 
@@ -242,8 +241,10 @@ async def test_n1_get_current_user_raises_401_on_no_auth(app: FastAPI) -> None:
 
 
 async def test_f1_expired_token_returns_401(client: AsyncClient) -> None:
-    from fast_agent_stack.core.auth.tokens import create_access_token as _cat
     import uuid
+
+    from fast_agent_stack.core.auth.tokens import create_access_token as _cat
+
     token, _ = _cat(uuid.uuid4(), _SECRET, -1)  # already expired
     resp = await client.get("/protected", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 401
