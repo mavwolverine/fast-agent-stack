@@ -51,4 +51,4 @@ def get_storage(settings: BaseSettings) -> StorageProtocol:
     module_path, _, class_name = backend.rpartition(".")
     mod = importlib.import_module(module_path)
     cls = getattr(mod, class_name)
-    return cls(settings)
+    return cls(settings)  # type: ignore[no-any-return]

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def configure_broker(settings: BaseSettings) -> dramatiq.Broker:
     """Wire Dramatiq to Redis. Falls back to settings.redis_url when tasks_broker_url is not set."""
     url = settings.tasks_broker_url or settings.redis_url
-    broker = RedisBroker(url=url)
+    broker = RedisBroker(url=url)  # type: ignore[no-untyped-call]
     dramatiq.set_broker(broker)
     logger.info("Dramatiq broker configured: %s", url)
     return broker

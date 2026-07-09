@@ -54,7 +54,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Any) -> Response:
         # WebSocket passthrough (no rate-limit)
         if request.scope.get("type") == "websocket":
-            return await call_next(request)
+            return await call_next(request)  # type: ignore[no-any-return]
 
         redis = await _get_async_redis(request)
 
@@ -85,7 +85,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         response.headers["X-RateLimit-Limit"] = str(self._requests)
         response.headers["X-RateLimit-Remaining"] = str(remaining)
         response.headers["X-RateLimit-Reset"] = str(reset_at)
-        return response
+        return response  # type: ignore[no-any-return]
 
 
 class RateLimitLifespanHook:

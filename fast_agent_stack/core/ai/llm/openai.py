@@ -43,7 +43,7 @@ class OpenAILLMBackend:
     async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult:
         response = await self._client.chat.completions.create(
             model=self._model_id,
-            messages=self._to_messages(messages),  # type: ignore[arg-type]
+            messages=self._to_messages(messages),
             **kwargs,
         )
         content = response.choices[0].message.content or ""
@@ -63,7 +63,7 @@ class OpenAILLMBackend:
         total_tokens = 0
         response = await self._client.chat.completions.create(
             model=self._model_id,
-            messages=self._to_messages(messages),  # type: ignore[arg-type]
+            messages=self._to_messages(messages),
             stream=True,
             stream_options={"include_usage": True},
             **kwargs,

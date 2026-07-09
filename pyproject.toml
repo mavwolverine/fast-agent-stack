@@ -140,6 +140,46 @@ python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+module = [
+    "aioboto3",
+    "aioboto3.*",
+    "botocore.*",
+    "redis_fastapi",
+    "redis_fastapi.*",
+    "fastembed",
+    "fastembed.*",
+    "pdfplumber",
+    "pdfplumber.*",
+    "docx",
+    "docx.*",
+    "openpyxl",
+    "openpyxl.*",
+    "aiofiles",
+    "aiofiles.*",
+    "opensearchpy",
+    "opensearchpy.*",
+    "pgvector",
+    "pgvector.*",
+    "weaviate",
+    "weaviate.*",
+    "periodiq",
+    "periodiq.*",
+    "dramatiq",
+    "dramatiq.*",
+    "numpy",
+    "numpy.*",
+    "openai",
+    "openai.*",
+    "anthropic",
+    "anthropic.*",
+    "litellm",
+    "litellm.*",
+    "qdrant_client",
+    "qdrant_client.*",
+]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

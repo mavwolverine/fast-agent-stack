@@ -28,7 +28,7 @@ class SessionAuthBackend:
     def __init__(
         self,
         session_ttl: int,
-        redis: Redis,  # type: ignore[type-arg]
+        redis: Redis,
         *,
         debug: bool = False,
     ) -> None:

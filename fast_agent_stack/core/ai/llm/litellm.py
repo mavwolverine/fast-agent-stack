@@ -32,7 +32,7 @@ class LiteLLMLLMBackend:
     @property
     def litellm_module(self) -> types.ModuleType:
         """Escape hatch (I4): direct access to the litellm module."""
-        return litellm  # type: ignore[return-value]
+        return litellm  # type: ignore[no-any-return]
 
     def _to_messages(self, messages: list[Message]) -> list[dict[str, str]]:
         return [{"role": m.role, "content": m.content} for m in messages]

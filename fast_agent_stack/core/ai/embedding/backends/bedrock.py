@@ -40,7 +40,7 @@ class BedrockEmbedding:
                 accept="application/json",
             )
             data = json.loads(await resp["body"].read())
-        return data.get("embedding", [])
+        return data.get("embedding", [])  # type: ignore[no-any-return]
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         return [await self.embed(t) for t in texts]

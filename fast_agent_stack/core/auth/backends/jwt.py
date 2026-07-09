@@ -31,7 +31,7 @@ class JWTAuthBackend:
         secret_key: str,
         access_ttl: int,
         refresh_ttl: int,
-        redis: Redis,  # type: ignore[type-arg]
+        redis: Redis,
     ) -> None:
         self._secret_key = secret_key
         self._access_ttl = access_ttl

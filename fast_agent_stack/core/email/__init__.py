@@ -47,6 +47,6 @@ def get_email_backend(settings: BaseSettings) -> EmailProtocol:
         except ImportError as exc:
             raise ImportError(f"Could not import email backend '{alias}': {exc}") from exc
         cls = getattr(mod, cls_name)
-        return cls()
+        return cls()  # type: ignore[no-any-return]
 
     raise ValueError(f"Unknown email_backend alias '{alias}'. Use 'smtp' or a dotted import path.")
