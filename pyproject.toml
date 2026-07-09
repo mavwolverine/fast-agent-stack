@@ -223,5 +223,5 @@ extras =
     extract-xlsx
     vector-qdrant
     vector-pgvector
-commands = pytest {posargs}
+commands = pytest -m "not integration and not e2e" {posargs}
 """
