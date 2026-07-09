@@ -72,31 +72,21 @@ def test_b5_env_py_contains_project_name_substitution(tmp_path: Path) -> None:
     assert _PROJECT in content
 
 
-def test_b6_migrate_succeeds_in_generated_project(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_b6_migrate_succeeds_in_generated_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _scaffold(tmp_path)
     monkeypatch.chdir(tmp_path)
     monkeypatch.syspath_prepend(str(tmp_path))
     result = runner.invoke(app, ["migrate"])
-    assert result.exit_code == 0, (
-        result.output + (str(result.exception) if result.exception else "")
-    )
+    assert result.exit_code == 0, result.output + (str(result.exception) if result.exception else "")
 
 
-def test_b7_makemigrations_creates_revision_file(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_b7_makemigrations_creates_revision_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _scaffold(tmp_path)
     monkeypatch.chdir(tmp_path)
     monkeypatch.syspath_prepend(str(tmp_path))
     result = runner.invoke(app, ["makemigrations", "-m", "initial"])
-    assert result.exit_code == 0, (
-        result.output + (str(result.exception) if result.exception else "")
-    )
-    py_revisions = [
-        f for f in (tmp_path / "alembic" / "versions").iterdir() if f.suffix == ".py"
-    ]
+    assert result.exit_code == 0, result.output + (str(result.exception) if result.exception else "")
+    py_revisions = [f for f in (tmp_path / "alembic" / "versions").iterdir() if f.suffix == ".py"]
     assert len(py_revisions) == 1, f"Expected 1 revision .py file, found: {py_revisions}"
 
 
@@ -179,9 +169,7 @@ def test_n1_scaffold_renders_alembic_in_under_30s(tmp_path: Path) -> None:
     assert elapsed < 30.0, f"Scaffold took {elapsed:.1f}s (limit: 30s)"
 
 
-def test_n2_migrate_completes_in_under_10s(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_n2_migrate_completes_in_under_10s(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _scaffold(tmp_path)
     monkeypatch.chdir(tmp_path)
     monkeypatch.syspath_prepend(str(tmp_path))
@@ -197,25 +185,19 @@ def test_n2_migrate_completes_in_under_10s(
 # ---------------------------------------------------------------------------
 
 
-def test_f1_migrate_fails_without_alembic_dir(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_f1_migrate_fails_without_alembic_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, ["migrate"])
     assert result.exit_code != 0
 
 
-def test_f2_makemigrations_fails_without_alembic_dir(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_f2_makemigrations_fails_without_alembic_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, ["makemigrations"])
     assert result.exit_code != 0
 
 
-def test_f3_seed_with_no_seeds_py_exits_zero(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_f3_seed_with_no_seeds_py_exits_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, ["seed"])
     assert result.exit_code == 0

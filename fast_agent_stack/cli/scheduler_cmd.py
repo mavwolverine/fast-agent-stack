@@ -1,4 +1,5 @@
 """CLI command: fas scheduler — start a Periodiq scheduler process (ADR-020)."""
+
 from __future__ import annotations
 
 import typer
@@ -13,8 +14,7 @@ def scheduler(
         import periodiq.__main__  # noqa: F401
     except ImportError:
         typer.echo(
-            "periodiq is not installed. "
-            "Run: pip install fast-agent-stack[scheduler]",
+            "periodiq is not installed. Run: pip install fast-agent-stack[scheduler]",
             err=True,
         )
         raise typer.Exit(1)

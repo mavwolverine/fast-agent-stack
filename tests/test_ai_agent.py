@@ -6,9 +6,7 @@ import ast
 import importlib
 import importlib.util
 import inspect
-import sys
 from pathlib import Path
-from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
@@ -17,15 +15,14 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from fast_agent_stack.core.ai.llm import CompletionResult, Message
 from fast_agent_stack.core.ai.conversation import (
     ConversationLog,
     ConversationMessage,
     ConversationService,
 )
+from fast_agent_stack.core.ai.llm import CompletionResult, Message
 from fast_agent_stack.core.ai.usage import TokenUsageLog, UsageService
-from fast_agent_stack.core.database.base import Base, FRAMEWORK_TABLES
-
+from fast_agent_stack.core.database.base import FRAMEWORK_TABLES, Base
 
 # ---------------------------------------------------------------------------
 # Helpers — in-memory DB
@@ -70,9 +67,9 @@ class TestArchitectural:
         for node in ast.walk(tree):
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 if isinstance(node, ast.ImportFrom) and node.module:
-                    assert not node.module.startswith(
-                        "fast_agent_stack.core.database."
-                    ), f"I12 violation: direct sub-module import '{node.module}'"
+                    assert not node.module.startswith("fast_agent_stack.core.database."), (
+                        f"I12 violation: direct sub-module import '{node.module}'"
+                    )
 
     def test_a02_usage_imports_only_from_core_database_init(self):
         """I12: usage.py must only import Base from core.database (not sub-modules)."""
@@ -80,32 +77,24 @@ class TestArchitectural:
         tree = ast.parse(src)
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module:
-                assert not node.module.startswith(
-                    "fast_agent_stack.core.database."
-                ), f"I12 violation: direct sub-module import '{node.module}'"
+                assert not node.module.startswith("fast_agent_stack.core.database."), (
+                    f"I12 violation: direct sub-module import '{node.module}'"
+                )
 
     def test_a03_migration_0001_naming_convention(self):
         """I16: first AI migration filename must match NNNN_fas_<module>_<desc>.py."""
-        candidates = list(
-            Path("fast_agent_stack/core/ai/migrations/versions").glob("0001_fas_ai_*.py")
-        )
+        candidates = list(Path("fast_agent_stack/core/ai/migrations/versions").glob("0001_fas_ai_*.py"))
         assert len(candidates) == 1, "Expected exactly one 0001_fas_ai_*.py migration"
 
     def test_a04_migration_0002_naming_convention(self):
         """I16: second AI migration filename must match NNNN_fas_<module>_<desc>.py."""
-        candidates = list(
-            Path("fast_agent_stack/core/ai/migrations/versions").glob("0002_fas_ai_*.py")
-        )
+        candidates = list(Path("fast_agent_stack/core/ai/migrations/versions").glob("0002_fas_ai_*.py"))
         assert len(candidates) == 1, "Expected exactly one 0002_fas_ai_*.py migration"
 
     def test_a05_migration_revision_ids(self):
         """I16: revision IDs must be fas_ai_001 / fas_ai_002."""
-        m1 = importlib.import_module(
-            "fast_agent_stack.core.ai.migrations.versions.0001_fas_ai_conversation"
-        )
-        m2 = importlib.import_module(
-            "fast_agent_stack.core.ai.migrations.versions.0002_fas_ai_token_usage"
-        )
+        m1 = importlib.import_module("fast_agent_stack.core.ai.migrations.versions.0001_fas_ai_conversation")
+        m2 = importlib.import_module("fast_agent_stack.core.ai.migrations.versions.0002_fas_ai_token_usage")
         assert m1.revision == "fas_ai_001"
         assert m1.down_revision is None
         assert m1.branch_labels == ("ai",)
@@ -122,9 +111,7 @@ class TestArchitectural:
         """Migration gate uses any-of find_spec; passes if at least one SDK present."""
         from fast_agent_stack.cli.db import FRAMEWORK_MIGRATION_MODULES
 
-        _key, (module_path, gate_packages) = list(
-            FRAMEWORK_MIGRATION_MODULES.items()
-        )[-1]  # "ai" entry is last
+        _key, (module_path, gate_packages) = list(FRAMEWORK_MIGRATION_MODULES.items())[-1]  # "ai" entry is last
         assert module_path == "fast_agent_stack.core.ai.migrations"
         # Must list all four AI SDK packages
         assert "anthropic" in gate_packages
@@ -169,17 +156,13 @@ class TestConversationService:
     async def test_b02_create_conversation_with_user_id(self, db_session):
         uid = uuid4()
         svc = ConversationService()
-        log = await svc.create_conversation(
-            agent_name="chat", user_id=uid, db=db_session
-        )
+        log = await svc.create_conversation(agent_name="chat", user_id=uid, db=db_session)
         assert log.user_id == uid
 
     async def test_b03_append_message_and_get_messages(self, db_session):
         svc = ConversationService()
         log = await svc.create_conversation(agent_name="chat", db=db_session)
-        msg = await svc.append_message(
-            conversation_id=log.id, role="user", content="hello", db=db_session
-        )
+        msg = await svc.append_message(conversation_id=log.id, role="user", content="hello", db=db_session)
         assert isinstance(msg.id, UUID)
         assert msg.role == "user"
         assert msg.content == "hello"
@@ -189,21 +172,15 @@ class TestConversationService:
 
     async def test_b04_get_conversation_returns_none_for_unknown(self, db_session):
         svc = ConversationService()
-        result = await svc.get_conversation(
-            conversation_id=uuid4(), db=db_session
-        )
+        result = await svc.get_conversation(conversation_id=uuid4(), db=db_session)
         assert result is None
 
     async def test_b05_messages_ordered_by_created_at(self, db_session):
         """Messages are returned in insertion order (asc by created_at)."""
         svc = ConversationService()
         log = await svc.create_conversation(agent_name="chat", db=db_session)
-        await svc.append_message(
-            conversation_id=log.id, role="user", content="first", db=db_session
-        )
-        await svc.append_message(
-            conversation_id=log.id, role="assistant", content="second", db=db_session
-        )
+        await svc.append_message(conversation_id=log.id, role="user", content="first", db=db_session)
+        await svc.append_message(conversation_id=log.id, role="assistant", content="second", db=db_session)
         msgs = await svc.get_messages(conversation_id=log.id, db=db_session)
         assert [m.content for m in msgs] == ["first", "second"]
 
@@ -318,9 +295,7 @@ class TestAgentDispatcher:
     def _make_backend(self, content="response text"):
         backend = MagicMock()
         backend.model_id = "test-model"
-        backend.complete = AsyncMock(
-            return_value=_make_result(content=content)
-        )
+        backend.complete = AsyncMock(return_value=_make_result(content=content))
         return backend
 
     def test_b06_agent_decorator_mounts_post_route(self):
@@ -381,8 +356,9 @@ class TestAgentDispatcher:
 
     async def test_b09_streaming_dispatch_returns_sse_response(self, db_session):
         """Streaming handler → StreamingResponse (text/event-stream)."""
-        from fast_agent_stack.core.ai.agents import dispatch
         from fastapi.responses import StreamingResponse
+
+        from fast_agent_stack.core.ai.agents import dispatch
 
         backend = self._make_backend()
         sentinel = _make_result(content="")
@@ -451,6 +427,7 @@ class TestFailureModes:
                 db=db_session,
             )
         from fastapi.responses import JSONResponse
+
         assert isinstance(resp, JSONResponse)
 
     async def test_f02_i21_log_usage_failure_swallowed_streaming(self, db_session):
@@ -522,17 +499,13 @@ class TestFailureModes:
 
     def test_f05_agents_py_jinja_respects_llm_provider_none(self):
         """agents.py.jinja must wrap all imports inside {% if llm_provider != 'none' %}."""
-        template = Path(
-            "fast_agent_stack/template/{{project_name}}/agents.py.jinja"
-        ).read_text()
+        template = Path("fast_agent_stack/template/{{project_name}}/agents.py.jinja").read_text()
         assert '{% if llm_provider != "none" %}' in template or "{% if llm_provider != 'none' %}" in template
         assert "{% endif %}" in template
 
     def test_f06_agents_py_jinja_covers_all_providers(self):
         """agents.py.jinja must have a branch for each llm_provider choice (I7)."""
-        template = Path(
-            "fast_agent_stack/template/{{project_name}}/agents.py.jinja"
-        ).read_text()
+        template = Path("fast_agent_stack/template/{{project_name}}/agents.py.jinja").read_text()
         for provider in ("anthropic", "openai", "bedrock", "litellm"):
             assert provider in template, f"Missing provider branch: {provider}"
 
@@ -546,9 +519,10 @@ class TestMigrationRoundtrip:
     def test_n01_upgrade_then_downgrade_is_clean(self, tmp_path):
         """Alembic upgrade + downgrade creates and removes AI tables cleanly."""
         import asyncio
-        from alembic.config import Config
-        from alembic import command
         import importlib.resources as ilr
+
+        from alembic import command
+        from alembic.config import Config
 
         db_path = tmp_path / "test.db"
         db_url = f"sqlite+aiosqlite:///{db_path}"
@@ -567,9 +541,7 @@ class TestMigrationRoundtrip:
         async def _check_tables():
             engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
             async with engine.connect() as conn:
-                tables = await conn.run_sync(
-                    lambda sync_conn: sa.inspect(sync_conn).get_table_names()
-                )
+                tables = await conn.run_sync(lambda sync_conn: sa.inspect(sync_conn).get_table_names())
             await engine.dispose()
             return tables
 

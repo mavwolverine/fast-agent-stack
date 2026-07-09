@@ -20,25 +20,30 @@ Example::
     async def delete_item(id: int, _=Depends(cache_evict(eviction_group="items"))):
         ...
 """
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
 try:
-    from redis_fastapi import FastAPIRedis
-    from redis_fastapi import cache, cache_evict, cache_put
-    from redis_fastapi import CacheBackend, CacheBackendDep
+    from redis_fastapi import (
+        CacheBackend,
+        CacheBackendDep,
+        FastAPIRedis,
+        cache,
+        cache_evict,
+        cache_put,
+    )
 except ImportError:
     raise ImportError(
-        "fastapi-redis-sdk is required for response caching. "
-        "Install it with: pip install fast-agent-stack[caching]"
+        "fastapi-redis-sdk is required for response caching. Install it with: pip install fast-agent-stack[caching]"
     )
 
 
-def enable_caching(app: "FastAPI") -> None:
+def enable_caching(app: FastAPI) -> None:
     """Register the SDK capture middleware and exception handler on *app*.
 
     Must be called after ``FastAPIRedisLifespanHook`` is registered (which

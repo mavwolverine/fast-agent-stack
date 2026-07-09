@@ -12,8 +12,8 @@ from fastapi import HTTPException, Request, Response
 from fast_agent_stack.core.auth.backends import TokenResponse
 
 try:
-    from redis.asyncio import Redis
     import redis_fastapi as _redis_fastapi_check  # noqa: F401 — I3: gate on SDK presence
+    from redis.asyncio import Redis
 except ImportError:
     raise ImportError(
         "fastapi-redis-sdk is required for session authentication. "
@@ -21,7 +21,7 @@ except ImportError:
     )
 
 _SESSION_PREFIX = "fas:session:"  # ADR-032, ADR-033
-_COOKIE_NAME = "fas_session"       # ADR-032
+_COOKIE_NAME = "fas_session"  # ADR-032
 
 
 class SessionAuthBackend:

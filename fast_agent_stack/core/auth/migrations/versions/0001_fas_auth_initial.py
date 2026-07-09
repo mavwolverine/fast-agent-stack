@@ -105,9 +105,7 @@ def upgrade() -> None:
         sa.Column("group_id", sa.Uuid(), nullable=False),
         sa.Column("permission_id", sa.Uuid(), nullable=False),
         sa.ForeignKeyConstraint(["group_id"], ["groups.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["permission_id"], ["permissions.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["permission_id"], ["permissions.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("group_id", "permission_id"),
     )
 
@@ -116,9 +114,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("permission_id", sa.Uuid(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["permission_id"], ["permissions.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["permission_id"], ["permissions.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("user_id", "permission_id"),
     )
 
@@ -145,9 +141,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("token"),
     )
-    op.create_index(
-        "ix_auth_verification_token_token", "auth_verification_token", ["token"]
-    )
+    op.create_index("ix_auth_verification_token_token", "auth_verification_token", ["token"])
 
     op.create_table(
         "api_keys",

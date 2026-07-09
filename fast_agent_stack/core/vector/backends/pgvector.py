@@ -1,4 +1,5 @@
 """pgvector backend — SQLAlchemy async engine over PostgreSQL (ADR-038, I4)."""
+
 from __future__ import annotations
 
 import json
@@ -22,10 +23,10 @@ _SAFE_NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 # Maps protocol distance_metric → (index_ops_class, search_operator)
 _DISTANCE_OPS: dict[str, tuple[str, str]] = {
-    "cosine":    ("vector_cosine_ops", "<=>"),
-    "euclidean": ("vector_l2_ops",     "<->"),
-    "euclid":    ("vector_l2_ops",     "<->"),
-    "dot":       ("vector_ip_ops",     "<#>"),
+    "cosine": ("vector_cosine_ops", "<=>"),
+    "euclidean": ("vector_l2_ops", "<->"),
+    "euclid": ("vector_l2_ops", "<->"),
+    "dot": ("vector_ip_ops", "<#>"),
 }
 
 
@@ -45,9 +46,9 @@ def _vec_literal(vector: list[float]) -> str:
 def _normalise_db_url(url: str) -> str:
     """Ensure the URL uses the asyncpg driver."""
     if url.startswith("postgres://"):
-        url = "postgresql" + url[len("postgres"):]
+        url = "postgresql" + url[len("postgres") :]
     if url.startswith("postgresql://"):
-        return "postgresql+asyncpg" + url[len("postgresql"):]
+        return "postgresql+asyncpg" + url[len("postgresql") :]
     return url
 
 
@@ -63,12 +64,11 @@ class PgVectorStore:
     The escape hatch (I4) is ``self._client`` — an ``AsyncEngine``.
     """
 
-    def __init__(self, settings: "BaseSettings") -> None:
+    def __init__(self, settings: BaseSettings) -> None:
         db_url = settings.pgvector_database_url
         if not db_url:
             raise RuntimeError(
-                "pgvector_database_url must be set to use PgVectorStore. "
-                "Add it to your settings (I11)."
+                "pgvector_database_url must be set to use PgVectorStore. Add it to your settings (I11)."
             )
         _validate_name(settings.pgvector_collection_schema)
         self._schema: str = settings.pgvector_collection_schema
@@ -88,22 +88,21 @@ class PgVectorStore:
     ) -> None:
         _validate_name(name)
         if distance_metric not in _DISTANCE_OPS:
-            raise ValueError(
-                f"Unsupported distance_metric {distance_metric!r}. "
-                f"Supported: {sorted(_DISTANCE_OPS)}"
-            )
+            raise ValueError(f"Unsupported distance_metric {distance_metric!r}. Supported: {sorted(_DISTANCE_OPS)}")
         schema, table = self._schema, name
         async with self._client.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
             await conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
-            await conn.execute(text(f"""
+            await conn.execute(
+                text(f"""
                 CREATE TABLE IF NOT EXISTS "{schema}"."{table}" (
                     id       TEXT    PRIMARY KEY,
                     embedding vector({dimensions}),
                     content  TEXT,
                     metadata JSONB   NOT NULL DEFAULT '{{}}'
                 )
-            """))
+            """)
+            )
 
     async def upsert(
         self,
@@ -174,15 +173,16 @@ class PgVectorStore:
         for row in result.fetchall():
             raw_meta: dict[str, Any] = dict(row.metadata) if row.metadata else {}
             meta: dict[str, str | int | float | bool] = {
-                k: v for k, v in raw_meta.items()
-                if isinstance(v, (str, int, float, bool))
+                k: v for k, v in raw_meta.items() if isinstance(v, (str, int, float, bool))
             }
-            out.append(VectorSearchResult(
-                id=row.id,
-                score=float(row.score),
-                metadata=meta,
-                content=row.content,
-            ))
+            out.append(
+                VectorSearchResult(
+                    id=row.id,
+                    score=float(row.score),
+                    metadata=meta,
+                    content=row.content,
+                )
+            )
         return out
 
     async def delete(self, collection: str, id: str) -> None:

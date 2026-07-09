@@ -61,20 +61,24 @@ class VectorStoreProtocol(Protocol):
     async def close(self) -> None: ...
 
 
-def get_vector_store(settings: "BaseSettings") -> VectorStoreProtocol:
+def get_vector_store(settings: BaseSettings) -> VectorStoreProtocol:
     """Factory: resolves alias or ADR-012 dotted path."""
     backend = settings.vector_db
     if backend == "qdrant":
         from fast_agent_stack.core.vector.backends.qdrant import QdrantStore
+
         return QdrantStore(settings)
     if backend == "pgvector":
         from fast_agent_stack.core.vector.backends.pgvector import PgVectorStore
+
         return PgVectorStore(settings)
     if backend == "opensearch":
         from fast_agent_stack.core.vector.backends.opensearch import OpenSearchStore
+
         return OpenSearchStore(settings)
     if backend == "weaviate":
         from fast_agent_stack.core.vector.backends.weaviate import WeaviateStore
+
         return WeaviateStore(settings)
     module_path, _, class_name = backend.rpartition(".")
     mod = importlib.import_module(module_path)

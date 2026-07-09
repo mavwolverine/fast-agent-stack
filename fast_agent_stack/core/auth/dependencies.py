@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from fast_agent_stack.core.auth.backends import AuthBackend
 from fast_agent_stack.core.auth.backends.factory import get_auth_backend
-from fast_agent_stack.core.auth.models import Group, Permission, User
+from fast_agent_stack.core.auth.models import Group, User
 from fast_agent_stack.core.database import get_async_session
 
 
@@ -53,9 +53,7 @@ def require_permission(permission: str) -> Callable[..., object]:
         if user.is_superuser:
             return user
         # Groups and direct_permissions loaded via selectin — no extra queries needed
-        all_perms: set[tuple[str, str]] = {
-            (p.resource, p.action) for p in user.direct_permissions
-        }
+        all_perms: set[tuple[str, str]] = {(p.resource, p.action) for p in user.direct_permissions}
         for group in user.groups:
             all_perms.update((p.resource, p.action) for p in group.permissions)
         if (resource, action) not in all_perms:

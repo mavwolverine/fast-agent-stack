@@ -3,7 +3,6 @@ import importlib
 import importlib.util
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from alembic import command
@@ -21,8 +20,7 @@ def _alembic_cfg() -> Config:
 def _require_alembic_dir() -> None:
     if not Path("alembic").is_dir():
         typer.echo(
-            "Error: alembic/ directory not found.\n"
-            "Run this command from your project root.",
+            "Error: alembic/ directory not found.\nRun this command from your project root.",
             err=True,
         )
         raise typer.Exit(1)
@@ -34,10 +32,7 @@ def _discover_database_url() -> str | None:
     candidates = ["settings"] + [
         f"{p.name}.settings"
         for p in Path.cwd().iterdir()
-        if p.is_dir()
-        and not p.name.startswith(".")
-        and not p.name.startswith("_")
-        and (p / "settings.py").exists()
+        if p.is_dir() and not p.name.startswith(".") and not p.name.startswith("_") and (p / "settings.py").exists()
     ]
     for module_name in candidates:
         try:
@@ -101,9 +96,7 @@ def migrate() -> None:
 
 @app.command()
 def makemigrations(
-    message: Optional[str] = typer.Option(
-        None, "-m", "--message", help="Migration message."
-    ),
+    message: str | None = typer.Option(None, "-m", "--message", help="Migration message."),
 ) -> None:
     """Autogenerate a migration revision from user model changes (I16)."""
     _require_alembic_dir()

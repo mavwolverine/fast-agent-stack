@@ -1,8 +1,8 @@
 from fast_agent_stack.core.database import (
+    FRAMEWORK_TABLES,
     Base,
     BaseModel,
     DatabaseLifespanHook,
-    FRAMEWORK_TABLES,
     check_db,
     configure_engine,
     dispose_engine,

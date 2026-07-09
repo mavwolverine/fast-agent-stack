@@ -10,7 +10,10 @@ from fast_agent_stack.core.ai.rag.chunking import fixed_chunker, paragraph_chunk
 from fast_agent_stack.core.vector import VectorSearchResult, VectorStoreProtocol
 
 __all__ = [
-    "RagService", "RagChunk", "IngestResult", "ChunkingStrategy",
+    "RagService",
+    "RagChunk",
+    "IngestResult",
+    "ChunkingStrategy",
     "UnsupportedFileTypeError",
 ]
 
@@ -142,13 +145,15 @@ class RagService:
             doc_id = str(meta.pop("_document_id", ""))
             chunk_idx = int(meta.pop("_chunk_index", 0))
             meta.pop("_chunk_count", None)
-            chunks.append(RagChunk(
-                content=hit.content or "",
-                score=hit.score,
-                metadata=meta,
-                document_id=doc_id,
-                chunk_index=chunk_idx,
-            ))
+            chunks.append(
+                RagChunk(
+                    content=hit.content or "",
+                    score=hit.score,
+                    metadata=meta,
+                    document_id=doc_id,
+                    chunk_index=chunk_idx,
+                )
+            )
         return chunks
 
     async def delete_document(self, collection: str, document_id: str) -> int:

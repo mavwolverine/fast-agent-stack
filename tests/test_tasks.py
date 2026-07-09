@@ -1,8 +1,8 @@
 """Tests for Phase 6-1: Background Tasks (ADR-005, ADR-020)."""
+
 from __future__ import annotations
 
 import sys
-from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,6 +19,7 @@ def _settings(**kw) -> BaseSettings:
 # ---------------------------------------------------------------------------
 # ARCHITECTURAL — I3 guards
 # ---------------------------------------------------------------------------
+
 
 def test_configure_broker_raises_import_error_when_dramatiq_absent():
     original = sys.modules.get("dramatiq")
@@ -44,6 +45,7 @@ def test_scheduler_raises_import_error_when_periodiq_absent():
         if "fast_agent_stack.cli.scheduler_cmd" in sys.modules:
             del sys.modules["fast_agent_stack.cli.scheduler_cmd"]
         from fast_agent_stack.cli.scheduler_cmd import scheduler
+
         with pytest.raises((ImportError, SystemExit, typer.Exit)):
             scheduler(["myapp.tasks"])
     finally:
@@ -58,14 +60,17 @@ def test_scheduler_raises_import_error_when_periodiq_absent():
 # ARCHITECTURAL — CLI commands registered
 # ---------------------------------------------------------------------------
 
+
 def test_worker_command_registered_on_cli_app():
     from fast_agent_stack.cli.main import app
+
     command_names = [cmd.name for cmd in app.registered_commands]
     assert "worker" in command_names
 
 
 def test_scheduler_command_registered_on_cli_app():
     from fast_agent_stack.cli.main import app
+
     command_names = [cmd.name for cmd in app.registered_commands]
     assert "scheduler" in command_names
 
@@ -73,6 +78,7 @@ def test_scheduler_command_registered_on_cli_app():
 # ---------------------------------------------------------------------------
 # CONTRACT — settings field
 # ---------------------------------------------------------------------------
+
 
 def test_tasks_broker_url_defaults_to_none():
     s = BaseSettings(app_name="test")
@@ -88,12 +94,13 @@ def test_tasks_broker_url_can_be_set():
 # BEHAVIOR — configure_broker (requires dramatiq)
 # ---------------------------------------------------------------------------
 
+
 def test_configure_broker_returns_broker_instance():
     dramatiq = pytest.importorskip("dramatiq")
     from fast_agent_stack.core.tasks import configure_broker
+
     settings = _settings()
-    with patch("dramatiq.set_broker"), \
-         patch("fast_agent_stack.core.tasks.RedisBroker") as mock_broker_cls:
+    with patch("dramatiq.set_broker"), patch("fast_agent_stack.core.tasks.RedisBroker") as mock_broker_cls:
         mock_broker = MagicMock(spec=dramatiq.Broker)
         mock_broker_cls.return_value = mock_broker
         result = configure_broker(settings)
@@ -103,10 +110,10 @@ def test_configure_broker_returns_broker_instance():
 def test_configure_broker_uses_tasks_broker_url_over_redis_url():
     pytest.importorskip("dramatiq")
     from fast_agent_stack.core.tasks import configure_broker
+
     settings = _settings(tasks_broker_url="redis://tasks:6379")
     captured = {}
-    with patch("fast_agent_stack.core.tasks.RedisBroker") as mock_cls, \
-         patch("dramatiq.set_broker"):
+    with patch("fast_agent_stack.core.tasks.RedisBroker") as mock_cls, patch("dramatiq.set_broker"):
         mock_cls.side_effect = lambda url, **kw: captured.update({"url": url}) or MagicMock()
         configure_broker(settings)
     assert captured.get("url") == "redis://tasks:6379"
@@ -115,10 +122,10 @@ def test_configure_broker_uses_tasks_broker_url_over_redis_url():
 def test_configure_broker_falls_back_to_redis_url():
     pytest.importorskip("dramatiq")
     from fast_agent_stack.core.tasks import configure_broker
+
     settings = _settings(redis_url="redis://primary:6379")
     captured = {}
-    with patch("fast_agent_stack.core.tasks.RedisBroker") as mock_cls, \
-         patch("dramatiq.set_broker"):
+    with patch("fast_agent_stack.core.tasks.RedisBroker") as mock_cls, patch("dramatiq.set_broker"):
         mock_cls.side_effect = lambda url, **kw: captured.update({"url": url}) or MagicMock()
         configure_broker(settings)
     assert captured.get("url") == "redis://primary:6379"

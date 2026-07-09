@@ -2,6 +2,7 @@
 
 5 families: Behavior, Contract, Architectural, NFR, Failure-mode.
 """
+
 from __future__ import annotations
 
 import ast
@@ -37,12 +38,13 @@ def test_b1_hook_wraps_app_lifespan_at_init():
     with patch("redis_fastapi.FastAPIRedis") as mock_cls:
         mock_instance = MagicMock()
         mock_cls.return_value = mock_instance
+        # Re-import won't re-execute module code, so instantiate directly
+        import importlib
+
+        import fast_agent_stack.core.redis as _redis_mod
         from fast_agent_stack.core.redis import FastAPIRedisLifespanHook  # noqa: F401
 
-        # Re-import won't re-execute module code, so instantiate directly
-        import importlib, fast_agent_stack.core.redis as _redis_mod
         importlib.reload(_redis_mod)
-        from fast_agent_stack.core.redis import FastAPIRedisLifespanHook
 
         FastAPIRedisLifespanHook(s, app=app)
         mock_cls.assert_called_once_with(app)
@@ -60,6 +62,7 @@ async def test_b2_hook_aenter_pings_redis_i11():
 
     with patch("redis_fastapi.FastAPIRedis"):
         from fast_agent_stack.core.redis import FastAPIRedisLifespanHook
+
         hook = FastAPIRedisLifespanHook(s, app=app)
 
     with patch("redis.asyncio.from_url", return_value=mock_client):
@@ -77,6 +80,7 @@ async def test_b3_hook_aexit_is_noop():
 
     with patch("redis_fastapi.FastAPIRedis"):
         from fast_agent_stack.core.redis import FastAPIRedisLifespanHook
+
         hook = FastAPIRedisLifespanHook(s, app=app)
 
     # Must not raise and must not call any redis teardown
@@ -86,11 +90,10 @@ async def test_b3_hook_aexit_is_noop():
 async def test_b4_get_auth_backend_is_per_request_factory():
     """get_auth_backend must be callable as a FastAPI dependency (async callable)."""
     import inspect
+
     from fast_agent_stack.core.auth.backends.factory import get_auth_backend
 
-    assert inspect.iscoroutinefunction(get_auth_backend), (
-        "get_auth_backend must be async for FastAPI DI (ADR-037)"
-    )
+    assert inspect.iscoroutinefunction(get_auth_backend), "get_auth_backend must be async for FastAPI DI (ADR-037)"
 
 
 async def test_b5_health_check_returns_ok_when_redis_not_configured():
@@ -135,6 +138,7 @@ def test_c1_fastapi_redis_lifespan_hook_implements_protocol():
 def test_c2_rate_limit_middleware_no_redis_constructor_param():
     """RateLimitMiddleware must not accept 'redis' in __init__ (ADR-037)."""
     import inspect
+
     from fast_agent_stack.core.ratelimit import RateLimitMiddleware
 
     sig = inspect.signature(RateLimitMiddleware.__init__)
@@ -187,9 +191,7 @@ def test_a2_ratelimit_has_no_redis_asyncio_direct_import():
     # Simpler: check no top-level (unguarded) redis.asyncio import
     for node in tree.body:  # top-level statements only
         if isinstance(node, ast.ImportFrom) and node.module and "redis" in node.module:
-            pytest.fail(
-                f"ratelimit/__init__.py has unguarded top-level redis import: {node.module}"
-            )
+            pytest.fail(f"ratelimit/__init__.py has unguarded top-level redis import: {node.module}")
 
 
 def test_a3_auth_backend_chain_lives_in_factory():
@@ -210,9 +212,7 @@ def test_a3_auth_backend_chain_lives_in_factory():
 def test_a4_health_has_no_from_url_call():
     """health.py must not call redis.asyncio.from_url — uses SDK pool via request."""
     src = (CORE / "health.py").read_text()
-    assert "from_url" not in src, (
-        "health.py must not call from_url; use get_async_redis(request) from SDK (ADR-037)"
-    )
+    assert "from_url" not in src, "health.py must not call from_url; use get_async_redis(request) from SDK (ADR-037)"
 
 
 def test_a5_factory_guards_on_redis_fastapi():
@@ -230,9 +230,7 @@ def test_a5_factory_guards_on_redis_fastapi():
                     for alias in child.names:
                         guarded.append(alias.name)
 
-    assert any("redis_fastapi" in m for m in guarded), (
-        "factory.py I3 guard must gate on redis_fastapi (ADR-037)"
-    )
+    assert any("redis_fastapi" in m for m in guarded), "factory.py I3 guard must gate on redis_fastapi (ADR-037)"
 
 
 # ===========================================================================
@@ -266,19 +264,13 @@ def test_n3_pyproject_rate_limit_uses_fastapi_redis_sdk():
 
 def test_n4_template_app_py_has_no_caching_call():
     """Template must NOT call .caching() — it is user opt-in (ADR-037)."""
-    template_src = (
-        ROOT / "fast_agent_stack" / "template" / "{{project_name}}" / "app.py.jinja"
-    ).read_text()
-    assert ".caching()" not in template_src, (
-        "Template must not call .caching() — users opt in themselves (ADR-037)"
-    )
+    template_src = (ROOT / "fast_agent_stack" / "template" / "{{project_name}}" / "app.py.jinja").read_text()
+    assert ".caching()" not in template_src, "Template must not call .caching() — users opt in themselves (ADR-037)"
 
 
 def test_n5_template_redis_hook_in_conditional_block():
     """FastAPIRedisLifespanHook must only be registered when auth or rate-limit is enabled."""
-    template_src = (
-        ROOT / "fast_agent_stack" / "template" / "{{project_name}}" / "app.py.jinja"
-    ).read_text()
+    template_src = (ROOT / "fast_agent_stack" / "template" / "{{project_name}}" / "app.py.jinja").read_text()
 
     assert "FastAPIRedisLifespanHook" in template_src
     # Hook must be inside an if block, not unconditional
@@ -286,11 +278,11 @@ def test_n5_template_redis_hook_in_conditional_block():
     for i, line in enumerate(lines):
         if "FastAPIRedisLifespanHook" in line and "add_lifespan_hook" in line:
             # The line (or a recent prior line) must be inside an {% if %} block
-            context = "\n".join(lines[max(0, i - 5):i + 1])
-            assert "{%- if include_auth or include_rate_limit %}" in context or \
-                   "{% if include_auth or include_rate_limit %}" in context, (
-                "FastAPIRedisLifespanHook registration must be inside conditional block"
-            )
+            context = "\n".join(lines[max(0, i - 5) : i + 1])
+            assert (
+                "{%- if include_auth or include_rate_limit %}" in context
+                or "{% if include_auth or include_rate_limit %}" in context
+            ), "FastAPIRedisLifespanHook registration must be inside conditional block"
 
 
 # ===========================================================================
@@ -301,10 +293,12 @@ def test_n5_template_redis_hook_in_conditional_block():
 def test_f1_hook_init_raises_import_error_without_sdk(monkeypatch):
     """FastAPIRedisLifespanHook.__init__ must raise ImportError when SDK absent."""
     import sys
+
     monkeypatch.delitem(sys.modules, "redis_fastapi", raising=False)
     monkeypatch.delitem(sys.modules, "fast_agent_stack.core.redis", raising=False)
 
     import builtins
+
     real_import = builtins.__import__
 
     def mock_import(name, *args, **kwargs):
@@ -314,7 +308,9 @@ def test_f1_hook_init_raises_import_error_without_sdk(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", mock_import)
     import importlib
+
     import fast_agent_stack.core.redis as _m
+
     importlib.reload(_m)
 
     app = FastAPI()

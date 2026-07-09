@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 try:
     from anthropic import AsyncAnthropic
@@ -36,20 +37,12 @@ class AnthropicLLMBackend:
         """Escape hatch (I4): direct access to the underlying AsyncAnthropic client."""
         return self._client
 
-    def _convert_messages(
-        self, messages: list[Message]
-    ) -> tuple[str, list[dict[str, str]]]:
+    def _convert_messages(self, messages: list[Message]) -> tuple[str, list[dict[str, str]]]:
         system_parts = [m.content for m in messages if m.role == "system"]
-        conv = [
-            {"role": m.role, "content": m.content}
-            for m in messages
-            if m.role != "system"
-        ]
+        conv = [{"role": m.role, "content": m.content} for m in messages if m.role != "system"]
         return " ".join(system_parts), conv
 
-    async def complete(
-        self, messages: list[Message], **kwargs: Any
-    ) -> CompletionResult:
+    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult:
         system_text, conv = self._convert_messages(messages)
         response = await self._client.messages.create(
             model=self._model_id,
@@ -69,9 +62,7 @@ class AnthropicLLMBackend:
             cost=None,
         )
 
-    async def stream(
-        self, messages: list[Message], **kwargs: Any
-    ) -> AsyncIterator[str | CompletionResult]:
+    async def stream(self, messages: list[Message], **kwargs: Any) -> AsyncIterator[str | CompletionResult]:
         system_text, conv = self._convert_messages(messages)
         prompt_tokens = 0
         completion_tokens = 0

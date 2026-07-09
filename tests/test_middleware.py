@@ -1,6 +1,5 @@
 """CORS middleware tests — 5 families (B/C/A/N/F)."""
 
-
 import time
 
 import pytest

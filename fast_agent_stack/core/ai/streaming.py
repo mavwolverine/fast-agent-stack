@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 from uuid import UUID
 
 from fastapi.responses import StreamingResponse

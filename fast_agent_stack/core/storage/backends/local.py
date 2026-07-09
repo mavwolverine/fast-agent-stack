@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class LocalStorage:
-    def __init__(self, settings: "BaseSettings") -> None:
+    def __init__(self, settings: BaseSettings) -> None:
         self._root = Path(settings.storage_local_root)
         self._timeout = settings.storage_timeout
 

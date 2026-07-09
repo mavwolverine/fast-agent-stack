@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
@@ -78,6 +78,7 @@ async def logout(
 # Email / verification routes (ADR-018, ADR-041)
 # ---------------------------------------------------------------------------
 
+
 class SendVerificationRequest(BaseModel):
     email: str
 
@@ -101,6 +102,7 @@ async def send_verification(
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
     from fast_agent_stack.core.config import BaseSettings
+
     result = await session.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
     if user is not None:
@@ -109,7 +111,7 @@ async def send_verification(
             user_id=user.id,
             token=token_str,
             type="email_verification",
-            expires_at=datetime.now(tz=timezone.utc) + timedelta(hours=72),
+            expires_at=datetime.now(tz=UTC) + timedelta(hours=72),
         )
         session.add(token)
         await session.flush()
@@ -131,7 +133,7 @@ async def verify_email(
     body: VerifyEmailRequest,
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     result = await session.execute(
         select(AuthVerificationToken).where(
             AuthVerificationToken.token == body.token,
@@ -158,6 +160,7 @@ async def forgot_password(
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
     from fast_agent_stack.core.config import BaseSettings
+
     result = await session.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
     if user is not None:
@@ -166,7 +169,7 @@ async def forgot_password(
             user_id=user.id,
             token=token_str,
             type="password_reset",
-            expires_at=datetime.now(tz=timezone.utc) + timedelta(hours=24),
+            expires_at=datetime.now(tz=UTC) + timedelta(hours=24),
         )
         session.add(token)
         await session.flush()
@@ -188,7 +191,7 @@ async def reset_password(
     body: ResetPasswordRequest,
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     result = await session.execute(
         select(AuthVerificationToken).where(
             AuthVerificationToken.token == body.token,

@@ -29,7 +29,7 @@ _DISTANCE_MAP = {
 
 
 class QdrantStore:
-    def __init__(self, settings: "BaseSettings") -> None:
+    def __init__(self, settings: BaseSettings) -> None:
         self._client = AsyncQdrantClient(
             url=settings.qdrant_url,
             api_key=settings.qdrant_api_key,
@@ -93,19 +93,21 @@ class QdrantStore:
             payload = dict(hit.payload or {})
             content = payload.pop("_content", None)
             meta: dict[str, str | int | float | bool] = {
-                k: v for k, v in payload.items()
-                if isinstance(v, (str, int, float, bool))
+                k: v for k, v in payload.items() if isinstance(v, (str, int, float, bool))
             }
-            out.append(VectorSearchResult(
-                id=str(hit.id),
-                score=float(hit.score),
-                metadata=meta,
-                content=content if isinstance(content, str) else None,
-            ))
+            out.append(
+                VectorSearchResult(
+                    id=str(hit.id),
+                    score=float(hit.score),
+                    metadata=meta,
+                    content=content if isinstance(content, str) else None,
+                )
+            )
         return out
 
     async def delete(self, collection: str, id: str) -> None:
         from qdrant_client.models import PointIdsList
+
         await self._client.delete(
             collection_name=collection,
             points_selector=PointIdsList(points=[_str_to_id(id)]),
@@ -120,8 +122,5 @@ def _str_to_id(id: str) -> str:
 
 
 def _build_filter(filter: dict[str, str | int | float | bool]) -> Filter:
-    conditions = [
-        FieldCondition(key=k, match=MatchValue(value=v))
-        for k, v in filter.items()
-    ]
+    conditions = [FieldCondition(key=k, match=MatchValue(value=v)) for k, v in filter.items()]
     return Filter(must=conditions)

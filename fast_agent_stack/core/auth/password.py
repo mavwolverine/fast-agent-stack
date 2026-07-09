@@ -8,8 +8,7 @@ try:
     from pwdlib.hashers.argon2 import Argon2Hasher
 except ImportError:
     raise ImportError(
-        "pwdlib is required for password hashing. "
-        "Install it with: pip install fast-agent-stack[auth-jwt]"
+        "pwdlib is required for password hashing. Install it with: pip install fast-agent-stack[auth-jwt]"
     )
 
 # I18: OWASP 2024 minimum parameters for Argon2id

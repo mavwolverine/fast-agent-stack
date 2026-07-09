@@ -1,15 +1,15 @@
 """Phase 4a tests: Message, CompletionResult, LLMBackend, UsageService, stream_sse."""
+
 from __future__ import annotations
 
-import pytest
 from dataclasses import FrozenInstanceError
-from typing import AsyncIterator
 from unittest.mock import AsyncMock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
+
+import pytest
 
 from fast_agent_stack.core.ai.llm import CompletionResult, LLMBackend, Message
 from fast_agent_stack.core.ai.usage import UsageService
-
 
 # ---------------------------------------------------------------------------
 # Message
@@ -186,6 +186,7 @@ class TestUsageService:
                         raise RuntimeError("db down")
                     except Exception:
                         import logging
+
                         logging.getLogger(__name__).warning("swallowed", exc_info=True)
 
             svc = FailingService()
@@ -216,9 +217,7 @@ async def _collect_body(response) -> list[bytes]:
     return chunks
 
 
-_SENTINEL = CompletionResult(
-    content="", model="m", prompt_tokens=10, completion_tokens=5, total_tokens=15, cost=None
-)
+_SENTINEL = CompletionResult(content="", model="m", prompt_tokens=10, completion_tokens=5, total_tokens=15, cost=None)
 
 _KWARGS = dict(user_id=None, api_key_id=None, agent_name="test", conversation_id=None, db=None)
 
@@ -226,8 +225,9 @@ _KWARGS = dict(user_id=None, api_key_id=None, agent_name="test", conversation_id
 class TestStreamSSE:
     @pytest.mark.asyncio
     async def test_b10_returns_streaming_response(self):
-        from fast_agent_stack.core.ai.streaming import stream_sse
         from fastapi.responses import StreamingResponse
+
+        from fast_agent_stack.core.ai.streaming import stream_sse
 
         resp = await stream_sse(_make_iterator(["hi", _SENTINEL]), **_KWARGS)
         assert isinstance(resp, StreamingResponse)
@@ -249,7 +249,6 @@ class TestStreamSSE:
 
     @pytest.mark.asyncio
     async def test_b13_str_chunks_emitted_as_sse_events(self):
-        import json
         from fast_agent_stack.core.ai.streaming import stream_sse
 
         resp = await stream_sse(_make_iterator(["hello", " world", _SENTINEL]), **_KWARGS)
@@ -288,8 +287,8 @@ class TestStreamSSE:
 
     @pytest.mark.asyncio
     async def test_f2_error_before_sentinel_propagates(self):
-        from fast_agent_stack.core.ai.streaming import stream_sse
         from fast_agent_stack.core.ai import streaming
+        from fast_agent_stack.core.ai.streaming import stream_sse
 
         async def _failing():
             yield "chunk"
@@ -305,8 +304,8 @@ class TestStreamSSE:
 
     @pytest.mark.asyncio
     async def test_f3_log_usage_failure_swallowed(self):
-        from fast_agent_stack.core.ai.streaming import stream_sse
         from fast_agent_stack.core.ai import streaming
+        from fast_agent_stack.core.ai.streaming import stream_sse
 
         mock_log = AsyncMock(side_effect=Exception("db down"))
         with patch.object(streaming._usage_service, "log_usage", mock_log):
@@ -317,8 +316,8 @@ class TestStreamSSE:
 
     @pytest.mark.asyncio
     async def test_b16_attribution_kwargs_forwarded(self):
-        from fast_agent_stack.core.ai.streaming import stream_sse
         from fast_agent_stack.core.ai import streaming
+        from fast_agent_stack.core.ai.streaming import stream_sse
 
         uid = uuid4()
         kid = uuid4()

@@ -10,10 +10,7 @@ from typing import Any
 try:
     from sqladmin import ModelView
 except ImportError:
-    raise ImportError(
-        "sqladmin is required for the admin panel. "
-        "Install it with: pip install fast-agent-stack[admin]"
-    )
+    raise ImportError("sqladmin is required for the admin panel. Install it with: pip install fast-agent-stack[admin]")
 
 from fast_agent_stack.core.auth.models import ApiKey, Group, Permission, User
 

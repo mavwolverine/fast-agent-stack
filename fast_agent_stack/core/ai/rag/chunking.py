@@ -20,7 +20,7 @@ def fixed_chunker(
     chunks: list[str] = []
     start = 0
     while start < len(text):
-        chunk = text[start:start + window]
+        chunk = text[start : start + window]
         chunks.append(chunk)
         if start + window >= len(text):
             break

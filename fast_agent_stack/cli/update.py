@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 from copier import run_update

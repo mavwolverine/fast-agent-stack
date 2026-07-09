@@ -27,10 +27,7 @@ class FastAgentStack:
         **kwargs: Any,
     ) -> None:
         if "lifespan" in kwargs:
-            raise ValueError(
-                "Do not pass `lifespan` to FastAgentStack"
-                " — use add_lifespan_hook() instead."
-            )
+            raise ValueError("Do not pass `lifespan` to FastAgentStack — use add_lifespan_hook() instead.")
 
         self._hooks: list[LifespanHook] = []
         self._models: list[Any] = []
@@ -92,8 +89,7 @@ class FastAgentStack:
         def decorator(handler: Callable[..., Any]) -> Callable[..., Any]:
             if name in self._agents:
                 raise ValueError(
-                    f"Agent name '{name}' is already registered. "
-                    "Each agent must have a unique name (I6)."
+                    f"Agent name '{name}' is already registered. Each agent must have a unique name (I6)."
                 )
             self._agents[name] = (handler, backend)
             route_func = make_agent_route_func(name, handler, backend)

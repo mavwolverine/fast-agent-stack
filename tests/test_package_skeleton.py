@@ -206,11 +206,7 @@ def test_n1_import_time_under_one_second() -> None:
         [
             sys.executable,
             "-c",
-            (
-                "import time; s = time.monotonic();"
-                " import fast_agent_stack;"
-                " print(time.monotonic() - s)"
-            ),
+            ("import time; s = time.monotonic(); import fast_agent_stack; print(time.monotonic() - s)"),
         ],
         capture_output=True,
         text=True,

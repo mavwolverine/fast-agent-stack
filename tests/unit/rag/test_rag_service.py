@@ -1,15 +1,19 @@
 """Unit tests for 5-E: RagService, RagChunk, IngestResult."""
+
 from __future__ import annotations
 
 import ast
 import dataclasses
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from fast_agent_stack.core.ai.rag import (
-    ChunkingStrategy, IngestResult, RagChunk, RagService, UnsupportedFileTypeError,
+    IngestResult,
+    RagChunk,
+    RagService,
+    UnsupportedFileTypeError,
 )
 from fast_agent_stack.core.vector import VectorSearchResult
 
@@ -35,6 +39,7 @@ def _make_mock_vector_store(search_return: list | None = None) -> MagicMock:
 # CONTRACT
 # ---------------------------------------------------------------------------
 
+
 def test_rag_chunk_is_frozen_dataclass():
     chunk = RagChunk(content="x", score=0.5, metadata={}, document_id="d", chunk_index=0)
     with pytest.raises((dataclasses.FrozenInstanceError, AttributeError)):
@@ -55,7 +60,8 @@ async def test_rag_ingest_return_type():
 
 async def test_rag_retrieve_return_type():
     hit = VectorSearchResult(
-        id="doc1:0", score=0.9,
+        id="doc1:0",
+        score=0.9,
         metadata={"_chunk_count": 1, "_chunk_index": 0, "_document_id": "doc1"},
         content="hello",
     )
@@ -68,6 +74,7 @@ async def test_rag_retrieve_return_type():
 # ---------------------------------------------------------------------------
 # BEHAVIOR
 # ---------------------------------------------------------------------------
+
 
 async def test_rag_ingest_creates_correct_chunk_count():
     # 1 short text → 1 chunk
@@ -84,7 +91,7 @@ async def test_rag_chunk_ids_follow_document_id_colon_chunk_index_format():
     svc = RagService(_make_mock_embedding(), vs)
     # Use text long enough for 3 chunks: 3 * 512*4 chars with no overlap issue
     text = "X" * (512 * 4 * 2 + 100)  # slightly over 2 windows → 3 chunks
-    result = await svc.ingest("col", text, document_id="doc99")
+    await svc.ingest("col", text, document_id="doc99")
     call_ids = [c.kwargs.get("id") or c.args[1] for c in vs.upsert.call_args_list]
     for i, cid in enumerate(call_ids):
         assert cid == f"doc99:{i}"
@@ -92,7 +99,8 @@ async def test_rag_chunk_ids_follow_document_id_colon_chunk_index_format():
 
 async def test_rag_retrieve_embed_and_search_called_once():
     hit = VectorSearchResult(
-        id="doc1:0", score=0.9,
+        id="doc1:0",
+        score=0.9,
         metadata={"_chunk_count": 1, "_chunk_index": 0, "_document_id": "doc1"},
         content="hello",
     )
@@ -118,7 +126,8 @@ async def test_rag_retrieve_passes_filter_to_vector_search():
 
 async def test_rag_delete_document_deletes_all_chunks():
     hit = VectorSearchResult(
-        id="docA:0", score=0.0,
+        id="docA:0",
+        score=0.0,
         metadata={"_chunk_count": 3, "_chunk_index": 0, "_document_id": "docA"},
         content="c",
     )
@@ -141,17 +150,14 @@ async def test_rag_delete_document_returns_zero_when_not_found():
 
 
 async def test_rag_ingest_file_eml_dispatches_extraction():
-    eml_bytes = (
-        b"From: a@b.com\r\n"
-        b"Content-Type: text/plain\r\n"
-        b"\r\n"
-        b"Hello from email"
-    )
+    eml_bytes = b"From: a@b.com\r\nContent-Type: text/plain\r\n\r\nHello from email"
     vs = _make_mock_vector_store()
     svc = RagService(_make_mock_embedding(), vs)
     result = await svc.ingest_file(
-        "col", eml_bytes,
-        filename="msg.eml", content_type="message/rfc822",
+        "col",
+        eml_bytes,
+        filename="msg.eml",
+        content_type="message/rfc822",
         document_id="d5",
     )
     assert isinstance(result, IngestResult)
@@ -163,8 +169,10 @@ async def test_rag_ingest_file_text_plain_uses_text_directly():
     emb = _make_mock_embedding()
     svc = RagService(emb, vs)
     result = await svc.ingest_file(
-        "col", b"plain text content",
-        filename="readme.txt", content_type="text/plain",
+        "col",
+        b"plain text content",
+        filename="readme.txt",
+        content_type="text/plain",
         document_id="d3",
     )
     assert isinstance(result, IngestResult)
@@ -175,8 +183,10 @@ async def test_rag_ingest_file_unsupported_content_type_raises():
     svc = RagService(_make_mock_embedding(), _make_mock_vector_store())
     with pytest.raises(UnsupportedFileTypeError):
         await svc.ingest_file(
-            "col", b"binary",
-            filename="blob.bin", content_type="application/octet-stream",
+            "col",
+            b"binary",
+            filename="blob.bin",
+            content_type="application/octet-stream",
             document_id="d6",
         )
 
@@ -197,6 +207,7 @@ async def test_rag_ingest_stores_chunk_count_in_metadata():
 # ARCHITECTURAL — I12: RAG only imports from public __init__
 # ---------------------------------------------------------------------------
 
+
 def test_rag_module_imports_only_from_public_inits_i12():
     import fast_agent_stack.core.ai.rag as rag_mod
     rag_dir = Path(rag_mod.__file__).parent
@@ -212,6 +223,5 @@ def test_rag_module_imports_only_from_public_inits_i12():
                 if isinstance(node, ast.ImportFrom) and node.module:
                     for prefix in forbidden_prefixes:
                         assert not node.module.startswith(prefix), (
-                            f"{py_file.name} imports from internal module {node.module!r} "
-                            f"(I12 violation)"
+                            f"{py_file.name} imports from internal module {node.module!r} (I12 violation)"
                         )

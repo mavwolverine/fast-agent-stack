@@ -1,6 +1,5 @@
 """Error handler tests — 5 families (B/C/A/N/F)."""
 
-
 import time
 
 from fastapi.testclient import TestClient

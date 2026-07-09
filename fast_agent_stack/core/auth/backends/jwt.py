@@ -13,16 +13,15 @@ from fast_agent_stack.core.auth.tokens import create_access_token, decode_access
 
 try:
     import jwt as pyjwt
+    import redis_fastapi as _redis_fastapi_check  # noqa: F401 — I3: gate on SDK presence
     from redis.asyncio import Redis
     from redis.exceptions import RedisError
-    import redis_fastapi as _redis_fastapi_check  # noqa: F401 — I3: gate on SDK presence
 except ImportError:
     raise ImportError(
-        "fastapi-redis-sdk is required for JWT authentication. "
-        "Install it with: pip install fast-agent-stack[auth-jwt]"
+        "fastapi-redis-sdk is required for JWT authentication. Install it with: pip install fast-agent-stack[auth-jwt]"
     )
 
-_REFRESH_PREFIX = "fas:refresh:"    # ADR-033
+_REFRESH_PREFIX = "fas:refresh:"  # ADR-033
 _DENYLIST_PREFIX = "fas:jti:deny:"  # ADR-033
 
 
@@ -53,9 +52,7 @@ class JWTAuthBackend:
             except HTTPException:
                 raise
             except RedisError as exc:
-                raise HTTPException(
-                    status_code=503, detail="Auth service unavailable"
-                ) from exc
+                raise HTTPException(status_code=503, detail="Auth service unavailable") from exc
         return uuid.UUID(str(payload["sub"]))
 
     async def verify_token(self, token: str) -> uuid.UUID | None:
@@ -69,9 +66,7 @@ class JWTAuthBackend:
                 if await self._redis.get(f"{_DENYLIST_PREFIX}{jti}"):
                     return None
             except RedisError as exc:
-                raise HTTPException(
-                    status_code=503, detail="Auth service unavailable"
-                ) from exc
+                raise HTTPException(status_code=503, detail="Auth service unavailable") from exc
         try:
             return uuid.UUID(str(payload["sub"]))
         except (KeyError, ValueError):

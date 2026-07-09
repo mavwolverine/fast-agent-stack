@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 import typer
@@ -27,8 +26,7 @@ def dev(
     """Run a FastAgentStack app in development mode. :test_tube:"""
     import_string = _resolve(app_path)
     console.print(
-        f"  [dim]→[/] [bold green]{import_string}[/] on [cyan]http://{host}:{port}[/]"
-        "  [yellow](development)[/]"
+        f"  [dim]→[/] [bold green]{import_string}[/] on [cyan]http://{host}:{port}[/]  [yellow](development)[/]"
     )
     uvicorn.run(app=import_string, host=host, port=port, reload=True)
 
@@ -45,9 +43,7 @@ def run(
 ) -> None:
     """Run a FastAgentStack app in production mode. :rocket:"""
     import_string = _resolve(app_path)
-    console.print(
-        f"  [dim]→[/] [bold green]{import_string}[/] on [cyan]http://{host}:{port}[/]"
-    )
+    console.print(f"  [dim]→[/] [bold green]{import_string}[/] on [cyan]http://{host}:{port}[/]")
     kwargs: dict[str, object] = {"app": import_string, "host": host, "port": port, "reload": False}
     if workers is not None:
         kwargs["workers"] = workers

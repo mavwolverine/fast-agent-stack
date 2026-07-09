@@ -9,22 +9,19 @@ import ast
 import json
 import pathlib
 import uuid
-from datetime import UTC, datetime
 from typing import Any
 
 import pytest
 from fakeredis.aioredis import FakeRedis
 from fastapi import Request
-from fastapi.testclient import TestClient
-from starlette.datastructures import Headers
 
 import fast_agent_stack.core.auth.models as _auth_mod  # noqa: F401 — registers on Base.metadata
 from fast_agent_stack.core.auth.backends import AuthBackend, TokenResponse
-from fast_agent_stack.core.auth.backends.jwt import JWTAuthBackend, _REFRESH_PREFIX
+from fast_agent_stack.core.auth.backends.jwt import _REFRESH_PREFIX, JWTAuthBackend
 from fast_agent_stack.core.auth.backends.session import (
-    SessionAuthBackend,
     _COOKIE_NAME,
     _SESSION_PREFIX,
+    SessionAuthBackend,
 )
 from fast_agent_stack.core.auth.models import User
 from fast_agent_stack.core.auth.tokens import create_access_token, decode_access_token
@@ -47,9 +44,7 @@ def _make_request(
     headers: dict[str, str] | None = None,
     cookies: dict[str, str] | None = None,
 ) -> Request:
-    raw_headers: list[tuple[bytes, bytes]] = [
-        (k.lower().encode(), v.encode()) for k, v in (headers or {}).items()
-    ]
+    raw_headers: list[tuple[bytes, bytes]] = [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()]
     if cookies:
         cookie_str = "; ".join(f"{k}={v}" for k, v in cookies.items())
         raw_headers.append((b"cookie", cookie_str.encode()))
@@ -114,6 +109,7 @@ def session_backend(redis: FakeRedis) -> SessionAuthBackend:
 
 # ── helpers ─────────────────────────────────────────────────────────────────
 
+
 class _MockResponse:
     def __init__(self) -> None:
         self.cookies: dict[str, Any] = {}
@@ -131,9 +127,7 @@ class _MockResponse:
 # ===========================================================================
 
 
-async def test_b1_jwt_create_token_returns_both_tokens(
-    jwt_backend: JWTAuthBackend, active_user: User
-) -> None:
+async def test_b1_jwt_create_token_returns_both_tokens(jwt_backend: JWTAuthBackend, active_user: User) -> None:
     resp = _MockResponse()
     result = await jwt_backend.create_token(active_user, resp)  # type: ignore[arg-type]
     assert result.access_token is not None
@@ -141,9 +135,7 @@ async def test_b1_jwt_create_token_returns_both_tokens(
     assert result.token_type == "bearer"
 
 
-async def test_b2_jwt_authenticate_valid_bearer(
-    jwt_backend: JWTAuthBackend, active_user: User
-) -> None:
+async def test_b2_jwt_authenticate_valid_bearer(jwt_backend: JWTAuthBackend, active_user: User) -> None:
     resp = _MockResponse()
     tokens = await jwt_backend.create_token(active_user, resp)  # type: ignore[arg-type]
     req = _make_request({"Authorization": f"Bearer {tokens.access_token}"})
@@ -158,9 +150,7 @@ async def test_b3_jwt_authenticate_missing_header_returns_none(
     assert await jwt_backend.authenticate(req) is None
 
 
-async def test_b4_jwt_refresh_issues_new_pair(
-    jwt_backend: JWTAuthBackend, active_user: User
-) -> None:
+async def test_b4_jwt_refresh_issues_new_pair(jwt_backend: JWTAuthBackend, active_user: User) -> None:
     resp = _MockResponse()
     tokens = await jwt_backend.create_token(active_user, resp)  # type: ignore[arg-type]
     new_tokens = await jwt_backend.refresh_token(tokens.refresh_token or "")
@@ -193,7 +183,7 @@ async def test_b7_session_create_sets_cookie(
     session_backend: SessionAuthBackend, active_user: User, redis: FakeRedis
 ) -> None:
     resp = _MockResponse()
-    result = await session_backend.create_token(active_user, resp)  # type: ignore[arg-type]
+    await session_backend.create_token(active_user, resp)  # type: ignore[arg-type]
     assert _COOKIE_NAME in resp.cookies
     session_id = resp.cookies[_COOKIE_NAME]["value"]
     raw = await redis.get(f"{_SESSION_PREFIX}{session_id}")
@@ -202,9 +192,7 @@ async def test_b7_session_create_sets_cookie(
     assert data["user_id"] == str(active_user.id)
 
 
-async def test_b8_session_authenticate_valid_cookie(
-    session_backend: SessionAuthBackend, active_user: User
-) -> None:
+async def test_b8_session_authenticate_valid_cookie(session_backend: SessionAuthBackend, active_user: User) -> None:
     resp = _MockResponse()
     await session_backend.create_token(active_user, resp)  # type: ignore[arg-type]
     session_id = resp.cookies[_COOKIE_NAME]["value"]
@@ -283,9 +271,7 @@ def test_c4_token_response_is_pydantic_model() -> None:
 
 def test_a1_i3_jwt_module_has_extras_gate() -> None:
     """tokens.py must guard pyjwt behind a try/except ImportError (I3)."""
-    src = pathlib.Path(
-        __file__
-    ).parent.parent / "fast_agent_stack" / "core" / "auth" / "tokens.py"
+    src = pathlib.Path(__file__).parent.parent / "fast_agent_stack" / "core" / "auth" / "tokens.py"
     tree = ast.parse(src.read_text())
     for node in ast.walk(tree):
         if isinstance(node, ast.Try):
@@ -301,9 +287,7 @@ def test_a1_i3_jwt_module_has_extras_gate() -> None:
 
 def test_a2_i3_session_module_has_extras_gate() -> None:
     """session.py must guard redis behind a try/except ImportError (I3)."""
-    src = pathlib.Path(
-        __file__
-    ).parent.parent / "fast_agent_stack" / "core" / "auth" / "backends" / "session.py"
+    src = pathlib.Path(__file__).parent.parent / "fast_agent_stack" / "core" / "auth" / "backends" / "session.py"
     tree = ast.parse(src.read_text())
     for node in ast.walk(tree):
         if isinstance(node, ast.Try):
@@ -331,10 +315,7 @@ def test_a5_adr032_cookie_name() -> None:
 
 def test_a6_i12_no_internal_db_imports() -> None:
     """auth/backends must not import from core.database internals (I12)."""
-    backends_dir = (
-        pathlib.Path(__file__).parent.parent
-        / "fast_agent_stack" / "core" / "auth" / "backends"
-    )
+    backends_dir = pathlib.Path(__file__).parent.parent / "fast_agent_stack" / "core" / "auth" / "backends"
     forbidden = {"core.database.session", "core.database.base", "core.database.health"}
     for py_file in backends_dir.glob("*.py"):
         tree = ast.parse(py_file.read_text())
@@ -342,15 +323,10 @@ def test_a6_i12_no_internal_db_imports() -> None:
             if isinstance(node, ast.ImportFrom) and node.module:
                 for banned in forbidden:
                     if banned in node.module:
-                        pytest.fail(
-                            f"{py_file.name} imports from internal module "
-                            f"{node.module!r} (I12)"
-                        )
+                        pytest.fail(f"{py_file.name} imports from internal module {node.module!r} (I12)")
 
 
-def test_a7_adr032_session_cookie_is_httponly(
-    session_backend: SessionAuthBackend, active_user: User
-) -> None:
+def test_a7_adr032_session_cookie_is_httponly(session_backend: SessionAuthBackend, active_user: User) -> None:
     import asyncio
 
     resp = _MockResponse()
@@ -366,13 +342,10 @@ def test_a7_adr032_session_cookie_is_httponly(
 # ===========================================================================
 
 
-async def test_n1_access_token_ttl_reflected_in_exp(
-    jwt_backend: JWTAuthBackend, active_user: User
-) -> None:
+async def test_n1_access_token_ttl_reflected_in_exp(jwt_backend: JWTAuthBackend, active_user: User) -> None:
     resp = _MockResponse()
     tokens = await jwt_backend.create_token(active_user, resp)  # type: ignore[arg-type]
     payload = decode_access_token(tokens.access_token or "", _SECRET)
-    import time
 
     exp = int(payload["exp"])  # type: ignore[arg-type]
     iat = int(payload["iat"])  # type: ignore[arg-type]
@@ -412,8 +385,10 @@ async def test_n3_session_ttl_reset_on_authenticate(
 
 async def test_f1_jwt_expired_token_raises_401() -> None:
     from fast_agent_stack.core.auth.tokens import decode_access_token as _decode
+
     token, _ = create_access_token(uuid.uuid4(), _SECRET, -1)  # already expired
     from fastapi import HTTPException
+
     with pytest.raises(HTTPException) as exc:
         _decode(token, _SECRET)
     assert exc.value.status_code == 401
@@ -422,7 +397,9 @@ async def test_f1_jwt_expired_token_raises_401() -> None:
 
 async def test_f2_jwt_malformed_token_raises_401() -> None:
     from fastapi import HTTPException
+
     from fast_agent_stack.core.auth.tokens import decode_access_token as _decode
+
     with pytest.raises(HTTPException) as exc:
         _decode("not.a.jwt", _SECRET)
     assert exc.value.status_code == 401
@@ -432,6 +409,7 @@ async def test_f3_jwt_refresh_invalid_token_raises_401(
     jwt_backend: JWTAuthBackend,
 ) -> None:
     from fastapi import HTTPException
+
     with pytest.raises(HTTPException) as exc:
         await jwt_backend.refresh_token("nonexistent-token")
     assert exc.value.status_code == 401
@@ -459,6 +437,7 @@ async def test_f6_session_refresh_raises_501(
     session_backend: SessionAuthBackend,
 ) -> None:
     from fastapi import HTTPException
+
     with pytest.raises(HTTPException) as exc:
         await session_backend.refresh_token("whatever")
     assert exc.value.status_code == 501

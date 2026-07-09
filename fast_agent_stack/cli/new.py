@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 import typer
@@ -112,18 +111,13 @@ def new(
     """Create a new FastAgentStack project."""
     if preset is not None and preset not in PRESETS:
         valid = ", ".join(sorted(PRESETS))
-        console.print(
-            f"[red]Error:[/] Unknown preset [bold]{preset!r}[/]. "
-            f"Valid presets: {valid}"
-        )
+        console.print(f"[red]Error:[/] Unknown preset [bold]{preset!r}[/]. Valid presets: {valid}")
         raise typer.Exit(code=1)
 
     dest = output_dir or Path.cwd()
 
     if any(dest.iterdir()) and not preset:
-        console.print(
-            "[yellow]Warning:[/] Current directory is not empty."
-        )
+        console.print("[yellow]Warning:[/] Current directory is not empty.")
 
     data: dict[str, str | bool] = {
         "project_name": project_name,
@@ -138,10 +132,7 @@ def new(
             data["db"] = db
         else:
             db_choices = {"1": "postgres", "2": "mysql", "3": "sqlite"}
-            console.print(
-                "\n[bold]Which database?[/]\n"
-                "  1) PostgreSQL\n  2) MySQL\n  3) SQLite"
-            )
+            console.print("\n[bold]Which database?[/]\n  1) PostgreSQL\n  2) MySQL\n  3) SQLite")
             choice = typer.prompt("Choose", default="1")
             data["db"] = db_choices.get(choice, "postgres")
 

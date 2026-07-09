@@ -1,4 +1,5 @@
 """Redis fixed-window rate limiting middleware and lifespan hook (ADR-016, ADR-033)."""
+
 from __future__ import annotations
 
 import logging
@@ -16,8 +17,7 @@ try:
     from redis_fastapi.deps import get_async_redis as _get_async_redis
 except ImportError:
     raise ImportError(
-        "fastapi-redis-sdk is required for rate limiting. "
-        "Install it with: pip install fast-agent-stack[rate-limit]"
+        "fastapi-redis-sdk is required for rate limiting. Install it with: pip install fast-agent-stack[rate-limit]"
     )
 
 logger = logging.getLogger(__name__)
@@ -58,9 +58,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         redis = await _get_async_redis(request)
 
-        ip = (
-            request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-            or (request.client.host if request.client else "unknown")
+        ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+            request.client.host if request.client else "unknown"
         )
         window_start = (int(time.time()) // self._period) * self._period
         # ADR-033: key prefix fas:rl:
@@ -100,7 +99,7 @@ class RateLimitLifespanHook:
         self._settings = settings
         self._app = app
 
-    async def __aenter__(self) -> "RateLimitLifespanHook":
+    async def __aenter__(self) -> RateLimitLifespanHook:
         if self._app is not None:
             self._app.add_middleware(
                 RateLimitMiddleware,

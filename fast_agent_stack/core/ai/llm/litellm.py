@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import types
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 try:
     import litellm
@@ -36,9 +37,7 @@ class LiteLLMLLMBackend:
     def _to_messages(self, messages: list[Message]) -> list[dict[str, str]]:
         return [{"role": m.role, "content": m.content} for m in messages]
 
-    async def complete(
-        self, messages: list[Message], **kwargs: Any
-    ) -> CompletionResult:
+    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult:
         response = await litellm.acompletion(
             model=self._model_id,
             messages=self._to_messages(messages),
@@ -61,9 +60,7 @@ class LiteLLMLLMBackend:
             cost=cost,
         )
 
-    async def stream(
-        self, messages: list[Message], **kwargs: Any
-    ) -> AsyncIterator[str | CompletionResult]:
+    async def stream(self, messages: list[Message], **kwargs: Any) -> AsyncIterator[str | CompletionResult]:
         prompt_tokens = 0
         completion_tokens = 0
         total_tokens = 0

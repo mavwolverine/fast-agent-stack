@@ -3,10 +3,10 @@
 SDK packages are mocked at module level so these tests run without installing
 any optional SDK dependencies.
 """
+
 from __future__ import annotations
 
 import sys
-import types
 from unittest.mock import AsyncMock, MagicMock
 
 # ---------------------------------------------------------------------------
@@ -36,13 +36,13 @@ for _name, _mock in [
         sys.modules[_name] = _mock  # type: ignore[assignment]
 
 # Now import backends (they will use the mocks above)
-import pytest
+import pytest  # noqa: E402
 
-from fast_agent_stack.core.ai.llm import CompletionResult, LLMBackend, Message
-from fast_agent_stack.core.ai.llm.anthropic import AnthropicLLMBackend
-from fast_agent_stack.core.ai.llm.bedrock import BedrockLLMBackend
-from fast_agent_stack.core.ai.llm.litellm import LiteLLMLLMBackend
-from fast_agent_stack.core.ai.llm.openai import OpenAILLMBackend
+from fast_agent_stack.core.ai.llm import CompletionResult, LLMBackend, Message  # noqa: E402
+from fast_agent_stack.core.ai.llm.anthropic import AnthropicLLMBackend  # noqa: E402
+from fast_agent_stack.core.ai.llm.bedrock import BedrockLLMBackend  # noqa: E402
+from fast_agent_stack.core.ai.llm.litellm import LiteLLMLLMBackend  # noqa: E402
+from fast_agent_stack.core.ai.llm.openai import OpenAILLMBackend  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Shared fixtures and helpers
@@ -71,6 +71,7 @@ def _make_bedrock_stream_events():
         yield {"contentBlockDelta": {"delta": {"text": "hello"}}}
         yield {"contentBlockDelta": {"delta": {"text": " world"}}}
         yield {"metadata": {"usage": {"inputTokens": 10, "outputTokens": 5, "totalTokens": 15}}}
+
     return _gen()
 
 
@@ -87,6 +88,7 @@ def _make_openai_chunks():
             content=None,
             usage=MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15),
         )
+
     return _gen()
 
 
@@ -118,9 +120,8 @@ def _make_litellm_chunks():
     async def _gen():
         yield _Chunk(content="hello")
         yield _Chunk(content=" world")
-        yield _Chunk(
-            usage=MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
-        )
+        yield _Chunk(usage=MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15))
+
     return _gen()
 
 
@@ -146,9 +147,7 @@ class TestBedrockLLMBackend:
     async def test_b2_stream_sentinel_is_last(self):
         backend = BedrockLLMBackend(model_id="m")
         mock_client = MagicMock()
-        mock_client.converse_stream = AsyncMock(
-            return_value={"stream": _make_bedrock_stream_events()}
-        )
+        mock_client.converse_stream = AsyncMock(return_value={"stream": _make_bedrock_stream_events()})
         backend._session.client.return_value = _make_bedrock_ctx(mock_client)
 
         items = await _collect(backend.stream(_MSGS))
@@ -162,9 +161,7 @@ class TestBedrockLLMBackend:
     async def test_b3_stream_token_counts(self):
         backend = BedrockLLMBackend(model_id="m")
         mock_client = MagicMock()
-        mock_client.converse_stream = AsyncMock(
-            return_value={"stream": _make_bedrock_stream_events()}
-        )
+        mock_client.converse_stream = AsyncMock(return_value={"stream": _make_bedrock_stream_events()})
         backend._session.client.return_value = _make_bedrock_ctx(mock_client)
 
         items = await _collect(backend.stream(_MSGS))
@@ -178,10 +175,12 @@ class TestBedrockLLMBackend:
     async def test_b4_system_messages_extracted(self):
         backend = BedrockLLMBackend(model_id="m")
         mock_client = MagicMock()
-        mock_client.converse = AsyncMock(return_value={
-            "output": {"message": {"content": [{"text": "ok"}]}},
-            "usage": {"inputTokens": 5, "outputTokens": 2, "totalTokens": 7},
-        })
+        mock_client.converse = AsyncMock(
+            return_value={
+                "output": {"message": {"content": [{"text": "ok"}]}},
+                "usage": {"inputTokens": 5, "outputTokens": 2, "totalTokens": 7},
+            }
+        )
         backend._session.client.return_value = _make_bedrock_ctx(mock_client)
 
         await backend.complete(_SYS_MSGS)
@@ -230,9 +229,7 @@ class TestOpenAILLMBackend:
 
     async def test_b2_stream_sentinel_is_last(self):
         backend = OpenAILLMBackend(model_id="gpt-4o")
-        backend._client.chat.completions.create = AsyncMock(
-            return_value=_make_openai_chunks()
-        )
+        backend._client.chat.completions.create = AsyncMock(return_value=_make_openai_chunks())
 
         items = await _collect(backend.stream(_MSGS))
 
@@ -244,9 +241,7 @@ class TestOpenAILLMBackend:
 
     async def test_b3_stream_token_counts(self):
         backend = OpenAILLMBackend(model_id="gpt-4o")
-        backend._client.chat.completions.create = AsyncMock(
-            return_value=_make_openai_chunks()
-        )
+        backend._client.chat.completions.create = AsyncMock(return_value=_make_openai_chunks())
 
         items = await _collect(backend.stream(_MSGS))
         sentinel: CompletionResult = items[-1]  # type: ignore[assignment]

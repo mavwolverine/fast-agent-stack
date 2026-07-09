@@ -1,4 +1,5 @@
 """Tests for Phase 6-2 / Phase 8: Rate Limiting (ADR-016, ADR-037)."""
+
 from __future__ import annotations
 
 import ast
@@ -6,13 +7,13 @@ import time
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from httpx import ASGITransport, AsyncClient
 
 
 def _make_app(requests: int = 5, period: int = 60, eval_return: int = 1):
     """Build a minimal FastAPI app with RateLimitMiddleware using a mocked SDK redis."""
     import fastapi
+
     from fast_agent_stack.core.ratelimit import RateLimitMiddleware
 
     app = fastapi.FastAPI()
@@ -36,6 +37,7 @@ def _make_app(requests: int = 5, period: int = 60, eval_return: int = 1):
 # BEHAVIOR
 # ---------------------------------------------------------------------------
 
+
 async def test_rate_limit_allows_requests_below_threshold():
     app, mock_redis = _make_app(requests=5, eval_return=3)
     with patch("fast_agent_stack.core.ratelimit._get_async_redis", return_value=mock_redis):
@@ -56,6 +58,7 @@ async def test_rate_limit_returns_429_on_exceed():
 async def test_rate_limit_key_includes_ip_and_window():
     """Middleware must use fas:rl:{ip}:{window_start} key format."""
     import fastapi
+
     from fast_agent_stack.core.ratelimit import RateLimitMiddleware
 
     app = fastapi.FastAPI()
@@ -63,9 +66,11 @@ async def test_rate_limit_key_includes_ip_and_window():
     captured_key: list[str] = []
 
     mock_redis = AsyncMock()
+
     async def fake_eval(script, numkeys, key, *args):
         captured_key.append(key)
         return 1
+
     mock_redis.eval = fake_eval
 
     @app.get("/ping")
@@ -92,13 +97,16 @@ async def test_rate_limit_x_forwarded_for_takes_priority():
     captured_keys: list[str] = []
 
     import fastapi
+
     from fast_agent_stack.core.ratelimit import RateLimitMiddleware
 
     app = fastapi.FastAPI()
     mock_redis = AsyncMock()
+
     async def fake_eval(script, numkeys, key, *args):
         captured_keys.append(key)
         return 1
+
     mock_redis.eval = fake_eval
 
     @app.get("/ping")
@@ -128,6 +136,7 @@ async def test_rate_limit_response_has_ratelimit_headers():
 # ARCHITECTURAL — I3 (ADR-037: redis_fastapi guard), I4
 # ---------------------------------------------------------------------------
 
+
 def test_i3_rate_limit_middleware_guards_on_redis_fastapi():
     """I3: ratelimit/__init__.py must guard on redis_fastapi, not bare redis (ADR-037)."""
     import fast_agent_stack.core.ratelimit as mod
@@ -152,6 +161,7 @@ def test_i3_rate_limit_middleware_guards_on_redis_fastapi():
 def test_rate_limit_middleware_has_no_redis_init_param():
     """RateLimitMiddleware must not accept a 'redis' constructor parameter (ADR-037)."""
     import inspect
+
     from fast_agent_stack.core.ratelimit import RateLimitMiddleware
 
     sig = inspect.signature(RateLimitMiddleware.__init__)
@@ -163,23 +173,19 @@ def test_rate_limit_middleware_has_no_redis_init_param():
 
 def test_rate_limit_lifespan_hook_has_no_redis_attribute():
     """RateLimitLifespanHook must not own a Redis pool (ADR-037, I9)."""
-    from fast_agent_stack.core.ratelimit import RateLimitLifespanHook
     from fast_agent_stack.core.config import BaseSettings
+    from fast_agent_stack.core.ratelimit import RateLimitLifespanHook
 
     settings = BaseSettings(app_name="test", redis_url="redis://localhost:6379")
     hook = RateLimitLifespanHook(settings)
-    assert not hasattr(hook, "redis"), (
-        "RateLimitLifespanHook must not own a redis attr — pool is SDK-managed"
-    )
-    assert not hasattr(hook, "_redis"), (
-        "RateLimitLifespanHook must not own a _redis attr — pool is SDK-managed"
-    )
+    assert not hasattr(hook, "redis"), "RateLimitLifespanHook must not own a redis attr — pool is SDK-managed"
+    assert not hasattr(hook, "_redis"), "RateLimitLifespanHook must not own a _redis attr — pool is SDK-managed"
 
 
 async def test_rate_limit_lifespan_hook_aexit_is_noop():
     """RateLimitLifespanHook.__aexit__ must not close any connection (no pool)."""
-    from fast_agent_stack.core.ratelimit import RateLimitLifespanHook
     from fast_agent_stack.core.config import BaseSettings
+    from fast_agent_stack.core.ratelimit import RateLimitLifespanHook
 
     settings = BaseSettings(app_name="test")
     hook = RateLimitLifespanHook(settings)
@@ -191,6 +197,7 @@ async def test_rate_limit_lifespan_hook_aexit_is_noop():
 # ---------------------------------------------------------------------------
 # NFR — I2 (async redis), pyproject extras
 # ---------------------------------------------------------------------------
+
 
 def test_rate_limit_middleware_source_has_no_blocking_imports():
     import fast_agent_stack.core.ratelimit as mod
@@ -205,6 +212,7 @@ def test_rate_limit_middleware_source_has_no_blocking_imports():
 def test_pyproject_toml_rate_limit_uses_fastapi_redis_sdk():
     """pyproject.toml rate-limit extra must depend on fastapi-redis-sdk (ADR-037)."""
     import tomllib
+
     toml_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
     data = tomllib.loads(toml_path.read_text())
     optional_deps = data["project"]["optional-dependencies"]
@@ -218,6 +226,7 @@ def test_pyproject_toml_rate_limit_uses_fastapi_redis_sdk():
 def test_pyproject_toml_contains_tracing_extra():
     import tomllib
     toml_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+
     data = tomllib.loads(toml_path.read_text())
     optional_deps = data["project"]["optional-dependencies"]
     assert "tracing" in optional_deps

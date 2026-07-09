@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 try:
     import aioboto3
@@ -45,20 +46,12 @@ class BedrockLLMBackend:
         """Escape hatch (I4): direct access to the underlying aioboto3.Session."""
         return self._session
 
-    def _convert_messages(
-        self, messages: list[Message]
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def _convert_messages(self, messages: list[Message]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         system = [{"text": m.content} for m in messages if m.role == "system"]
-        conv = [
-            {"role": m.role, "content": [{"text": m.content}]}
-            for m in messages
-            if m.role != "system"
-        ]
+        conv = [{"role": m.role, "content": [{"text": m.content}]} for m in messages if m.role != "system"]
         return system, conv
 
-    async def complete(
-        self, messages: list[Message], **kwargs: Any
-    ) -> CompletionResult:
+    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult:
         system, conv = self._convert_messages(messages)
         async with self._session.client(
             "bedrock-runtime",
@@ -83,9 +76,7 @@ class BedrockLLMBackend:
             cost=None,
         )
 
-    async def stream(
-        self, messages: list[Message], **kwargs: Any
-    ) -> AsyncIterator[str | CompletionResult]:
+    async def stream(self, messages: list[Message], **kwargs: Any) -> AsyncIterator[str | CompletionResult]:
         system, conv = self._convert_messages(messages)
         prompt_tokens = 0
         completion_tokens = 0

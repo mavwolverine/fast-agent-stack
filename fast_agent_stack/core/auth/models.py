@@ -7,11 +7,11 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     DateTime,
     ForeignKey,
-    JSON,
     String,
     Table,
     UniqueConstraint,
@@ -36,9 +36,7 @@ user_groups = Table(
 group_permissions = Table(
     "group_permissions",
     Base.metadata,
-    Column(
-        "group_id", Uuid, ForeignKey("groups.id", ondelete="CASCADE"), primary_key=True
-    ),
+    Column("group_id", Uuid, ForeignKey("groups.id", ondelete="CASCADE"), primary_key=True),
     Column(
         "permission_id",
         Uuid,
@@ -76,13 +74,9 @@ class User(BaseModel):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_staff: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    date_joined: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    date_joined: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    groups: Mapped[list[Group]] = relationship(
-        secondary=user_groups, back_populates="users", lazy="selectin"
-    )
+    groups: Mapped[list[Group]] = relationship(secondary=user_groups, back_populates="users", lazy="selectin")
     direct_permissions: Mapped[list[Permission]] = relationship(
         secondary=user_permissions, back_populates="direct_users", lazy="selectin"
     )
@@ -96,9 +90,7 @@ class Group(BaseModel):
     name: Mapped[str] = mapped_column(String(150), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
-    users: Mapped[list[User]] = relationship(
-        secondary=user_groups, back_populates="groups", lazy="selectin"
-    )
+    users: Mapped[list[User]] = relationship(secondary=user_groups, back_populates="groups", lazy="selectin")
     permissions: Mapped[list[Permission]] = relationship(
         secondary=group_permissions, back_populates="groups", lazy="selectin"
     )
@@ -108,9 +100,7 @@ class Permission(BaseModel):
     """Resource + action pair for RBAC (ADR-028)."""
 
     __tablename__ = "permissions"
-    __table_args__ = (
-        UniqueConstraint("resource", "action", name="uq_permission_resource_action"),
-    )
+    __table_args__ = (UniqueConstraint("resource", "action", name="uq_permission_resource_action"),)
 
     resource: Mapped[str] = mapped_column(String(100), nullable=False)
     action: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -129,12 +119,8 @@ class AuthVerificationToken(BaseModel):
     __tablename__ = "auth_verification_token"
 
     token: Mapped[str] = mapped_column(String(512), unique=True, nullable=False, index=True)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    type: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # "email_verification" | "password_reset"
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    type: Mapped[str] = mapped_column(String(50), nullable=False)  # "email_verification" | "password_reset"
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -143,9 +129,7 @@ class ApiKey(BaseModel):
 
     __tablename__ = "api_keys"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     key_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     key_prefix: Mapped[str] = mapped_column(String(8), nullable=False)

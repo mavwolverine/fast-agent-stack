@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class LocalEmbedding:
-    def __init__(self, settings: "BaseSettings") -> None:
+    def __init__(self, settings: BaseSettings) -> None:
         model_name = settings.embedding_model or "BAAI/bge-small-en-v1.5"
         cache_dir = settings.embedding_cache_dir or None
         self._model = TextEmbedding(model_name=model_name, cache_dir=cache_dir)
@@ -28,16 +28,12 @@ class LocalEmbedding:
 
     async def embed(self, text: str) -> list[float]:
         loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None, functools.partial(self._sync_embed, text)
-        )
+        result = await loop.run_in_executor(None, functools.partial(self._sync_embed, text))
         return result
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None, functools.partial(self._sync_embed_batch, texts)
-        )
+        return await loop.run_in_executor(None, functools.partial(self._sync_embed_batch, texts))
 
     def _sync_embed(self, text: str) -> list[float]:
         return list(next(iter(self._model.embed([text]))))

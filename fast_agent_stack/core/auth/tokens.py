@@ -11,8 +11,7 @@ try:
     import jwt as pyjwt
 except ImportError:
     raise ImportError(
-        "pyjwt is required for JWT authentication. "
-        "Install it with: pip install fast-agent-stack[auth-jwt]"
+        "pyjwt is required for JWT authentication. Install it with: pip install fast-agent-stack[auth-jwt]"
     )
 
 

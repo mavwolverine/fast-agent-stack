@@ -240,8 +240,7 @@ def test_a4_i7_all_template_conditionals_use_valid_copier_values() -> None:
                 continue
             if value not in _COPIER_CHOICES[question]:
                 violations.append(
-                    f"{jinja_file.relative_to(TEMPLATE_DIR)}: "
-                    f"'{value}' not a valid choice for '{question}'"
+                    f"{jinja_file.relative_to(TEMPLATE_DIR)}: '{value}' not a valid choice for '{question}'"
                 )
     assert not violations, "I7 violations:\n" + "\n".join(violations)
 
@@ -260,9 +259,7 @@ def test_a5_i9_hook_registration_order_in_app_template() -> None:
     positions.sort()
     found_order = [h for _, h in positions]
     expected_order = [h for h in hooks_in_order if h in text]
-    assert found_order == expected_order, (
-        f"I9 hook order violated. Expected {expected_order}, got {found_order}"
-    )
+    assert found_order == expected_order, f"I9 hook order violated. Expected {expected_order}, got {found_order}"
 
 
 # ---------------------------------------------------------------------------
@@ -316,8 +313,7 @@ def test_c10_app_template_rate_limit_passes_app_to_hook() -> None:
 def test_c11_standard_preset_generates_dockerfile(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
-        ["new", "myproject", "--preset", "standard", "--db", "sqlite",
-         "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "standard", "--db", "sqlite", "--output-dir", str(tmp_path)],
     )
     assert result.exit_code == 0, result.output
     assert (tmp_path / "Dockerfile").exists()
@@ -327,8 +323,7 @@ def test_c11_standard_preset_generates_dockerfile(tmp_path: Path) -> None:
 def test_c12_standard_app_py_wires_auth_hook(tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "standard", "--db", "sqlite",
-         "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "standard", "--db", "sqlite", "--output-dir", str(tmp_path)],
     )
     app_py = (tmp_path / "myproject" / "app.py").read_text()
     assert "AuthLifespanHook" in app_py
@@ -338,8 +333,7 @@ def test_c12_standard_app_py_wires_auth_hook(tmp_path: Path) -> None:
 def test_c13_full_preset_app_py_has_all_hooks(tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "full", "--db", "sqlite",
-         "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "full", "--db", "sqlite", "--output-dir", str(tmp_path)],
     )
     app_py = (tmp_path / "myproject" / "app.py").read_text()
     assert "DatabaseLifespanHook" in app_py
@@ -386,9 +380,7 @@ def test_smoke_generated_project_serves_get_root(tmp_path: Path) -> None:
             del sys.modules[key]
 
     try:
-        spec = importlib.util.spec_from_file_location(
-            "_smokeproj_main", str(tmp_path / "main.py")
-        )
+        spec = importlib.util.spec_from_file_location("_smokeproj_main", str(tmp_path / "main.py"))
         assert spec is not None and spec.loader is not None
         main_mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(main_mod)  # type: ignore[union-attr]

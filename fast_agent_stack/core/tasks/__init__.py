@@ -1,4 +1,5 @@
 """Background task broker configuration (ADR-005, ADR-020)."""
+
 from __future__ import annotations
 
 import logging
@@ -10,14 +11,13 @@ try:
     from dramatiq.brokers.redis import RedisBroker
 except ImportError:
     raise ImportError(
-        "dramatiq is required to use background tasks. "
-        "Install it with: pip install fast-agent-stack[tasks]"
+        "dramatiq is required to use background tasks. Install it with: pip install fast-agent-stack[tasks]"
     ) from None
 
 logger = logging.getLogger(__name__)
 
 
-def configure_broker(settings: BaseSettings) -> "dramatiq.Broker":
+def configure_broker(settings: BaseSettings) -> dramatiq.Broker:
     """Wire Dramatiq to Redis. Falls back to settings.redis_url when tasks_broker_url is not set."""
     url = settings.tasks_broker_url or settings.redis_url
     broker = RedisBroker(url=url)

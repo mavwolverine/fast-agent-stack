@@ -1,4 +1,4 @@
-from fast_agent_stack.core.database.base import Base, BaseModel, FRAMEWORK_TABLES
+from fast_agent_stack.core.database.base import FRAMEWORK_TABLES, Base, BaseModel
 from fast_agent_stack.core.database.health import check_db
 from fast_agent_stack.core.database.lifespan import DatabaseLifespanHook
 from fast_agent_stack.core.database.session import (

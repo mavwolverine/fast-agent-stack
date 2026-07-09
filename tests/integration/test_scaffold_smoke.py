@@ -5,6 +5,7 @@ No external services required.
 
 Run with: pytest tests/integration/ -m integration
 """
+
 from __future__ import annotations
 
 import py_compile
@@ -87,9 +88,7 @@ def test_universal_files_exist(scaffolded, preset):
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("preset,files", [
-    (p, files) for p, files in PRESET_REQUIRED_FILES.items()
-])
+@pytest.mark.parametrize("preset,files", [(p, files) for p, files in PRESET_REQUIRED_FILES.items()])
 def test_preset_specific_files_exist(scaffolded, preset, files):
     """Preset-specific files must be present when expected."""
     project_dir = scaffolded[preset]
