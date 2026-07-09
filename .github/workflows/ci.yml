@@ -31,7 +31,6 @@ jobs:
       - run: uv venv
       - run: uv pip install -e ".[auth-jwt,bedrock,openai,anthropic,litellm,email-smtp,tracing,tasks,rate-limit,admin,vector-qdrant,storage-s3,secrets-aws]"
       - run: uv pip install mypy
-      - run: uv pip uninstall numpy || true
       - run: uv run mypy --strict fast_agent_stack/
 
   test:
