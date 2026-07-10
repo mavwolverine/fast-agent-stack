@@ -40,6 +40,7 @@ Create a directory for the project and scaffold a `minimal` preset using SQLite 
 ```bash
 mkdir docqa && cd docqa
 fas new docqa --preset minimal --db sqlite
+uv pip install -r pyproject.toml
 ```
 
 You'll see the `✓ Created docqa` confirmation. The `minimal` preset skips auth, admin, Docker, and AI extras so you start with the smallest possible surface area. You'll layer those in over the next six parts.
