@@ -122,7 +122,6 @@ dev = [
     "tox>=4.15",
     "tox-uv>=1.15",
     "testcontainers[postgres,redis]>=4.0",
-    "fakeredis>=2.21",
 ]
 docs = [
     "zensical",
@@ -130,7 +129,7 @@ docs = [
 
 [tool.ruff]
 target-version = "py311"
-line-length = 119
+line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
@@ -138,49 +137,7 @@ select = ["E", "F", "I", "UP"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-warn_unused_ignores = false
 plugins = ["pydantic.mypy"]
-
-[[tool.mypy.overrides]]
-module = [
-    "aioboto3",
-    "aioboto3.*",
-    "botocore.*",
-    "redis_fastapi",
-    "redis_fastapi.*",
-    "fastembed",
-    "fastembed.*",
-    "pdfplumber",
-    "pdfplumber.*",
-    "docx",
-    "docx.*",
-    "openpyxl",
-    "openpyxl.*",
-    "aiofiles",
-    "aiofiles.*",
-    "opensearchpy",
-    "opensearchpy.*",
-    "pgvector",
-    "pgvector.*",
-    "weaviate",
-    "weaviate.*",
-    "periodiq",
-    "periodiq.*",
-    "dramatiq",
-    "dramatiq.*",
-    "numpy",
-    "numpy.*",
-    "openai",
-    "openai.*",
-    "anthropic",
-    "anthropic.*",
-    "litellm",
-    "litellm.*",
-    "qdrant_client",
-    "qdrant_client.*",
-]
-ignore_missing_imports = true
-follow_imports = "skip"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -188,7 +145,6 @@ testpaths = ["tests"]
 markers = [
     "integration: marks tests that require real external services (deselect with '-m not integration')",
     "e2e: marks Tier 2 E2E tests that require Docker (Postgres + Redis containers)",
-    "docs: marks tutorial documentation quality tests (file existence, snippet compilation)",
 ]
 
 [tool.coverage.run]
@@ -208,6 +164,23 @@ isolated_build = true
 runner = uv-venv-runner
 dependency_groups = dev
 extras =
+<<<<<<< HEAD
+    db-sqlite,
+    auth-jwt,
+    auth-session,
+    admin,
+    rate-limit,
+    caching,
+    tasks,
+    tracing,
+    email-smtp,
+    storage-local,
+    embedding-local,
+    extract-pdf,
+    extract-docx,
+    extract-xlsx,
+    vector-qdrant,
+=======
     db-sqlite
     auth-jwt
     auth-session
@@ -218,11 +191,11 @@ extras =
     tracing
     email-smtp
     storage-local
-    embedding-local
     extract-pdf
     extract-docx
     extract-xlsx
     vector-qdrant
+>>>>>>> 1b3e490 (fix: remove trailing commas from tox extras)
     vector-pgvector
-commands = pytest -m "not integration and not e2e" {posargs}
+commands = pytest {posargs}
 """

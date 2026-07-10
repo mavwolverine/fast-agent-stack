@@ -1,9 +1,10 @@
-[site]
-name = "fast-agent-stack"
-description = "FastAPI framework for production AI agents"
-url = "https://fast-agent-stack.readthedocs.io"
+site_name = "fast-agent-stack"
+site_description = "Production AI agent stack built on FastAPI"
+site_url = "https://fast-agent-stack.readthedocs.io"
+docs_dir = "docs"
 
 [theme]
+name = "material"
 palette = { primary = "indigo", accent = "blue" }
 features = ["navigation.tabs", "navigation.sections", "search.highlight"]
 

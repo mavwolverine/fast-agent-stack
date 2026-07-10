@@ -121,7 +121,7 @@
 - [x] PyPI test publish (TestPyPI dry-run)
 
 ## Phase 10: Progressive Tutorial (scenario-based documentation)
-- [ ] Tutorial Part 1 — Hello World: scaffold `minimal` preset, add a route, run dev server, hit the API
+- [x] Tutorial Part 1 — Hello World: scaffold `minimal` preset, add a route, run dev server, hit the API
 - [ ] Tutorial Part 2 — Database & Models: add a model, generate migration, seed data, CRUD routes
 - [ ] Tutorial Part 3 — Authentication: enable JWT auth, create a user, protect routes, test with curl
 - [ ] Tutorial Part 4 — Build a Chat Agent: add an LLM backend, register an agent, streaming responses
@@ -131,5 +131,5 @@
 
 Tutorial builds a "Document Q&A Assistant" as the through-line application (each part adds a layer).
 Each part is progressive (builds on previous) but self-contained enough to jump into independently.
-All code snippets must be runnable — validated by Tier 1 scaffold smoke tests extracting and compiling them.
-Lives in `docs/tutorial/` as Zensical pages (part-1.md through part-7.md). No separate repo.
+All Python code snippets validated by `pytest tests/docs/ -m docs` (syntax + public-API checks).
+Lives in `docs/tutorial/` as Zensical pages (`01-hello-world.md` through `07-production.md`). No separate repo.
