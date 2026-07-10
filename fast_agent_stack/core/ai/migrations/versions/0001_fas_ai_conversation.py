@@ -1,6 +1,6 @@
 """Create conversation_log and conversation_messages tables (Phase 4c).
 
-Revision ID: fas_ai_001
+Revision ID: fas_ai_0001
 Revises:
 Create Date: 2026-06-22
 """
@@ -10,9 +10,9 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "fas_ai_001"
+revision: str = "fas_ai_0001"
 down_revision: str | None = None
-branch_labels: str | tuple[str, ...] | None = ("ai",)
+branch_labels: str | tuple[str, ...] | None = ("fas_ai",)
 depends_on: str | tuple[str, ...] | None = None
 
 

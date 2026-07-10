@@ -92,14 +92,14 @@ class TestArchitectural:
         assert len(candidates) == 1, "Expected exactly one 0002_fas_ai_*.py migration"
 
     def test_a05_migration_revision_ids(self):
-        """I16: revision IDs must be fas_ai_001 / fas_ai_002."""
+        """ADR-044: revision IDs and branch labels for AI migration branch."""
         m1 = importlib.import_module("fast_agent_stack.core.ai.migrations.versions.0001_fas_ai_conversation")
         m2 = importlib.import_module("fast_agent_stack.core.ai.migrations.versions.0002_fas_ai_token_usage")
-        assert m1.revision == "fas_ai_001"
+        assert m1.revision == "fas_ai_0001"
         assert m1.down_revision is None
-        assert m1.branch_labels == ("ai",)
-        assert m2.revision == "fas_ai_002"
-        assert m2.down_revision == "fas_ai_001"
+        assert m1.branch_labels == ("fas_ai",)
+        assert m2.revision == "fas_ai_0002"
+        assert m2.down_revision == "fas_ai_0001"
 
     def test_a06_framework_tables_includes_ai_tables(self):
         """FRAMEWORK_TABLES must include all three AI table names."""
@@ -108,10 +108,10 @@ class TestArchitectural:
         assert "token_usage_log" in FRAMEWORK_TABLES
 
     def test_a07_migration_gate_any_of_semantics(self):
-        """Migration gate uses any-of find_spec; passes if at least one SDK present."""
-        from fast_agent_stack.cli.db import FRAMEWORK_MIGRATION_MODULES
+        """Migration gate uses any-of find_spec; passes if at least one SDK present (ADR-044)."""
+        from fast_agent_stack.cli.db import FRAMEWORK_MIGRATION_GATES
 
-        _key, (module_path, gate_packages) = list(FRAMEWORK_MIGRATION_MODULES.items())[-1]  # "ai" entry is last
+        module_path, gate_packages = FRAMEWORK_MIGRATION_GATES[-1]  # "ai" entry is last
         assert module_path == "fast_agent_stack.core.ai.migrations"
         # Must list all four AI SDK packages
         assert "anthropic" in gate_packages

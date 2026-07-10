@@ -1127,3 +1127,28 @@ Tier 2 uses `testcontainers[postgres,redis]>=4.0` in dev deps. Not a hard block 
 - CI: `ci.yml` runs Tier 1; `e2e.yml` runs Tier 2 on tag push / nightly / manual dispatch
 
 See `spec/adr/ADR-043.md` for full CI config and test layout.
+
+---
+
+## ADR-044 — Alembic Branches for Framework Migrations
+
+**Phase:** Post-release fix (supersedes I16 migration architecture)
+
+**Context:** The current multi-instance migration system (separate env.py per module, shared version table) has a correctness bug: when auth migrations stamp their revision, the AI migration instance can't find it in its own script directory. Additionally, cross-module dependencies (AI depends on auth tables) cannot be expressed.
+
+**Decision:** Replace with Alembic branches. One Alembic instance, multiple `version_locations` discovered dynamically at runtime via gate-on-importability. Framework migrations declare `branch_labels` and optional `depends_on`. `fas migrate` becomes `command.upgrade(cfg, "heads")`.
+
+Key changes:
+- Delete `core/auth/migrations/env.py` and `core/ai/migrations/env.py`
+- Delete `_run_framework_migrations()` from `cli/db.py`
+- Generated `alembic/env.py.jinja` discovers framework version locations dynamically
+- Single `alembic_version` table (standard Alembic default) replaces `fas_alembic_version`
+- Framework migrations gain `branch_labels` and `depends_on` declarations
+
+**Consequences:**
+- I16 amended: framework migrations are branches, not separate instances
+- Cross-module dependencies expressible via `depends_on`
+- `alembic history` shows full graph; `alembic downgrade` works correctly
+- Gate-on-importability preserved (version dirs only added if gate package importable)
+
+See `spec/adr/ADR-044.md` for full architecture.

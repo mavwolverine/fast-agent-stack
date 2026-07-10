@@ -84,6 +84,9 @@ def test_b7_makemigrations_creates_revision_file(tmp_path: Path, monkeypatch: py
     _scaffold(tmp_path)
     monkeypatch.chdir(tmp_path)
     monkeypatch.syspath_prepend(str(tmp_path))
+    # ADR-044: DB must be at known heads before makemigrations can generate a new revision.
+    migrate_result = runner.invoke(app, ["migrate"])
+    assert migrate_result.exit_code == 0, migrate_result.output + (str(migrate_result.exception) if migrate_result.exception else "")
     result = runner.invoke(app, ["makemigrations", "-m", "initial"])
     assert result.exit_code == 0, result.output + (str(result.exception) if result.exception else "")
     py_revisions = [f for f in (tmp_path / "alembic" / "versions").iterdir() if f.suffix == ".py"]

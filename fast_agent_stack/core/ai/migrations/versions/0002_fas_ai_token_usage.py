@@ -10,8 +10,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "fas_ai_002"
-down_revision: str | None = "fas_ai_001"
+revision: str = "fas_ai_0002"
+down_revision: str | None = "fas_ai_0001"
 branch_labels: str | tuple[str, ...] | None = None
 depends_on: str | tuple[str, ...] | None = None
 

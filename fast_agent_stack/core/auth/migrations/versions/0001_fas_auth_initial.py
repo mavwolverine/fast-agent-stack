@@ -1,6 +1,6 @@
 """Create auth tables (Phase 3a — ADR-028, ADR-031).
 
-Revision ID: 001
+Revision ID: fas_auth_0001
 Revises:
 Create Date: 2026-06-24
 """
@@ -10,9 +10,9 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "001"
+revision: str = "fas_auth_0001"
 down_revision: str | None = None
-branch_labels: str | tuple[str, ...] | None = None
+branch_labels: str | tuple[str, ...] | None = ("fas_auth",)
 depends_on: str | tuple[str, ...] | None = None
 
 
