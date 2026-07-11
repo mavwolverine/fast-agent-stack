@@ -153,12 +153,14 @@ It is responsible for:
 - Composable retrieval service (`RagService` — concrete, not a Protocol; ADR-040)
 - Pluggable vector store backends: Qdrant, pgvector, OpenSearch, Weaviate (ADR-038 signatures)
 - Pluggable embedding backends: Bedrock, OpenAI, local/fastembed (ADR-038, ADR-039)
+- Optional reranking backends: Ollama cross-encoder (`reranker-ollama`), OpenAI-compatible (`reranker-openai`) (ADR-045)
 - Document extraction: PDF (`extract-pdf`), DOCX (`extract-docx`), XLSX (`extract-xlsx`), EML (stdlib `email` module — no extra required)
 - Chunking strategies: `fixed` (default, ~512 tokens with 64-token overlap) and `paragraph`
-- RagService takes `EmbeddingProtocol` + `VectorStoreProtocol` at construction (DI, not factory calls)
+- RagService takes `EmbeddingProtocol` + `VectorStoreProtocol` at construction, and optional `RerankerProtocol` (DI, not factory calls)
 - Public API: `ingest()`, `ingest_file()`, `retrieve()`, `delete_document()`
 - Chunk IDs: `{document_id}:{chunk_index}` (deterministic, enables idempotent re-ingestion)
 - Returns `RagChunk` dataclass (content, score, metadata, document_id, chunk_index)
+- When reranker is set, `retrieve()` over-fetches (`top_k * 3`) then reranks to return top `top_k` (ADR-045)
 
 ### 12. Storage
 - Pluggable backends: S3, local filesystem, MinIO
@@ -205,14 +207,16 @@ Inspired by Django's database backends. Each service type has:
 | `secrets-aws` | `boto3>=1.34` | ADR-017 |
 | `secrets-gcp` | `google-cloud-secret-manager>=2.20` | ADR-017 |
 | `tracing` | `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-otlp` | ADR-009 |
+| `reranker-ollama` | `httpx>=0.27` | ADR-045 |
+| `reranker-openai` | `httpx>=0.27` | ADR-045 |
 
-Bundle extras: `ai-full` (all AI backends + vector + storage + embedding), `all` (everything).
+Bundle extras: `ai-full` (all AI backends + vector + storage + embedding + reranking), `all` (everything).
 
 **Note on `db-*` extras:** These groups contain only the async engine driver for the chosen database. `sqlalchemy[asyncio]` and `alembic` are in `project.dependencies` (core, always installed) per ADR-025. I3 (extras gate) applies to the async drivers in `db-*` extras; it does not apply to SQLAlchemy or Alembic imports.
 
 ## Custom Backends (Bring Your Own)
 
-All four pluggable backend families — LLM provider, vector store, embedding, storage — support user-supplied implementations via a dotted Python path in settings. The factory checks: if the value is a known alias → use built-in; if it contains a `.` → import and instantiate the class.
+All five pluggable backend families — LLM provider, vector store, embedding, storage, reranker — support user-supplied implementations via a dotted Python path in settings. The factory checks: if the value is a known alias → use built-in; if it contains a `.` → import and instantiate the class.
 
 ```python
 # settings.py
@@ -251,7 +255,7 @@ def get_storage(settings) -> StorageProtocol:
         case _:       return _import_dotted_path(backend)(settings)
 ```
 
-Same pattern applies to `get_vector_store()`, `get_llm()`, `get_embedding_provider()`. All four factory functions accept a dotted Python path for custom backends (ADR-012). LLM provider constructors receive `settings` (same contract as all other families).
+Same pattern applies to `get_vector_store()`, `get_llm()`, `get_embedding_provider()`, `get_reranker()`. All five factory functions accept a dotted Python path for custom backends (ADR-012). `get_reranker()` returns `None` when `reranker_provider = "none"` (ADR-045). LLM provider constructors receive `settings` (same contract as all other families).
 
 ### Auth backend factory (`get_auth_backend`)
 
@@ -283,6 +287,7 @@ Chain delegation rules (see ADR-034):
 | Vector store | `VectorStoreProtocol` | `create_collection`, `upsert`, `search`, `delete`, `close` |
 | Embedding | `EmbeddingProtocol` | `embed`, `embed_batch`, `dimensions` (property) |
 | Storage | `StorageProtocol` | `upload`, `download`, `delete`, `exists`, `url` |
+| Reranker | `RerankerProtocol` | `rerank` |
 
 **LLM return types (ADR-036):** `complete()` returns `CompletionResult`. `stream()` returns
 `AsyncIterator[str | CompletionResult]` where the final item is always a `CompletionResult`
@@ -379,6 +384,7 @@ fast_agent_stack/
     │   ├── llm/              # LLMBackend Protocol, CompletionResult, 4 built-in providers
     │   ├── embedding/        # Embedding backends (bedrock, openai, local)
     │   ├── rag/              # RagService, chunking
+    │   ├── reranker/         # RerankerProtocol, RerankResult, OllamaReranker, OpenAIReranker (ADR-045)
     │   ├── extraction/       # PDF, DOCX, XLSX extractors (extras); EML (stdlib)
     │   ├── agents.py         # @app.agent registry + /agents/{name} router
     │   ├── conversation.py   # ConversationLog + ConversationMessage models

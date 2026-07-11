@@ -1173,3 +1173,29 @@ Settings: `reranker_provider`, `reranker_model`, `reranker_url`, `reranker_timeo
 - I1, I22, I3 all apply
 
 See `spec/adr/ADR-045.md` for full protocol definition.
+
+---
+
+## ADR-046 — Agent Tool Calling
+
+**Phase:** 10 (tutorial prerequisite)  
+**Amends:** Phase 4c agent lifecycle
+
+**Context:** The current `@app.agent()` handler has no mechanism for tool use. Agentic behavior (decide to search, call tool, feed results back to LLM) requires a tool-call loop.
+
+**Decision:**
+- `@tool` decorator: defines tools from async functions, auto-generates OpenAI-compatible schemas from signatures
+- `agent_loop(backend, messages, tools, max_iterations)`: dispatch loop that handles LLM -> tool call -> result -> LLM cycles
+- `ToolCallResult` / `ToolCall` dataclasses for LLM responses requesting tool invocation
+- `LLMBackend.complete()` and `.stream()` gain optional `tools` kwarg (backwards compatible)
+- `Message` dataclass gains optional `tool_call_id` and `tool_calls` fields
+
+Module: `core/ai/tools/`. All four LLM backends updated to handle tools parameter.
+
+**Consequences:**
+- Lightweight built-in tool loop (no LangChain/external dependency)
+- `max_iterations` safety cap prevents infinite loops
+- Backwards compatible (tools=None = existing behavior)
+- Tutorial Part 5 uses this for agentic document Q&A
+
+See `spec/adr/ADR-046.md` for full protocol and module design.

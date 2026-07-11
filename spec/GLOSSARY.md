@@ -63,7 +63,11 @@ contribute models and admin views. See `spec/ARCHITECTURE.md` Module 1.
 
 **RagChunk** — a frozen dataclass returned by `RagService.retrieve()` (ADR-040). Fields: `content: str`, `score: float`, `metadata: dict`, `document_id: str | None`, `chunk_index: int`. Represents a single retrieved chunk with relevance score and source traceability.
 
-**RagService** — the concrete RAG orchestration service (ADR-040) in `core/ai/rag/`. Takes `EmbeddingProtocol` + `VectorStoreProtocol` at construction. Not a Protocol — not pluggable via ADR-012. Public API: `ingest()`, `ingest_file()`, `retrieve()`, `delete_document()`. Composes embedding and vector search with chunking strategies.
+**RagService** — the concrete RAG orchestration service (ADR-040) in `core/ai/rag/`. Takes `EmbeddingProtocol` + `VectorStoreProtocol` at construction and an optional `RerankerProtocol`. Not a Protocol — not pluggable via ADR-012. Public API: `ingest()`, `ingest_file()`, `retrieve()`, `delete_document()`. When a reranker is provided, `retrieve()` over-fetches then reranks before returning results (ADR-045).
+
+**RerankerProtocol** — the Protocol for post-retrieval reranking backends (ADR-045). Single async method: `rerank(query, documents, *, top_k) -> list[RerankResult]`. Built-in implementations: `OllamaReranker` (`reranker-ollama` extra), `OpenAIReranker` (`reranker-openai` extra, compatible with Jina and Cohere endpoints). Custom backends supported via ADR-012 dotted path in `reranker_provider` setting. Located in `core/ai/reranker/`.
+
+**RerankResult** — a frozen dataclass returned by `RerankerProtocol.rerank()` (ADR-045). Fields: `content: str`, `score: float`, `index: int`. `index` is the original position of the document in the input list, enabling traceability back to the source retrieval results. Results are ordered by `score` descending (highest relevance first).
 
 **StorageProtocol** — the Protocol for object storage backends (ADR-038). Methods: `upload`, `download`, `delete`, `exists`, `url`. Built-in implementations: S3, local filesystem, MinIO. Takes `bytes` input (not streams); returns pre-signed URLs for remote backends.
 

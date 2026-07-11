@@ -160,27 +160,59 @@ The database engine must read `DATABASE_URL` from the `Settings` object (which p
 
 ---
 
-## I16 — Framework and User Migrations Are Separate
+## I16 — Framework and User Migrations Use Alembic Branches
 
-Framework-provided models (User, ConversationLog, etc.) ship with their own migrations bundled inside the `fast_agent_stack` package. User project models have their own `alembic/versions/` directory.
+**Amended by ADR-044.** Framework-provided models (User, ConversationLog, etc.) ship with their own migrations bundled inside the `fast_agent_stack` package as **Alembic branches** in a single Alembic instance. User project models use the main branch in `alembic/versions/`.
 
 - `fastagentstack makemigrations` autogenerates revisions for **user models only** — framework models are excluded from the diff.
-- `fastagentstack migrate` applies **both** framework-bundled migrations and user migrations (framework first).
+- `fastagentstack migrate` runs `alembic upgrade heads` (plural) — upgrades all branches (framework + user) in dependency order.
 - Framework migrations are shipped inside the package and applied automatically — users never edit or generate them.
-- When the framework adds new models in a future version, `migrate` picks them up on next run (no `makemigrations` needed for framework changes).
+- When the framework adds new models in a future version, `migrate` picks them up on next run.
 
-### Framework migration discovery (`fas migrate`)
+### Framework migration discovery (generated `alembic/env.py`)
 
-A settings-driven registry maps enabled features to their migration modules. The gate is the **presence of the corresponding extras package** (not a settings field):
+The generated `alembic/env.py` discovers framework migration locations at runtime. The gate is the **presence of the corresponding extras package** (not a settings field):
 
 ```python
-FRAMEWORK_MIGRATION_MODULES = {
-    "auth": ("fast_agent_stack.core.auth.migrations", "pwdlib"),  # gate: pwdlib importable
-    "ai": ("fast_agent_stack.core.ai.migrations", ["anthropic", "openai", "litellm", "aioboto3"]),  # gate: any one importable
-}
+_FRAMEWORK_MIGRATION_GATES = [
+    ("fast_agent_stack.core.auth.migrations", "pwdlib"),
+    ("fast_agent_stack.core.ai.migrations", ["anthropic", "openai", "litellm", "aioboto3"]),
+]
+
+def _framework_version_locations() -> list[str]:
+    locs = []
+    for module_name, gate_packages in _FRAMEWORK_MIGRATION_GATES:
+        gates = gate_packages if isinstance(gate_packages, list) else [gate_packages]
+        if not any(_importable(pkg) for pkg in gates):
+            continue
+        try:
+            mod = importlib.import_module(module_name)
+            locs.append(str(Path(mod.__file__).parent / "versions"))
+        except ImportError:
+            pass
+    return locs
 ```
 
-`fas migrate` attempts to import the gate package. If it succeeds, the module's migrations are applied. If the extra isn't installed, the migrations are skipped silently. This avoids needing a settings field for each feature — installation of the extra is the signal.
+If the gate package is not importable, that branch's `version_locations` entry is omitted and its migrations are invisible to Alembic. All framework and user version locations are passed as `version_locations` before each `alembic upgrade heads` call via `cli/db.py`.
+
+### Branch labels and cross-module dependencies
+
+Framework migrations declare `branch_labels` and may declare `depends_on`:
+
+```python
+# core/auth/migrations/versions/0001_fas_auth_initial.py
+revision: str = "fas_auth_0001"
+down_revision: str | None = None
+branch_labels: tuple[str, ...] = ("fas_auth",)
+
+# core/ai/migrations/versions/0001_fas_ai_conversation.py
+revision: str = "fas_ai_0001"
+down_revision: str | None = None
+branch_labels: tuple[str, ...] = ("fas_ai",)
+depends_on: str | tuple[str, ...] | None = "fas_auth_0001"  # AI requires auth tables
+```
+
+This enables cross-module dependencies that were impossible under the previous multi-instance approach.
 
 ### User autogenerate exclusion (`fas makemigrations`)
 
@@ -197,15 +229,19 @@ def include_object(object, name, type_, reflected, compare_to):
 
 `FRAMEWORK_TABLES` is a `set[str]` exported by the framework listing all table names owned by core modules. This ensures `fas makemigrations` never generates migrations for framework tables.
 
+### Version table
+
+A single `alembic_version` table (Alembic default) holds multiple head rows — one per active branch. This replaces the previous `fas_alembic_version` table.
+
 ### Naming convention
 
 Framework migration files: `NNNN_fas_<module>_<description>.py`
 
 ```
 fast_agent_stack/core/auth/migrations/
-├── 0001_fas_auth_initial.py
-├── 0002_fas_auth_api_keys.py
-└── ...
+├── versions/
+│   ├── 0001_fas_auth_initial.py
+│   └── 0002_fas_auth_api_keys.py
 ```
 
 - `NNNN` — sequential number within the module
