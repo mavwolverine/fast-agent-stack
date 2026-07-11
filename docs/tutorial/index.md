@@ -5,7 +5,7 @@ Build a **Document Q&A Assistant** step by step — from a bare scaffold to a pr
 | Part | Topic | What you add |
 |---|---|---|
 | [Part 1 — Hello World](01-hello-world.md) | Scaffold, routes, dev server | Project foundation |
-| [Part 2 — Database & Models](02-database-models.md) | SQLAlchemy, Alembic, CRUD | PostgreSQL + data model |
+| [Part 2 — Database & Models](02-database-models.md) | SQLAlchemy, Alembic, CRUD | Data model + persistence |
 | [Part 3 — Authentication](03-authentication.md) | JWT auth, users, protected routes | Auth system |
 | [Part 4 — Build a Chat Agent](04-chat-agent.md) | LLM backend, agent decorator, SSE streaming | AI conversation API |
 | [Part 5 — RAG Pipeline](05-rag-pipeline.md) | PDF upload, embed, vector search | Document retrieval |

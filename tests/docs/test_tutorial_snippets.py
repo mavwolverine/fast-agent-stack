@@ -138,3 +138,99 @@ class TestPart1HelloWorld:
         assert "01-hello-world.md" in index_text, (
             "index.md does not reference 01-hello-world.md"
         )
+
+
+# ---------------------------------------------------------------------------
+# Part 2 — Database & Models
+# ---------------------------------------------------------------------------
+
+@pytest.mark.docs
+class TestPart2DatabaseModels:
+    part = TUTORIAL_DIR / "02-database-models.md"
+
+    # 1. Behavior
+
+    def test_file_exists(self):
+        assert self.part.exists(), f"Missing: {self.part}"
+
+    def test_mentions_document_model(self):
+        text = self.part.read_text()
+        assert "Document" in text, "Through-line model 'Document' not mentioned"
+
+    def test_has_migration_section(self):
+        text = self.part.read_text()
+        assert "makemigrations" in text or "migration" in text.lower()
+
+    def test_links_to_part1(self):
+        assert "01-hello-world.md" in self.part.read_text()
+
+    def test_links_to_part3(self):
+        assert "03-authentication.md" in self.part.read_text()
+
+    # 2. Contract
+
+    def test_python_snippets_compile(self):
+        """Every Python code fence must be syntactically valid."""
+        for snippet in _python_snippets(self.part):
+            try:
+                ast.parse(textwrap.dedent(snippet))
+            except SyntaxError as exc:
+                pytest.fail(
+                    f"Snippet failed to parse:\n{exc}\n\nSnippet:\n{snippet}"
+                )
+
+    def test_uses_get_async_session(self):
+        assert "get_async_session" in self.part.read_text()
+
+    def test_basemodel_from_database(self):
+        text = self.part.read_text()
+        assert "fast_agent_stack.database" in text and "BaseModel" in text
+
+    def test_document_create_schema_defined(self):
+        assert "DocumentCreate" in self.part.read_text()
+
+    def test_document_response_schema_defined(self):
+        assert "DocumentResponse" in self.part.read_text()
+
+    # 3. Architectural
+
+    def test_no_private_imports_shown(self):
+        """User-facing code must not import from fast_agent_stack.core.* (I12)."""
+        for snippet in _python_snippets(self.part):
+            assert "from fast_agent_stack.core" not in snippet, (
+                "Tutorial exposes internal import path. Use the public API instead.\n"
+                f"Snippet:\n{snippet}"
+            )
+
+    def test_import_name_uses_underscores(self):
+        """Import name must be 'fast_agent_stack' (underscores), not 'fastagentstack' (ADR-001)."""
+        for snippet in _python_snippets(self.part):
+            assert "import fastagentstack" not in snippet, (
+                "Tutorial uses wrong import name 'fastagentstack'."
+            )
+
+    # 4. NFR
+
+    def test_reasonable_word_count(self):
+        """Tutorial part should be readable in a single sitting (< 2 500 words)."""
+        words = len(self.part.read_text().split())
+        assert words < 2500, f"Part 2 is {words} words — consider splitting"
+
+    def test_has_what_you_built(self):
+        assert "What you built" in self.part.read_text()
+
+    # 5. Failure-mode
+
+    def test_relative_links_target_md_files(self):
+        """All relative links (non-anchor, non-URL) must point to .md files."""
+        for link in _MD_LINK_RE.findall(self.part.read_text()):
+            if link.startswith("#") or link.startswith("http"):
+                continue
+            assert link.endswith(".md"), f"Relative link does not target a .md file: {link!r}"
+
+    def test_index_references_part2(self):
+        """Tutorial index must reference 02-database-models.md."""
+        index_text = (TUTORIAL_DIR / "index.md").read_text()
+        assert "02-database-models.md" in index_text, (
+            "index.md does not reference 02-database-models.md"
+        )

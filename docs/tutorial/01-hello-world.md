@@ -204,7 +204,7 @@ The `/health/live` endpoint is always present - it returns `{"status": "ok"}` as
 - A `/status` route that returns app metadata
 - A running dev server at `http://127.0.0.1:8000` with auto-reload
 
-The `docqa` package is the foundation all later parts extend. In Part 2 you'll switch to PostgreSQL, define a SQLAlchemy model, generate your first Alembic migration, and add CRUD routes.
+The `docqa` package is the foundation all later parts extend. In Part 2 you'll define a `Document` SQLAlchemy model, generate your first Alembic migration, and add CRUD routes.
 
 ---
 
