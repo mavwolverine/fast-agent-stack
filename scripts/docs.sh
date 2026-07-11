@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 
 case "${1:-serve}" in
   serve)
-    uv run --group docs zensical serve
+    uv run --group docs zensical serve --dev-addr localhost:8008
     ;;
   build)
     uv run --group docs zensical build
