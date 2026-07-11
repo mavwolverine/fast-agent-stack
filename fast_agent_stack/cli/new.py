@@ -148,8 +148,19 @@ def new(
         unsafe=True,
     )
 
+    env_notes: list[str] = []
+    prefix = project_name.upper()
+    if data.get("include_admin"):
+        env_notes.append(f"  [yellow]![/] Set [bold]{prefix}_ADMIN_SECRET_KEY[/] in [dim].env[/] (admin panel)")
+    if data.get("include_auth"):
+        env_notes.append(f"  [yellow]![/] Replace [bold]{prefix}_SECRET_KEY[/] in [dim].env[/] (auth signing)")
+
+    env_block = ""
+    if env_notes:
+        env_block = "\n\n  [dim]cp .env.example .env[/]\n" + "\n".join(env_notes)
+
     console.print(
-        f"\n[bold green]✓[/] Created [bold]{project_name}[/]\n"
+        f"\n[bold green]✓[/] Created [bold]{project_name}[/]{env_block}\n\n"
         f"  Dev:  [dim]fastagentstack migrate && fastagentstack dev[/]\n"
         f"  Prod: [dim]fastagentstack migrate && fastagentstack run[/]"
     )
