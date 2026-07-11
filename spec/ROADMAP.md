@@ -121,15 +121,19 @@
 - [x] PyPI test publish (TestPyPI dry-run)
 
 ## Phase 10: Progressive Tutorial (scenario-based documentation)
-- [x] Tutorial Part 1 — Hello World: scaffold `minimal` preset, add a route, run dev server, hit the API
-- [ ] Tutorial Part 2 — Database & Models: add a model, generate migration, seed data, CRUD routes
-- [ ] Tutorial Part 3 — Authentication: enable JWT auth, create a user, protect routes, test with curl
-- [ ] Tutorial Part 4 — Build a Chat Agent: add an LLM backend, register an agent, streaming responses
-- [ ] Tutorial Part 5 — RAG Pipeline: upload a PDF, ingest → embed → store, query with context retrieval
-- [ ] Tutorial Part 6 — Background Tasks: add a Dramatiq actor, schedule with periodiq, monitor worker
-- [ ] Tutorial Part 7 — Production: rate limiting, observability (Jaeger), Docker Compose, K8s deploy
+- [ ] Tutorial Part 0 — Prerequisites: docker-compose (Postgres, Redis, Qdrant), Ollama + pull chat/embedding/reranking models
+- [ ] Tutorial Part 1 — Hello World: scaffold `agent` preset, explore structure, add a route, run dev server
+- [ ] Tutorial Part 2 — Database & Models: document model, upload tracking, migrations, CRUD routes
+- [ ] Tutorial Part 3 — Authentication: JWT auth, create users, protect upload/chat endpoints
+- [ ] Tutorial Part 4 — Ingestion Agent: upload PDF → background task → extract → embed → store vectors
+- [ ] Tutorial Part 5 — Chat Agent with Tools: query → agent decides to search → retrieves → synthesizes → streams
+- [ ] Tutorial Part 6 — Chat UI: single HTML page (vanilla JS), file upload, SSE streaming, served via app.frontend()
+- [ ] Tutorial Part 7 — Background Tasks: async ingestion via Dramatiq, scheduled re-indexing with periodiq
+- [ ] Tutorial Part 8 — Production: rate limit chat, trace agent calls (Jaeger), Docker Compose, K8s deploy
 
-Tutorial builds a "Document Q&A Assistant" as the through-line application (each part adds a layer).
+Tutorial builds a "Document Q&A Assistant" with agentic behavior (tool use, multi-step reasoning, streaming).
 Each part is progressive (builds on previous) but self-contained enough to jump into independently.
-All Python code snippets validated by `pytest tests/docs/ -m docs` (syntax + public-API checks).
-Lives in `docs/tutorial/` as Zensical pages (`01-hello-world.md` through `07-production.md`). No separate repo.
+All code snippets tested manually by the author during writing.
+Lives in `docs/tutorial/` as Zensical pages (part-1.md through part-8.md). No separate repo.
+
+NOTE: Existing Part 1 draft uses `minimal` preset and needs rewriting to use `agent` preset.

@@ -1152,3 +1152,24 @@ Key changes:
 - Gate-on-importability preserved (version dirs only added if gate package importable)
 
 See `spec/adr/ADR-044.md` for full architecture.
+
+---
+
+## ADR-045 — RerankerProtocol: Post-Retrieval Reranking
+
+**Phase:** 10 (tutorial prerequisite)  
+**Amends:** ADR-040
+
+**Context:** ADR-040 deferred reranking. Production RAG pipelines universally include reranking between retrieval and generation. The tutorial needs it to demonstrate best-practice agentic RAG.
+
+**Decision:** Add `RerankerProtocol` with a single method: `rerank(query, documents, top_k) -> list[RerankResult]`. Two built-in backends: Ollama cross-encoder and OpenAI-compatible (covers Jina, Cohere via proxy). `RagService` gains optional `reranker` parameter; when provided, retrieve over-fetches then reranks.
+
+Settings: `reranker_provider`, `reranker_model`, `reranker_url`, `reranker_timeout`.
+
+**Consequences:**
+- Backwards compatible (reranker is optional, defaults to None)
+- New extras: `reranker-ollama`, `reranker-openai`
+- Module: `core/ai/reranker/`
+- I1, I22, I3 all apply
+
+See `spec/adr/ADR-045.md` for full protocol definition.
