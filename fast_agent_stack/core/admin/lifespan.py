@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from types import TracebackType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
+
+logger = logging.getLogger(__name__)
 
 
 class AdminLifespanHook:
@@ -14,6 +17,7 @@ class AdminLifespanHook:
 
     Must be registered AFTER DatabaseLifespanHook (position 5 in I9 ordering).
     sqladmin import is deferred to __aenter__ and guarded by I3 pattern.
+    If admin_secret_key is empty the admin panel is skipped with a warning (I11).
     """
 
     def __init__(
@@ -29,6 +33,13 @@ class AdminLifespanHook:
         self._admin: object | None = None
 
     async def __aenter__(self) -> None:
+        if not self._admin_secret_key:
+            logger.warning(
+                "AdminLifespanHook: admin_secret_key is not set — admin panel disabled. "
+                "Add ADMIN_SECRET_KEY (or your project's env-prefixed equivalent) to your .env file."
+            )
+            return
+
         try:
             from sqladmin import Admin
             from sqladmin.authentication import AuthenticationBackend

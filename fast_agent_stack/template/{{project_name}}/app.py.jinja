@@ -38,7 +38,7 @@ _stack.add_lifespan_hook(RateLimitLifespanHook(_settings, app=app))
 _stack.add_lifespan_hook(TracingLifespanHook(_settings))
 {%- endif %}
 {%- if include_admin %}
-_stack.add_lifespan_hook(AdminLifespanHook(_settings))
+_stack.add_lifespan_hook(AdminLifespanHook(app, admin_secret_key=_settings.admin_secret_key))
 {%- endif %}
 
 app.include_router(router)
