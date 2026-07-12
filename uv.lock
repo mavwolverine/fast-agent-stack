@@ -1028,6 +1028,7 @@ ai-full = [
     { name = "aiofiles" },
     { name = "anthropic" },
     { name = "asyncpg" },
+    { name = "httpx" },
     { name = "litellm" },
     { name = "openai" },
     { name = "pgvector" },
@@ -1041,6 +1042,7 @@ all = [
     { name = "asyncpg" },
     { name = "dramatiq", extra = ["redis"] },
     { name = "fastapi-redis-sdk" },
+    { name = "httpx" },
     { name = "litellm" },
     { name = "openai" },
     { name = "openpyxl" },
@@ -1112,6 +1114,12 @@ openai = [
 ]
 rate-limit = [
     { name = "fastapi-redis-sdk" },
+]
+reranker-ollama = [
+    { name = "httpx" },
+]
+reranker-openai = [
+    { name = "httpx" },
 ]
 scheduler = [
     { name = "periodiq" },
@@ -1205,6 +1213,10 @@ requires-dist = [
     { name = "fastapi-redis-sdk", marker = "extra == 'rate-limit'", specifier = ">=0.7" },
     { name = "fastembed", marker = "extra == 'embedding-local'", specifier = ">=0.8" },
     { name = "google-cloud-secret-manager", marker = "extra == 'secrets-gcp'", specifier = ">=2.20" },
+    { name = "httpx", marker = "extra == 'ai-full'", specifier = ">=0.27" },
+    { name = "httpx", marker = "extra == 'all'", specifier = ">=0.27" },
+    { name = "httpx", marker = "extra == 'reranker-ollama'", specifier = ">=0.27" },
+    { name = "httpx", marker = "extra == 'reranker-openai'", specifier = ">=0.27" },
     { name = "litellm", marker = "extra == 'ai-full'", specifier = ">=1.30" },
     { name = "litellm", marker = "extra == 'all'", specifier = ">=1.30" },
     { name = "litellm", marker = "extra == 'litellm'", specifier = ">=1.30" },
@@ -1246,7 +1258,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.12" },
     { name = "weaviate-client", marker = "extra == 'vector-weaviate'", specifier = ">=4" },
 ]
-provides-extras = ["admin", "ai-full", "all", "anthropic", "auth-jwt", "auth-session", "bedrock", "caching", "db-mysql", "db-postgres", "db-sqlite", "email-smtp", "embedding-bedrock", "embedding-local", "embedding-openai", "extract-docx", "extract-pdf", "extract-xlsx", "litellm", "openai", "rate-limit", "scheduler", "secrets-aws", "secrets-gcp", "storage-local", "storage-minio", "storage-s3", "tasks", "tracing", "vector-opensearch", "vector-pgvector", "vector-qdrant", "vector-weaviate"]
+provides-extras = ["admin", "ai-full", "all", "anthropic", "auth-jwt", "auth-session", "bedrock", "caching", "db-mysql", "db-postgres", "db-sqlite", "email-smtp", "embedding-bedrock", "embedding-local", "embedding-openai", "extract-docx", "extract-pdf", "extract-xlsx", "litellm", "openai", "rate-limit", "reranker-ollama", "reranker-openai", "scheduler", "secrets-aws", "secrets-gcp", "storage-local", "storage-minio", "storage-s3", "tasks", "tracing", "vector-opensearch", "vector-pgvector", "vector-qdrant", "vector-weaviate"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -139,6 +139,26 @@ class TestPart1HelloWorld:
             "index.md does not reference 01-hello-world.md"
         )
 
+    # Rewrite-enforcement: agent preset (ROADMAP Phase 10.1)
+
+    def test_uses_agent_preset(self):
+        """ROADMAP requires --preset agent."""
+        assert "--preset agent" in self.part.read_text(), (
+            "Part 1 must scaffold with --preset agent (ROADMAP Phase 10.1)"
+        )
+
+    def test_shows_agents_py(self):
+        """Part 1 must explain the generated agents.py file."""
+        assert "agents.py" in self.part.read_text()
+
+    def test_links_to_part0(self):
+        """Part 1 must reference Part 0 (services must be running)."""
+        assert "00-prerequisites.md" in self.part.read_text()
+
+    def test_uses_postgres_database_url(self):
+        """Agent preset uses PostgreSQL — must show the postgresql+asyncpg URL."""
+        assert "postgresql+asyncpg" in self.part.read_text()
+
 
 # ---------------------------------------------------------------------------
 # Part 2 — Database & Models

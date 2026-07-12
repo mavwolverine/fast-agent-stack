@@ -122,7 +122,7 @@
 
 ## Phase 10: Progressive Tutorial (scenario-based documentation)
 - [x] Tutorial Part 0 — Prerequisites: docker-compose (Postgres, Redis, Qdrant), Ollama + pull chat/embedding/reranking models
-- [ ] Tutorial Part 1 — Hello World: scaffold `agent` preset, explore structure, add a route, run dev server
+- [x] Tutorial Part 1 — Hello World: scaffold `agent` preset, explore structure, add a route, run dev server
 - [ ] Tutorial Part 2 — Database & Models: document model, upload tracking, migrations, CRUD routes
 - [ ] Tutorial Part 3 — Authentication: JWT auth, create users, protect upload/chat endpoints
 - [ ] Tutorial Part 4 — Ingestion Agent: upload PDF → background task → extract → embed → store vectors

@@ -87,10 +87,10 @@ ollama pull llama3.2
 ollama pull nomic-embed-text
 
 # Reranking model — used in Part 5 to rerank retrieved document chunks
-ollama pull jina-reranker-v2-base-multilingual
+ollama pull qllama/bge-reranker-v2-m3
 ```
 
-> **Disk space:** `llama3.2` is ~2 GB, `nomic-embed-text` is ~274 MB, and `jina-reranker-v2-base-multilingual` is ~278 MB. Make sure you have at least 4 GB free.
+> **Disk space:** `llama3.2` is ~2 GB, `nomic-embed-text` is ~274 MB, and `qllama/bge-reranker-v2-m3` is ~570 MB. Make sure you have at least 4 GB free.
 
 Verify the pulls succeeded:
 
@@ -125,7 +125,7 @@ Before continuing, confirm:
 
 - [ ] `docker compose ps` shows **postgres**, **redis**, and **qdrant** as healthy
 - [ ] `curl http://localhost:11434/api/tags` returns JSON
-- [ ] `ollama list` shows `llama3.2`, `nomic-embed-text`, and `jina-reranker-v2-base-multilingual`
+- [ ] `ollama list` shows `llama3.2`, `nomic-embed-text`, and `qllama/bge-reranker-v2-m3`
 
 ---
 

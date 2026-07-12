@@ -1,32 +1,31 @@
 # Part 1 - Hello World
 
-> **Series:** [Progressive Tutorial](index.md) · **You are here:** Part 1 · [Part 2 →](02-database-models.md)
+> **Series:** [Tutorial index](index.md) · [Part 0](00-prerequisites.md) · **You are here:** Part 1 · [Part 2](02-database-models.md)
 
-In this seven-part series you'll build a **Document Q&A Assistant** - an API that lets users upload PDF documents and ask questions about them using a large language model. By Part 7 the app will have JWT authentication, a RAG pipeline, background workers, rate limiting, and a production-ready Docker deployment.
+In this nine-part series you'll build a **Document Q&A Assistant**: an API that lets users upload PDF documents and ask questions about them using an LLM. By Part 8 the app will have JWT authentication, a RAG pipeline, background workers, rate limiting, and a production-ready deployment.
 
-**In Part 1** you'll scaffold the project, add a custom route, and hit a live dev server. No database or external services required.
+**In Part 1** you'll scaffold the project with the `agent` preset, explore what was generated, add a custom `/status` route, and run the dev server.
 
 ---
 
 ## Prerequisites
 
-- Python 3.11 or later
-- `uv` installed (`pip install uv`) - or plain `pip`
+Complete [Part 0 - Prerequisites](00-prerequisites.md) before continuing. You need:
 
-No external services needed for Part 1.
+- Docker services running: PostgreSQL on port 5432, Valkey/Redis on 6379, Qdrant on 6333
+- Ollama installed with the tutorial models pulled
+- Python 3.11 or later
+- `uv` installed
 
 ---
 
-## 1. Create the project directory
+## 1. Install fast-agent-stack
+
+Create a working directory and install the package:
 
 ```bash
 mkdir docqa && cd docqa
 uv venv && source .venv/bin/activate
-```
-
-## 2. Install fast-agent-stack
-
-```bash
 uv pip install fast-agent-stack
 ```
 
@@ -36,47 +35,56 @@ Confirm the CLI is available:
 fas --version
 ```
 
-> **`fas` vs `fastagentstack`:** Both names point to the same CLI. This tutorial uses `fas` for brevity. Use whichever you prefer.
+> **`fas` vs `fastagentstack`:** Both names point to the same CLI. This tutorial uses `fas` for brevity.
 
 ---
 
-## 3. Scaffold the project
+## 2. Scaffold with the `agent` preset
 
-Scaffold a `minimal` preset using SQLite - the simplest setup that needs no running database server:
+The `agent` preset generates a full AI-ready project: PostgreSQL database, JWT auth, Redis-backed rate limiting, a vector-store client, and an agents module wired to an LLM backend.
 
 ```bash
-fas new docqa --preset minimal --db sqlite
-uv pip install -r pyproject.toml
+fas new docqa --preset agent
 ```
 
-You'll see the `✓ Created docqa` confirmation. The `minimal` preset skips auth, admin, Docker, and AI extras so you start with the smallest possible surface area. You'll layer those in over the next six parts.
+You'll be prompted for provider choices (LLM provider, vector DB, embedding provider). Accept the defaults - you can change them in the settings file at any time.
+
+Install the generated dependencies:
+
+```bash
+uv pip install -e ".[bedrock,jwt,rate-limit,qdrant]"
+```
 
 ---
 
-## 4. Explore the structure
+## 3. Explore the structure
+
+The scaffolder creates:
 
 ```
 docqa/
-├── .env.example       # environment variable template
+├── .env.example
 ├── alembic/
-│   ├── env.py
-│   ├── script.py.mako
 │   └── versions/
-├── docqa/             # importable Python package
+├── docqa/
 │   ├── __init__.py
-│   ├── app.py         # FastAgentStack instance + router wiring
-│   ├── models.py      # SQLAlchemy models (empty for now)
-│   ├── routes.py      # your routes go here
-│   ├── schemas.py     # Pydantic schemas
-│   └── settings.py    # Settings subclass
-├── main.py            # entry point - imports `app` from docqa.app
-├── pyproject.toml
-└── scripts/
-    ├── format.sh
-    └── lint.sh
+│   ├── agents.py        <- LLM agent definitions
+│   ├── app.py
+│   ├── models.py
+│   ├── routes.py
+│   ├── schemas.py
+│   └── settings.py
+├── main.py
+└── pyproject.toml
 ```
 
-Open `docqa/settings.py`. The generated file looks like this:
+The key new file is `agents.py`. It wires one or more LLM backends to the framework's agent dispatcher. In Part 5 you'll rewrite it to use `agent_loop` with tool calling. For now, leave it as generated and focus on the settings and routing layer.
+
+---
+
+## 4. Look at `settings.py`
+
+Open `docqa/settings.py`:
 
 ```python
 from functools import lru_cache
@@ -88,7 +96,10 @@ from fast_agent_stack.config import BaseSettings
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DOCQA_")
-    database_url: str = "sqlite+aiosqlite:///./docqa.db"
+
+    database_url: str = "postgresql+asyncpg://docqa:docqa@localhost:5432/docqa"
+    redis_url: str = "redis://localhost:6379/0"
+    auth_backends: list[str] = ["jwt"]
 
 
 @lru_cache
@@ -96,28 +107,24 @@ def get_settings() -> Settings:
     return Settings()
 ```
 
-The `env_prefix` scopes every environment variable your app reads: `DOCQA_DATABASE_URL`, `DOCQA_SECRET_KEY`, and so on. When you deploy multiple projects to the same environment this prevents key collisions. The `get_settings()` function caches a single `Settings` instance for the lifetime of the process.
+Two things to notice:
+
+- `database_url` defaults to the PostgreSQL container you started in Part 0. If you changed the credentials in `docker-compose.yml`, update this value in your `.env` file.
+- `auth_backends: ["jwt"]` enables JWT authentication. You'll configure users and protected routes in Part 3.
+
+Copy the example env file:
+
+```bash
+cp .env.example .env
+```
+
+The services from Part 0 match the defaults above, so no edits are needed for local development.
 
 ---
 
-## 5. Add a status route
+## 5. Add a `/status` route
 
-Open `docqa/routes.py`. The generated file already has a root route with settings injection:
-
-```python
-from fastapi import APIRouter, Depends
-
-from .settings import Settings, get_settings
-
-router = APIRouter()
-
-
-@router.get("/")
-async def root(settings: Settings = Depends(get_settings)) -> dict[str, str]:
-    return {"message": "Hello from docqa!"}
-```
-
-Add a `/status` endpoint below the root route that reports the app name and framework version:
+Open `docqa/routes.py` and add a `/status` endpoint:
 
 ```python
 from fast_agent_stack import __version__
@@ -143,16 +150,15 @@ async def status(settings: Settings = Depends(get_settings)) -> dict:
     }
 ```
 
-Notice how `Depends(get_settings)` injects the cached `Settings` instance into each route. This is FastAPI's dependency injection at work - you'll use the same pattern for database sessions, auth, and more in later parts. Here we read `settings.app_name` and `settings.debug` to confirm the app's configuration is working.
+`Depends(get_settings)` injects the cached `Settings` instance into the route. You'll use this same pattern for database sessions and auth in later parts.
 
 ---
 
-## 6. Start the dev server
+## 6. Run migrations and start the dev server
 
-Copy the example environment file and run the database migration (fast-agent-stack always sets up its internal schema tables, even with SQLite and no user models yet):
+Apply the initial migrations, then start the server:
 
 ```bash
-cp .env.example .env
 fas migrate
 fas dev
 ```
@@ -160,21 +166,18 @@ fas dev
 You should see:
 
 ```
-  → main:app on http://127.0.0.1:8000  (development)
+  -> main:app on http://127.0.0.1:8000  (development)
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [...]
-INFO:     Started server process [...]
-INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 ```
 
-`fas dev` binds to `127.0.0.1` by default and enables auto-reload. When you save a file the server restarts automatically.
+`fas dev` binds to `127.0.0.1` and enables auto-reload. Save a file and the server restarts automatically.
 
 ---
 
 ## 7. Call the API
 
-In a second terminal, test all three endpoints:
+In a second terminal, hit all three endpoints:
 
 ```bash
 curl http://127.0.0.1:8000/
@@ -182,7 +185,7 @@ curl http://127.0.0.1:8000/status
 curl http://127.0.0.1:8000/health/live
 ```
 
-Or, using Python with `httpx` (included with `fastapi[standard]`):
+Or with Python:
 
 ```python
 import httpx
@@ -193,21 +196,22 @@ print(httpx.get(f"{base}/status").json())
 print(httpx.get(f"{base}/health/live").json())
 ```
 
-The `/health/live` endpoint is always present - it returns `{"status": "ok"}` as long as the process is alive. In Part 2 you'll also see `/health/ready`, which checks that the database is reachable.
+The `/health/live` endpoint returns `{"status": "ok"}` as long as the process is alive. In Part 2 you'll also see `/health/ready`, which checks that the database is reachable.
 
 ---
 
 ## What you built
 
-- A scaffolded `fast-agent-stack` project using the `minimal` preset and SQLite
-- A `Settings` subclass with `DOCQA_` env-var namespacing
-- A `/status` route that returns app metadata
+- A scaffolded project using the `agent` preset: PostgreSQL, Redis, Qdrant, and JWT all configured
+- A `settings.py` subclass with `DOCQA_` env-var namespacing and a `postgresql+asyncpg` database URL
+- A generated `agents.py` wired to an LLM backend (you'll extend it in Part 5)
+- A `/status` route that returns app metadata using the public `fast_agent_stack` API
 - A running dev server at `http://127.0.0.1:8000` with auto-reload
-
-The `docqa` package is the foundation all later parts extend. In Part 2 you'll define a `Document` SQLAlchemy model, generate your first Alembic migration, and add CRUD routes.
 
 ---
 
 ## Next steps
 
-[Part 2 - Database & Models →](02-database-models.md)
+[Part 2 - Database & Models](02-database-models.md)
+
+In Part 2 you'll define the `Document` SQLAlchemy model, generate an Alembic migration, and add CRUD routes for uploading and listing documents.
