@@ -57,6 +57,8 @@ contribute models and admin views. See `spec/ARCHITECTURE.md` Module 1.
 
 **Lifespan hook** — a class implementing `async __aenter__` / `async __aexit__` that is registered with FastAgentStack's lifespan. Used to open and close database connections, broker connections, etc. on startup/shutdown.
 
+**Message** — a frozen dataclass (defined in `core/ai/llm/__init__.py`, ADR-046) representing a single turn in an LLM conversation. Fields: `role: str` (`"user"` | `"assistant"` | `"system"` | `"tool"`), `content: str`, optional `tool_call_id: str | None` (set on `role="tool"` messages carrying a tool result back to the LLM), optional `tool_calls: list[ToolCall] | None` (set on `role="assistant"` messages where the LLM requested tool invocation). The `tool_call_id` and `tool_calls` fields default to `None` for ordinary text messages (backwards compatible).
+
 **Preset** — a named set of copier answers that bypasses the interactive CLI. Defined in `spec/SCAFFOLDER.md`. Current presets: `minimal`, `standard`, `full`, `agent`.
 
 **Protocol/ABC** — the abstract interface all backends of a family must fully implement. Defined in code; documented in `spec/ARCHITECTURE.md`. Partial implementation is forbidden (see Invariant I1).
@@ -70,6 +72,10 @@ contribute models and admin views. See `spec/ARCHITECTURE.md` Module 1.
 **RerankResult** — a frozen dataclass returned by `RerankerProtocol.rerank()` (ADR-045). Fields: `content: str`, `score: float`, `index: int`. `index` is the original position of the document in the input list, enabling traceability back to the source retrieval results. Results are ordered by `score` descending (highest relevance first).
 
 **StorageProtocol** — the Protocol for object storage backends (ADR-038). Methods: `upload`, `download`, `delete`, `exists`, `url`. Built-in implementations: S3, local filesystem, MinIO. Takes `bytes` input (not streams); returns pre-signed URLs for remote backends.
+
+**ToolCall** — a frozen dataclass (defined in `core/ai/llm/__init__.py`, ADR-046) representing a single tool invocation requested by the LLM. Fields: `id: str` (opaque call ID from the LLM, echoed back in the `tool_call_id` field of the tool-result `Message`), `name: str` (the tool function name), `arguments: dict[str, Any]` (parsed from the LLM's JSON output). Contained within `ToolCallResult.tool_calls`.
+
+**ToolCallResult** — a frozen dataclass returned by `LLMBackend.complete()` or yielded from `LLMBackend.stream()` (ADR-046) when the model requests tool invocation rather than producing text. Fields: `tool_calls: list[ToolCall]`. The `agent_loop` in `core/ai/tools/` consumes this, dispatches each tool call, appends results as `role="tool"` messages, and re-invokes the backend. Individual route handlers never receive `ToolCallResult` directly.
 
 **VectorSearchResult** — a frozen dataclass returned by `VectorStoreProtocol.search()` (ADR-038). Fields: `id: str`, `score: float`, `metadata: dict[str, str|int|float|bool]`, `content: str | None`. Defined in `core/vector/__init__.py`.
 

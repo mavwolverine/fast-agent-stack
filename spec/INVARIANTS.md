@@ -340,3 +340,21 @@ cannot block the event loop for a meaningful duration.
 **Rationale:** A hung backend with no timeout keeps an async worker occupied indefinitely,
 eventually exhausting the worker pool and degrading the entire application. Timeouts convert
 silent hangs into actionable errors.
+
+---
+
+## I23 — Agentic Tool-Call Loops Must Have a Maximum Iteration Limit
+
+`agent_loop` in `core/ai/tools/` must enforce a `max_iterations` cap on the LLM-tool dispatch
+cycle. The default is 10. Any `agent_loop` invocation that reaches the cap must stop and return
+the accumulated results rather than continuing to invoke the LLM or tools.
+
+An implementation that allows the loop to run without bound is a BLOCK.
+
+**Applies to:** `core/ai/tools/__init__.py` (`agent_loop` function)
+
+**Rationale:** An LLM that repeatedly requests tools without producing a final text response
+would consume unbounded API credits, hold an async worker indefinitely, and degrade the
+application. The cap converts a potential infinite loop into a bounded, observable failure.
+Callers may override the default via the `max_iterations` parameter but may not remove the cap
+entirely.

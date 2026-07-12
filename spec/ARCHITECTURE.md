@@ -68,17 +68,18 @@
 
 ### 9. LLM Provider Abstraction
 
-- `LLMBackend` Protocol with `complete()` and `stream()` methods (ADR-021, amended by ADR-036)
+- `LLMBackend` Protocol with `complete()` and `stream()` methods (ADR-021, amended by ADR-036, ADR-046)
 - Direct SDK backends: Bedrock (`aioboto3`), OpenAI (`openai`), Anthropic (`anthropic`)
 - LiteLLM backend for users who prefer a unified proxy (ADR-012 dotted-path registration)
 - Each backend is an optional extra: `fast-agent-stack[bedrock]`, `[openai]`, `[anthropic]`, `[litellm]`
 - Token usage metering middleware (ADR-035, ADR-036)
 - **Future (post-Phase 4):** model routing, fallback on error, A/B testing
 
-#### CompletionResult type (defined in `core/ai/llm/__init__.py`)
+#### Result types (defined in `core/ai/llm/__init__.py`)
 
 ```python
 from dataclasses import dataclass
+from typing import Any
 
 @dataclass(frozen=True)
 class CompletionResult:
@@ -88,9 +89,31 @@ class CompletionResult:
     completion_tokens: int
     total_tokens: int
     cost: float | None    # None when the backend cannot compute cost (e.g., self-hosted)
+
+@dataclass(frozen=True)
+class ToolCall:
+    id: str
+    name: str
+    arguments: dict[str, Any]
+
+@dataclass(frozen=True)
+class ToolCallResult:
+    """Returned by LLMBackend when the model requests tool invocation instead of text."""
+    tool_calls: list[ToolCall]
 ```
 
-#### LLMBackend Protocol (post-ADR-036)
+#### Message type (defined in `core/ai/llm/__init__.py`)
+
+```python
+@dataclass(frozen=True)
+class Message:
+    role: str                            # "user" | "assistant" | "system" | "tool"
+    content: str
+    tool_call_id: str | None = None      # for role="tool" responses
+    tool_calls: list[ToolCall] | None = None  # for role="assistant" with tool use
+```
+
+#### LLMBackend Protocol (post-ADR-036, amended by ADR-046)
 
 ```python
 class LLMBackend(Protocol):
@@ -98,15 +121,17 @@ class LLMBackend(Protocol):
     def model_id(self) -> str: ...
 
     async def complete(
-        self, messages: list[Message], **kwargs
-    ) -> CompletionResult: ...
+        self, messages: list[Message], *, tools: list[dict] | None = None, **kwargs
+    ) -> CompletionResult | ToolCallResult: ...
 
     async def stream(
-        self, messages: list[Message], **kwargs
-    ) -> AsyncIterator[str | CompletionResult]: ...
+        self, messages: list[Message], *, tools: list[dict] | None = None, **kwargs
+    ) -> AsyncIterator[str | CompletionResult | ToolCallResult]: ...
 
     async def count_tokens(self, messages: list[Message]) -> int: ...
 ```
+
+When `tools` is `None`, backends behave as before (backwards compatible). When `tools` is provided, backends pass the tool schemas to the LLM and return `ToolCallResult` if the model requests a tool invocation.
 
 #### Streaming sentinel contract
 
@@ -114,9 +139,13 @@ class LLMBackend(Protocol):
 1. Yields zero or more `str` items — the content chunks sent to the caller via SSE.
 2. Yields exactly one `CompletionResult` as its **final** item — the sentinel with `content=""`
    and full token counts for the call. No `str` chunks may follow the sentinel.
+3. **When tools are active:** may yield a `ToolCallResult` item instead of text chunks. The
+   `agent_loop` in `core/ai/tools/` consumes this and re-invokes the backend; `stream_sse` never
+   sees `ToolCallResult` directly.
 
 All built-in backend implementations (Bedrock, OpenAI, Anthropic, LiteLLM) must conform to this
-contract. Custom backends (ADR-012) must also conform (I1).
+contract. Custom backends (ADR-012) must also conform (I1). All four backends must handle the
+optional `tools` kwarg (ADR-046, I1).
 
 #### SSE streaming helper (`core/ai/streaming.py`)
 
@@ -130,7 +159,7 @@ It is responsible for:
 
 ### 10. Agent Lifecycle
 
-- Agent registration via `@app.agent(name, backend)` decorator
+- Agent registration via `@app.agent(name, backend, tools=[...])` decorator (ADR-046)
 - Agent handlers may be `async def` coroutines or async generator functions. The framework detects
   the handler form at dispatch time using `inspect.isasyncgenfunction` and routes accordingly:
 
@@ -145,6 +174,11 @@ It is responsible for:
     `stream_sse` and passed to `UsageService.log_usage()` (I21 applies).
   - Response is a `text/event-stream` SSE response.
 
+- **Tool use (ADR-046):** Tools are plain async functions decorated with `@tool(description=...)`.
+  The decorator extracts the function signature and generates an OpenAI-compatible tool schema.
+  `agent_loop(backend, messages, tools, max_iterations)` handles the LLM → tool call → result → LLM
+  cycle. Handlers that need agentic behavior delegate to `agent_loop` rather than calling the
+  backend directly. `max_iterations` (default 10) caps the loop to prevent runaway tool chains (I23).
 - Conversation/thread persistence (built-in `ConversationLog` model)
 - Session management (Valkey/Redis)
 - Streaming response helpers (SSE wired into auth/middleware stack)
@@ -283,7 +317,7 @@ Chain delegation rules (see ADR-034):
 | Family | Protocol | Required methods |
 |---|---|---|
 | Auth | `AuthBackend` | `authenticate`, `create_token`, `verify_token`, `revoke_token`, `refresh_token` |
-| LLM | `LLMBackend` | `complete`, `stream`, `count_tokens`, `model_id` (property) |
+| LLM | `LLMBackend` | `complete`, `stream`, `count_tokens`, `model_id` (property); optional `tools` kwarg on `complete`/`stream` (ADR-046) |
 | Vector store | `VectorStoreProtocol` | `create_collection`, `upsert`, `search`, `delete`, `close` |
 | Embedding | `EmbeddingProtocol` | `embed`, `embed_batch`, `dimensions` (property) |
 | Storage | `StorageProtocol` | `upload`, `download`, `delete`, `exists`, `url` |
@@ -381,7 +415,8 @@ fast_agent_stack/
     ├── ratelimit/
     ├── observability/
     ├── ai/
-    │   ├── llm/              # LLMBackend Protocol, CompletionResult, 4 built-in providers
+    │   ├── llm/              # LLMBackend Protocol, CompletionResult, ToolCall, ToolCallResult, Message
+    │   ├── tools/            # @tool decorator, agent_loop, Tool class (ADR-046)
     │   ├── embedding/        # Embedding backends (bedrock, openai, local)
     │   ├── rag/              # RagService, chunking
     │   ├── reranker/         # RerankerProtocol, RerankResult, OllamaReranker, OpenAIReranker (ADR-045)
