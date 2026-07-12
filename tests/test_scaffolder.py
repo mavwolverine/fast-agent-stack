@@ -267,13 +267,13 @@ def test_a5_i9_hook_registration_order_in_app_template() -> None:
 # ---------------------------------------------------------------------------
 
 _PHASE7_TEMPLATE_FILES = [
-    "Dockerfile.jinja",
-    "docker-compose.yml.jinja",
-    "k8s/deployment.yaml.jinja",
-    "k8s/service.yaml.jinja",
-    "k8s/configmap.yaml.jinja",
+    "{% if include_dockerfile %}Dockerfile{% endif %}.jinja",
+    "{% if include_docker_compose %}docker-compose.yml{% endif %}.jinja",
+    "{% if include_k8s %}k8s{% endif %}/deployment.yaml.jinja",
+    "{% if include_k8s %}k8s{% endif %}/service.yaml.jinja",
+    "{% if include_k8s %}k8s{% endif %}/configmap.yaml.jinja",
     "{{project_name}}/schemas.py.jinja",
-    "{{project_name}}/tasks.py.jinja",
+    "{{project_name}}/{% if task_broker != 'none' %}tasks.py{% endif %}.jinja",
 ]
 
 
@@ -283,24 +283,23 @@ def test_c5_phase7_template_files_exist() -> None:
 
 
 def test_c6_dockerfile_uses_python_version_variable() -> None:
-    text = (TEMPLATE_DIR / "Dockerfile.jinja").read_text()
+    text = (TEMPLATE_DIR / "{% if include_dockerfile %}Dockerfile{% endif %}.jinja").read_text()
     assert "{{ python_version }}" in text
-    assert "include_dockerfile" in text
 
 
 def test_c7_docker_compose_uses_valkey_image() -> None:
-    text = (TEMPLATE_DIR / "docker-compose.yml.jinja").read_text()
+    text = (TEMPLATE_DIR / "{% if include_docker_compose %}docker-compose.yml{% endif %}.jinja").read_text()
     assert "valkey/valkey" in text, "Must use Valkey image per ADR-006"
 
 
 def test_c8_docker_compose_includes_worker_service() -> None:
-    text = (TEMPLATE_DIR / "docker-compose.yml.jinja").read_text()
+    text = (TEMPLATE_DIR / "{% if include_docker_compose %}docker-compose.yml{% endif %}.jinja").read_text()
     assert "worker" in text
     assert 'task_broker != "none"' in text
 
 
 def test_c9_docker_compose_includes_jaeger_when_tracing_jaeger() -> None:
-    text = (TEMPLATE_DIR / "docker-compose.yml.jinja").read_text()
+    text = (TEMPLATE_DIR / "{% if include_docker_compose %}docker-compose.yml{% endif %}.jinja").read_text()
     assert "jaeger" in text
     assert 'tracing == "jaeger"' in text
 
