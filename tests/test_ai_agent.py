@@ -498,14 +498,24 @@ class TestFailureModes:
         assert len(app.fastapi_app.routes) == route_count
 
     def test_f05_agents_py_jinja_respects_llm_provider_none(self):
-        """agents.py.jinja must wrap all imports inside {% if llm_provider != 'none' %}."""
-        template = Path("fast_agent_stack/template/{{project_name}}/agents.py.jinja").read_text()
+        """agents.py template uses copier filename-conditional AND wraps content guard."""
+        from fast_agent_stack.cli.new import TEMPLATE_DIR
+
+        project_dir = TEMPLATE_DIR / "{{project_name}}"
+        matches = list(project_dir.glob("*agents.py*endif*.jinja"))
+        assert matches, "agents.py conditional template not found in template/{{project_name}}/"
+        template = matches[0].read_text()
         assert '{% if llm_provider != "none" %}' in template or "{% if llm_provider != 'none' %}" in template
         assert "{% endif %}" in template
 
     def test_f06_agents_py_jinja_covers_all_providers(self):
         """agents.py.jinja must have a branch for each llm_provider choice (I7)."""
-        template = Path("fast_agent_stack/template/{{project_name}}/agents.py.jinja").read_text()
+        from fast_agent_stack.cli.new import TEMPLATE_DIR
+
+        project_dir = TEMPLATE_DIR / "{{project_name}}"
+        matches = list(project_dir.glob("*agents.py*endif*.jinja"))
+        assert matches, "agents.py conditional template not found in template/{{project_name}}/"
+        template = matches[0].read_text()
         for provider in ("anthropic", "openai", "bedrock", "litellm"):
             assert provider in template, f"Missing provider branch: {provider}"
 

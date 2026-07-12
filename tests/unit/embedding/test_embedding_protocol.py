@@ -107,8 +107,11 @@ def test_openai_embedding_exposes_client_attribute_i4():
 
 
 def test_local_embedding_uses_run_in_executor_i2():
-    import fast_agent_stack.core.ai.embedding.backends.local as mod
-    with open(mod.__file__) as f:
+    # find_spec locates the file without importing it — avoids triggering the I3 fastembed guard
+    import importlib.util
+    spec = importlib.util.find_spec("fast_agent_stack.core.ai.embedding.backends.local")
+    assert spec and spec.origin, "Could not locate local embedding backend source"
+    with open(spec.origin) as f:
         src = f.read()
     assert "run_in_executor" in src
 
