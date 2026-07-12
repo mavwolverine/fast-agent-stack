@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from fast_agent_stack.core.ai.embedding import EmbeddingProtocol
 from fast_agent_stack.core.ai.extraction import get_extractor
 from fast_agent_stack.core.ai.rag.chunking import fixed_chunker, paragraph_chunker
 from fast_agent_stack.core.vector import VectorSearchResult, VectorStoreProtocol
+
+if TYPE_CHECKING:
+    from fast_agent_stack.core.ai.reranker import RerankerProtocol
 
 __all__ = [
     "RagService",
@@ -41,19 +44,21 @@ class IngestResult:
 
 
 class RagService:
-    """Composable RAG pipeline (ADR-040). DI via EmbeddingProtocol + VectorStoreProtocol."""
+    """Composable RAG pipeline (ADR-040, amended ADR-045). DI via EmbeddingProtocol + VectorStoreProtocol."""
 
     def __init__(
         self,
         embedding: EmbeddingProtocol,
         vector_store: VectorStoreProtocol,
         *,
+        reranker: RerankerProtocol | None = None,
         chunk_size: int = 512,
         chunk_overlap: int = 64,
         chunking_strategy: ChunkingStrategy = "fixed",
     ) -> None:
         self._embedding = embedding
         self._vector_store = vector_store
+        self._reranker = reranker
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
         self._chunking_strategy: ChunkingStrategy = chunking_strategy
@@ -132,29 +137,57 @@ class RagService:
         top_k: int = 5,
         filter: dict[str, str | int | float | bool] | None = None,
     ) -> list[RagChunk]:
+        fetch_k = top_k * 3 if self._reranker is not None else top_k
         vector = await self._embedding.embed(query)
         results: list[VectorSearchResult] = await self._vector_store.search(
             collection,
             vector,
-            top_k=top_k,
+            top_k=fetch_k,
             filter=filter,
         )
-        chunks: list[RagChunk] = []
-        for hit in results:
+
+        def _to_chunks(hits: list[VectorSearchResult], scores: dict[int, float] | None = None) -> list[RagChunk]:
+            chunks = []
+            for i, hit in enumerate(hits):
+                meta = dict(hit.metadata)
+                doc_id = str(meta.pop("_document_id", ""))
+                chunk_idx = int(meta.pop("_chunk_index", 0))
+                meta.pop("_chunk_count", None)
+                score = scores[i] if scores is not None else hit.score
+                chunks.append(
+                    RagChunk(
+                        content=hit.content or "",
+                        score=score,
+                        metadata=meta,
+                        document_id=doc_id,
+                        chunk_index=chunk_idx,
+                    )
+                )
+            return chunks
+
+        if self._reranker is None or not results:
+            return _to_chunks(results)
+
+        documents = [hit.content or "" for hit in results]
+        reranked = await self._reranker.rerank(query, documents, top_k=top_k)
+        # Reorder results by reranker output; reranked items are already sorted desc by score
+        reranked_chunks: list[RagChunk] = []
+        for item in reranked:
+            hit = results[item.index]
             meta = dict(hit.metadata)
             doc_id = str(meta.pop("_document_id", ""))
             chunk_idx = int(meta.pop("_chunk_index", 0))
             meta.pop("_chunk_count", None)
-            chunks.append(
+            reranked_chunks.append(
                 RagChunk(
-                    content=hit.content or "",
-                    score=hit.score,
+                    content=item.content,
+                    score=item.score,
                     metadata=meta,
                     document_id=doc_id,
                     chunk_index=chunk_idx,
                 )
             )
-        return chunks
+        return reranked_chunks
 
     async def delete_document(self, collection: str, document_id: str) -> int:
         # Search with a zero-vector filtered on _document_id to retrieve _chunk_count.

@@ -103,9 +103,13 @@ extract-pdf  = ["pdfplumber>=0.10"]
 extract-docx = ["python-docx>=1.1"]
 extract-xlsx = ["openpyxl>=3.1"]
 
+# Reranker backends (ADR-045)
+reranker-ollama = ["httpx>=0.27"]
+reranker-openai = ["httpx>=0.27"]
+
 # Bundles
 ai-full = [
-    "fast-agent-stack[openai,anthropic,bedrock,litellm,vector-qdrant,vector-pgvector,storage-s3,storage-local,embedding-openai,embedding-bedrock]",
+    "fast-agent-stack[openai,anthropic,bedrock,litellm,vector-qdrant,vector-pgvector,storage-s3,storage-local,embedding-openai,embedding-bedrock,reranker-ollama,reranker-openai]",
 ]
 all = [
     "fast-agent-stack[db-postgres,auth-jwt,admin,tasks,scheduler,tracing,ai-full,email-smtp,extract-pdf,extract-docx,extract-xlsx]",

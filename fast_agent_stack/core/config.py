@@ -78,6 +78,12 @@ class BaseSettings(_BaseSettings):
     rag_chunk_overlap: int = 64
     rag_chunking_strategy: str = "fixed"
 
+    # Reranker backend (Phase 10, ADR-045)
+    reranker_provider: str = "none"  # "ollama" | "openai" | dotted path | "none"
+    reranker_model: str = "jina-reranker-v2-base-multilingual"
+    reranker_url: str = "http://localhost:11434"
+    reranker_timeout: float = 30.0
+
     # Background tasks (Phase 6, ADR-005, ADR-020)
     tasks_broker_url: str | None = None  # falls back to redis_url when None
 
