@@ -106,13 +106,13 @@ You should see all three models listed with their sizes.
 
 The tutorial app reads connection details from a `.env` file. You'll create this in Part 1 when you scaffold the project, but knowing the values now is useful.
 
-The connection strings for the services above are:
+The connection strings for the services above are (note the `DOCQA_` prefix - the framework namespaces all env vars by project name):
 
 ```bash
-DATABASE_URL=postgresql+asyncpg://docqa:docqa@localhost:5432/docqa
-REDIS_URL=redis://localhost:6379
-QDRANT_URL=http://localhost:6333
-OLLAMA_URL=http://localhost:11434
+DOCQA_DATABASE_URL=postgresql+asyncpg://docqa:docqa@localhost:5432/docqa
+DOCQA_REDIS_URL=redis://localhost:6379
+DOCQA_QDRANT_URL=http://localhost:6333
+DOCQA_OLLAMA_URL=http://localhost:11434
 ```
 
 You do not need to create this file yet — `fas new` generates a `.env.example` you'll copy and fill in during Part 1.
