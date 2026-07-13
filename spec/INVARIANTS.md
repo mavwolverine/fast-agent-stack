@@ -329,6 +329,7 @@ Settings by family:
 - `vector_timeout` — vector store operations (`upsert`, `search`, `create_collection`)
 - `storage_timeout` — storage operations (`upload`, `download`, `url`)
 - `embedding_timeout` — embedding API calls (`embed`, `embed_batch`)
+- `reranker_timeout` — reranker API calls (`rerank`) (ADR-045)
 
 **Exemption:** Pure-arithmetic operations that make no network I/O (e.g., character-count
 `count_tokens` heuristics, local fastembed inference via `run_in_executor`) are exempt — they

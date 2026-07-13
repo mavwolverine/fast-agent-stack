@@ -7,7 +7,7 @@ across backends in order; `create_token` and `refresh_token` delegate to the pri
 backend only; `revoke_token` runs on all backends so every authentication path is invalidated on
 logout (I20). Single-entry lists return the backend directly with no wrapper.
 
-**Backend family** — a category of pluggable service with a shared Protocol/ABC. The four families are: LLM provider, vector store, embedding, and storage. Each family has multiple implementations shipped as extras.
+**Backend family** — a category of pluggable service with a shared Protocol/ABC. The five families are: LLM provider, vector store, embedding, reranker (ADR-045), and storage. Each family has multiple implementations shipped as extras.
 
 **CompletionResult** — a frozen dataclass defined in `core/ai/llm/__init__.py` that carries the
 output of a single LLM call: `content: str`, `model: str`, `prompt_tokens: int`,
@@ -59,7 +59,7 @@ contribute models and admin views. See `spec/ARCHITECTURE.md` Module 1.
 
 **Message** — a frozen dataclass (defined in `core/ai/llm/__init__.py`, ADR-046) representing a single turn in an LLM conversation. Fields: `role: str` (`"user"` | `"assistant"` | `"system"` | `"tool"`), `content: str`, optional `tool_call_id: str | None` (set on `role="tool"` messages carrying a tool result back to the LLM), optional `tool_calls: list[ToolCall] | None` (set on `role="assistant"` messages where the LLM requested tool invocation). The `tool_call_id` and `tool_calls` fields default to `None` for ordinary text messages (backwards compatible).
 
-**Preset** — a named set of copier answers that bypasses the interactive CLI. Defined in `spec/SCAFFOLDER.md`. Current presets: `minimal`, `standard`, `full`, `agent`.
+**Preset** — a named set of copier answers that sets defaults for the interactive CLI. Defined in `spec/DX.md` and `cli/new.py`. Current presets: `minimal`, `standard`, `full`, `agent` (ADR-047).
 
 **Protocol/ABC** — the abstract interface all backends of a family must fully implement. Defined in code; documented in `spec/ARCHITECTURE.md`. Partial implementation is forbidden (see Invariant I1).
 

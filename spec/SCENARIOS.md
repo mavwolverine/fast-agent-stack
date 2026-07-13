@@ -484,3 +484,64 @@ async def delete_post(id: int): ...
 - `is_active=False` short-circuits before permission check
 - `require_permission()` is a reusable FastAPI dependency
 - Permission string format: `"resource.action"` (dot-separated)
+
+
+## S18 — Agent Tool-Call Loop (ADR-046)
+
+**Trigger:** User sends a chat message to an agent endpoint that has tools registered.
+
+**Flow:**
+
+1. Client POSTs `{"messages": [...]}` to `/agents/chat`
+2. Handler calls `agent_loop(backend, messages, tools, max_iterations=10)`
+3. `agent_loop` calls `backend.complete(messages, tools=tool_schemas)`
+4. Backend returns `ToolCallResult(tool_calls=[ToolCall(id="tc_1", name="search_docs", arguments=...)])`
+5. `agent_loop` dispatches: finds the `@tool`-decorated function named `search_docs`, calls it
+6. Result appended as `Message(role="tool", content=result_str, tool_call_id="tc_1")`
+7. `agent_loop` calls `backend.complete(messages + [tool_msg], tools=tool_schemas)` again
+8. Backend returns `CompletionResult(content="Based on the document...")` — no more tool calls
+9. `agent_loop` returns the final `CompletionResult`
+10. Handler streams or returns the response to the client
+
+**Failure modes:**
+
+| Condition | Behavior |
+|---|---|
+| `max_iterations` exceeded (I23) | `agent_loop` raises `MaxIterationsError`, handler returns 500 |
+| Tool function raises exception | Error message returned as tool result, loop continues |
+| Tool name not found in registry | Error message returned as tool result, loop continues |
+| Backend timeout (I22) | `TimeoutError` propagates, handler returns 504 |
+
+**Invariants enforced:** I22 (timeout), I23 (iteration cap)
+
+## S19 — RAG Retrieval with Reranking (ADR-045)
+
+**Trigger:** User asks a question; RAG pipeline retrieves and reranks document chunks.
+
+**Flow:**
+
+1. Query arrives at `RagService.retrieve(query, top_k=5)`
+2. `RagService` embeds the query via `EmbeddingProtocol.embed(query)`
+3. `RagService` over-fetches from vector store: `vector_store.search(embedding, top_k=top_k * 3)`
+4. Returns 15 candidate `VectorSearchResult` items
+5. If `reranker is not None`:
+   a. Extracts content strings from candidates
+   b. Calls `reranker.rerank(query, documents, top_k=5)`
+   c. Returns reranked `RerankResult` list (sorted by relevance score)
+6. If `reranker is None`: returns the top 5 vector results as-is (cosine similarity ordering)
+7. Chunks are formatted and passed to the LLM as context
+
+**Failure modes:**
+
+| Condition | Behavior |
+|---|---|
+| Reranker timeout (I22) | Falls back to vector similarity ordering, logs warning |
+| Reranker returns empty results | Falls back to vector similarity ordering |
+| Vector store timeout (I22) | `TimeoutError` propagates to caller |
+| No documents match threshold | Empty context passed to LLM (LLM answers from knowledge) |
+
+**Over-fetch ratio:** 3x (hardcoded, documented in ADR-045). Retrieving `top_k * 3` candidates
+gives the reranker enough material to surface genuinely relevant chunks that cosine similarity
+may have ranked lower.
+
+**Invariants enforced:** I22 (timeout on both vector store and reranker)
