@@ -507,7 +507,7 @@ async def delete_post(id: int): ...
 
 | Condition | Behavior |
 |---|---|
-| `max_iterations` exceeded (I23) | `agent_loop` raises `MaxIterationsError`, handler returns 500 |
+| `max_iterations` exceeded (I23) | `agent_loop` yields empty `CompletionResult` sentinel (`content=""`); caller treats empty content as a bounded failure and may return 500 |
 | Tool function raises exception | Error message returned as tool result, loop continues |
 | Tool name not found in registry | Error message returned as tool result, loop continues |
 | Backend timeout (I22) | `TimeoutError` propagates, handler returns 504 |

@@ -1,4 +1,4 @@
-# Part 1 - Hello World
+# Part 1 - Scaffold
 
 > **Series:** [Tutorial index](index.md) · [Part 0](00-prerequisites.md) · **You are here:** Part 1 · [Part 2](02-database-models.md)
 
@@ -47,12 +47,12 @@ The `agent` preset generates a full AI-ready project: PostgreSQL database, JWT a
 fas new docqa --preset agent
 ```
 
-You'll be prompted for provider choices (LLM provider, vector DB, embedding provider). Accept the defaults - you can change them in the settings file at any time.
+The scaffolder runs without further prompts and creates the project immediately. All choices come from the `agent` preset defaults.
 
 Install the generated dependencies:
 
 ```bash
-uv pip install -e ".[bedrock,jwt,rate-limit,qdrant]"
+uv pip install -r pyproject.toml
 ```
 
 ---
@@ -62,23 +62,37 @@ uv pip install -e ".[bedrock,jwt,rate-limit,qdrant]"
 The scaffolder creates:
 
 ```
-docqa/
+.
 ├── .env.example
-├── alembic/
-│   └── versions/
-├── docqa/
+├── alembic
+│   ├── env.py
+│   ├── script.py.mako
+│   └── versions
+├── docker-compose.yml
+├── Dockerfile
+├── docqa
 │   ├── __init__.py
 │   ├── agents.py        <- LLM agent definitions
 │   ├── app.py
 │   ├── models.py
 │   ├── routes.py
 │   ├── schemas.py
-│   └── settings.py
+│   ├── settings.py
+│   └── tasks.py         <- background task stubs (Dramatiq)
 ├── main.py
-└── pyproject.toml
+├── pyproject.toml
+└── scripts
+    ├── format.sh
+    └── lint.sh
 ```
 
-The key new file is `agents.py`. It wires one or more LLM backends to the framework's agent dispatcher. In Part 5 you'll rewrite it to use `agent_loop` with tool calling. For now, leave it as generated and focus on the settings and routing layer.
+A few files worth noting:
+
+- `agents.py` wires LLM backends to the framework's agent dispatcher. In Part 5 you'll extend it with `agent_loop` and tool calling.
+- `tasks.py` contains background task stubs. You'll implement async document ingestion in Part 7.
+- `docker-compose.yml` and `Dockerfile` are ready for Part 8 when you containerise the app.
+
+For now, focus on the settings and routing layer.
 
 ---
 

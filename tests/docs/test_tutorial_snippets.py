@@ -43,8 +43,8 @@ def _bash_snippets(path: Path) -> list[str]:
 
 
 @pytest.mark.docs
-class TestPart1HelloWorld:
-    part = TUTORIAL_DIR / "01-hello-world.md"
+class TestPart1Scaffold:
+    part = TUTORIAL_DIR / "01-scaffold.md"
 
     # 1. Behavior
 
@@ -129,7 +129,7 @@ class TestPart1HelloWorld:
     def test_index_links_use_new_naming(self):
         """Tutorial index must reference the descriptive file naming convention."""
         index_text = (TUTORIAL_DIR / "index.md").read_text()
-        assert "01-hello-world.md" in index_text, "index.md does not reference 01-hello-world.md"
+        assert "01-scaffold.md" in index_text, "index.md does not reference 01-scaffold.md"
 
     # Rewrite-enforcement: agent preset (ROADMAP Phase 10.1)
 
@@ -175,7 +175,7 @@ class TestPart2DatabaseModels:
         assert "makemigrations" in text or "migration" in text.lower()
 
     def test_links_to_part1(self):
-        assert "01-hello-world.md" in self.part.read_text()
+        assert "01-scaffold.md" in self.part.read_text()
 
     def test_links_to_part3(self):
         assert "03-authentication.md" in self.part.read_text()
@@ -271,7 +271,7 @@ class TestPart0Prerequisites:
         assert "Document Q&A" in text or "docqa" in text.lower()
 
     def test_links_to_part1(self):
-        assert "01-hello-world.md" in self.part.read_text()
+        assert "01-scaffold.md" in self.part.read_text()
 
     # 2. Contract
 

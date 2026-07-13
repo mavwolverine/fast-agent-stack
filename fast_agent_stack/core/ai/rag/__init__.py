@@ -169,7 +169,14 @@ class RagService:
             return _to_chunks(results)
 
         documents = [hit.content or "" for hit in results]
-        reranked = await self._reranker.rerank(query, documents, top_k=top_k)
+        try:
+            reranked = await self._reranker.rerank(query, documents, top_k=top_k)
+        except TimeoutError:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Reranker timed out; falling back to vector similarity ordering"
+            )
+            return _to_chunks(results[:top_k])
         # Reorder results by reranker output; reranked items are already sorted desc by score
         reranked_chunks: list[RagChunk] = []
         for item in reranked:

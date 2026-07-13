@@ -5,7 +5,7 @@ Build a **Document Q&A Assistant** step by step — from a bare scaffold to a pr
 | Part | Topic | What you add |
 |---|---|---|
 | [Part 0 — Prerequisites](00-prerequisites.md) | Docker services, Ollama, model pulls | Local environment |
-| [Part 1 — Hello World](01-hello-world.md) | Scaffold `agent` preset, routes, dev server | Project foundation |
+| [Part 1 — Scaffold](01-scaffold.md) | Scaffold `agent` preset, routes, dev server | Project foundation |
 | [Part 2 — Database & Models](02-database-models.md) | SQLAlchemy, Alembic, CRUD routes | Document model + persistence |
 | [Part 3 — Authentication](03-authentication.md) | JWT auth, users, protected endpoints | Auth system |
 | [Part 4 — Ingestion Agent](04-ingestion-agent.md) | PDF upload → extract → embed → vector store | RAG data pipeline |

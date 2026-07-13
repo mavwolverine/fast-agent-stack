@@ -1,6 +1,6 @@
 # Part 2: Database and Models
 
-> **Series:** [Progressive Tutorial](index.md) · [Part 1](01-hello-world.md) · **You are here:** Part 2 · [Part 3](03-authentication.md)
+> **Series:** [Progressive Tutorial](index.md) · [Part 1](01-scaffold.md) · **You are here:** Part 2 · [Part 3](03-authentication.md)
 
 In Part 1 you scaffolded the `docqa` project and hit a live dev server. In Part 2 you'll add a persistent data layer: a `Document` SQLAlchemy model, Pydantic schemas, an Alembic migration, and three CRUD routes.
 

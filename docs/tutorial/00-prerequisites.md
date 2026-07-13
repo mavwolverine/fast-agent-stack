@@ -1,6 +1,6 @@
 # Part 0 — Prerequisites
 
-> **Series:** [Tutorial index](index.md) · **You are here:** Part 0 · [Part 1 →](01-hello-world.md)
+> **Series:** [Tutorial index](index.md) · **You are here:** Part 0 · [Part 1 →](01-scaffold.md)
 
 Before building the **Document Q&A Assistant** you need three backing services running locally and the Ollama model server installed with the models the tutorial uses.
 
@@ -131,4 +131,4 @@ Before continuing, confirm:
 
 ## Next steps
 
-You're ready to build. Head to [Part 1 — Hello World](01-hello-world.md) to scaffold the `docqa` project.
+You're ready to build. Head to [Part 1 — Scaffold](01-scaffold.md) to scaffold the `docqa` project.

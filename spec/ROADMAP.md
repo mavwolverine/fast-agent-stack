@@ -122,7 +122,7 @@
 
 ## Phase 10: Progressive Tutorial (scenario-based documentation)
 - [x] Tutorial Part 0 — Prerequisites: docker-compose (Postgres, Redis, Qdrant), Ollama + pull chat/embedding/reranking models
-- [x] Tutorial Part 1 — Hello World: scaffold `agent` preset, explore structure, add a route, run dev server
+- [x] Tutorial Part 1 — Scaffold: scaffold `agent` preset, explore structure, add a route, run dev server
 - [ ] Tutorial Part 2 — Database & Models: document model, upload tracking, migrations, CRUD routes
 - [ ] Tutorial Part 3 — Authentication: JWT auth, create users, protect upload/chat endpoints
 - [ ] Tutorial Part 4 — Ingestion Agent: upload PDF → background task → extract → embed → store vectors
@@ -135,5 +135,3 @@ Tutorial builds a "Document Q&A Assistant" with agentic behavior (tool use, mult
 Each part is progressive (builds on previous) but self-contained enough to jump into independently.
 All code snippets tested manually by the author during writing.
 Lives in `docs/tutorial/` as Zensical pages (part-1.md through part-8.md). No separate repo.
-
-NOTE: Existing Part 1 draft uses `minimal` preset and needs rewriting to use `agent` preset.
