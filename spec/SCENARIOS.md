@@ -545,3 +545,42 @@ gives the reranker enough material to surface genuinely relevant chunks that cos
 may have ranked lower.
 
 **Invariants enforced:** I22 (timeout on both vector store and reranker)
+
+
+## S20 — User Migration Branch Lifecycle (ADR-048)
+
+**Trigger:** Developer scaffolds a project and creates their first model migration.
+
+**Flow:**
+
+1. Developer runs `fas new docqa --preset agent -y`
+2. Scaffolder resolves framework heads filtered by enabled features:
+   - `include_auth=True` → includes `fas_auth_0001`
+   - `llm_provider != "none"` → includes `fas_ai_0002`
+3. Scaffolder generates `alembic/versions/0001_docqa_initial.py`:
+   - `revision = "docqa_0001"`, `branch_labels = ("docqa",)`
+   - `depends_on = ("fas_auth_0001", "fas_ai_0002")`
+   - `upgrade()` is a no-op
+4. Developer adds a `Document` model to `docqa/models.py`
+5. Developer runs `fas makemigrations -m "add-documents"`
+6. CLI reads `project_name` from `.copier-answers.yml` → `"docqa"`
+7. CLI calls `command.revision(cfg, head="docqa@head", autogenerate=True, ...)`
+8. Alembic generates `alembic/versions/0002_add_documents.py` with `down_revision = "docqa_0001"`
+9. Developer runs `fas migrate` → applies all heads (framework + user) in dependency order
+
+**Variant — minimal preset (no auth, no AI):**
+
+1. `fas new api --preset minimal -y`
+2. No framework features enabled → `depends_on = None`
+3. Seed migration: `branch_labels = ("api",)`, fully independent branch
+4. `fas migrate` applies only user branch (no framework migrations in version_locations)
+
+**Failure modes:**
+
+| Condition | Behavior |
+|---|---|
+| `.copier-answers.yml` missing | `makemigrations` prints error, exits 1 |
+| Seed migration deleted by user | `{project_name}@head` resolves to nothing, Alembic error |
+| Framework feature added post-scaffold | `fas migrate` still works (heads), but `depends_on` doesn't list it |
+
+**Invariants enforced:** I16 (branched migrations)

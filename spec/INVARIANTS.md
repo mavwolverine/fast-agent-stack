@@ -162,12 +162,13 @@ The database engine must read `DATABASE_URL` from the `Settings` object (which p
 
 ## I16 — Framework and User Migrations Use Alembic Branches
 
-**Amended by ADR-044.** Framework-provided models (User, ConversationLog, etc.) ship with their own migrations bundled inside the `fast_agent_stack` package as **Alembic branches** in a single Alembic instance. User project models use the main branch in `alembic/versions/`.
+**Amended by ADR-044, ADR-048.** Framework-provided models (User, ConversationLog, etc.) ship with their own migrations bundled inside the `fast_agent_stack` package as **Alembic branches** in a single Alembic instance. User project models use a named `{project_name}` branch (ADR-048) established by a scaffold-time seed migration.
 
-- `fastagentstack makemigrations` autogenerates revisions for **user models only** — framework models are excluded from the diff.
+- `fastagentstack makemigrations` autogenerates revisions for **user models only** targeting `{project_name}@head` — framework models are excluded from the diff.
 - `fastagentstack migrate` runs `alembic upgrade heads` (plural) — upgrades all branches (framework + user) in dependency order.
 - Framework migrations are shipped inside the package and applied automatically — users never edit or generate them.
 - When the framework adds new models in a future version, `migrate` picks them up on next run.
+- The seed migration's `depends_on` is filtered by scaffold-time feature selections (ADR-048).
 
 ### Framework migration discovery (generated `alembic/env.py`)
 

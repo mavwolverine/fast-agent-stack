@@ -1210,3 +1210,14 @@ LLM -> Vector DB -> Embedding -> Chat frontend -> Tracing -> Secrets -> Dockerfi
 Conditional questions only appear when prior answers make them relevant. Presets (which questions to
 surface per preset) are deferred until all flags are implemented. Consequences: `copier.yml` ordering
 is irrelevant (prompting is in `cli/new.py`), DX.md updated to match, template guards unchanged.
+
+## ADR-048: User Migration Branch with Scaffold-Time Head Resolution
+
+**Status:** Accepted | **Date:** 2026-07-13 | **Amends:** ADR-044 (user branch definition)
+
+Each scaffolded project gets a no-op seed migration that establishes a unique Alembic branch label
+(the project name) with `depends_on` set to the framework heads resolved and filtered at scaffold
+time (only enabled features included). `fas makemigrations` always targets `{project_name}@head`,
+eliminating "Multiple heads" errors. The `depends_on` is an ordering constraint, not a completeness
+guarantee — `fas migrate` runs `upgrade "heads"` which applies all branches regardless. Supersedes
+ADR-044's "user migrations use the main branch" — they now use a named branch.

@@ -85,6 +85,7 @@ async def info(settings: Settings = Depends(get_settings)) -> dict:
 ├── frontend/          # {% if include_frontend %} — SPA build output root (ADR-024)
 ├── alembic/
 │   └── versions/
+│       └── 0001_{project_name}_initial.py  # seed migration (ADR-048)
 └── {project_name}/    # importable package
     ├── __init__.py
     ├── app.py         # app factory (FastAgentStack instance + router wiring)

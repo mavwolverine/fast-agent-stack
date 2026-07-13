@@ -90,6 +90,7 @@
 - [x] Documentation site
 - [x] CI/CD (GitHub Actions: lint, tox, integration, PyPI publish)
 - [x] Tests
+- [ ] ADR-048: seed migration template, head resolution in cli/new.py, `{project_name}@head` in cli/db.py
 
 ## Phase 8: Redis SDK Migration (ADR-037)
 - [x] Replace `redis>=5` with `fastapi-redis-sdk>=0.7` across `auth-jwt`, `auth-session`, `rate-limit` extras
