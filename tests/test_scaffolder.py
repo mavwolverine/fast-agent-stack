@@ -46,7 +46,7 @@ def test_b2_copier_yml_is_in_template_dir() -> None:
 def test_b3_minimal_creates_expected_files(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     assert result.exit_code == 0, result.output
     assert (tmp_path / "pyproject.toml").exists()
@@ -58,7 +58,7 @@ def test_b3_minimal_creates_expected_files(tmp_path: Path) -> None:
 def test_b4_minimal_creates_routes_file(tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     assert (tmp_path / "myproject" / "routes.py").exists()
 
@@ -66,7 +66,7 @@ def test_b4_minimal_creates_routes_file(tmp_path: Path) -> None:
 def test_b5_minimal_routes_have_get_root(tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     routes = (tmp_path / "myproject" / "routes.py").read_text()
     assert "@router.get" in routes
@@ -76,7 +76,7 @@ def test_b5_minimal_routes_have_get_root(tmp_path: Path) -> None:
 def test_b6_minimal_main_py_has_app(tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     main = (tmp_path / "main.py").read_text()
     assert "app" in main
@@ -85,7 +85,7 @@ def test_b6_minimal_main_py_has_app(tmp_path: Path) -> None:
 def test_b7_project_name_substituted_in_settings(tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     settings = (tmp_path / "myproject" / "settings.py").read_text()
     assert "myproject" in settings.lower() or "MYPROJECT" in settings
@@ -112,7 +112,7 @@ def test_c3_no_dockerfile_content_in_minimal(tmp_path: Path) -> None:
     """Minimal preset: Dockerfile rendered empty (include_dockerfile=False)."""
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     dockerfile = tmp_path / "Dockerfile"
     # Copier creates the file from the .jinja template; content is empty when disabled
@@ -123,7 +123,7 @@ def test_c4_no_docker_compose_content_in_minimal(tmp_path: Path) -> None:
     """Minimal preset: docker-compose.yml rendered empty (include_docker_compose=False)."""
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     compose = tmp_path / "docker-compose.yml"
     assert not compose.exists() or compose.read_text().strip() == ""
@@ -144,7 +144,7 @@ def test_a1_template_dir_is_inside_package() -> None:
 def test_a2_generated_pyproject_names_project(tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     pyproject = (tmp_path / "pyproject.toml").read_text()
     assert "myproject" in pyproject
@@ -153,7 +153,7 @@ def test_a2_generated_pyproject_names_project(tmp_path: Path) -> None:
 def test_a3_generated_settings_extends_base_settings(tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     settings = (tmp_path / "myproject" / "settings.py").read_text()
     assert "BaseSettings" in settings
@@ -169,7 +169,7 @@ def test_n1_minimal_preset_completes_under_30s(tmp_path: Path) -> None:
     start = time.monotonic()
     result = runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     elapsed = time.monotonic() - start
     assert result.exit_code == 0, result.output
@@ -196,7 +196,7 @@ def test_f1_new_missing_project_name_exits_nonzero() -> None:
 def test_f2_new_invalid_preset_exits_nonzero(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
-        ["new", "myproject", "--preset", "nonexistent", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "nonexistent", "--output-dir", str(tmp_path), "-y"],
     )
     assert result.exit_code != 0
 
@@ -205,7 +205,7 @@ def test_f3_new_nonempty_dir_warns(tmp_path: Path) -> None:
     (tmp_path / "existing_file.txt").write_text("hello")
     result = runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     # Should still succeed (warning only, not error)
     assert result.exit_code == 0
@@ -312,7 +312,7 @@ def test_c10_app_template_rate_limit_passes_app_to_hook() -> None:
 def test_c11_standard_preset_generates_dockerfile(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
-        ["new", "myproject", "--preset", "standard", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "standard", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     assert result.exit_code == 0, result.output
     assert (tmp_path / "Dockerfile").exists()
@@ -322,7 +322,7 @@ def test_c11_standard_preset_generates_dockerfile(tmp_path: Path) -> None:
 def test_c12_standard_app_py_wires_auth_hook(tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "standard", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "standard", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     app_py = (tmp_path / "myproject" / "app.py").read_text()
     assert "AuthLifespanHook" in app_py
@@ -332,7 +332,7 @@ def test_c12_standard_app_py_wires_auth_hook(tmp_path: Path) -> None:
 def test_c13_full_preset_app_py_has_all_hooks(tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "full", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "full", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     app_py = (tmp_path / "myproject" / "app.py").read_text()
     assert "DatabaseLifespanHook" in app_py
@@ -345,11 +345,11 @@ def test_c13_full_preset_app_py_has_all_hooks(tmp_path: Path) -> None:
 def test_f4_second_new_same_dir_succeeds_with_overwrite(tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     result = runner.invoke(
         app,
-        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "myproject", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     # Copier handles overwrite — should not crash
     assert result.exit_code == 0
@@ -367,7 +367,7 @@ def test_smoke_generated_project_serves_get_root(tmp_path: Path) -> None:
 
     result = runner.invoke(
         app,
-        ["new", "smokeproj", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path)],
+        ["new", "smokeproj", "--preset", "minimal", "--db", "sqlite", "--output-dir", str(tmp_path), "-y"],
     )
     assert result.exit_code == 0, result.output
 

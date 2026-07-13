@@ -1199,3 +1199,14 @@ Module: `core/ai/tools/`. All four LLM backends updated to handle tools paramete
 - Tutorial Part 5 uses this for agentic document Q&A
 
 See `spec/adr/ADR-046.md` for full protocol and module design.
+
+## ADR-047: CLI Scaffolder Interactive Question Sequence
+
+**Status:** Accepted | **Date:** 2026-07-12
+
+`fas new` asks questions in a fixed order that follows a "secure it, store it, make it smart, show
+it, observe it, ship it" mental model: Database -> Auth -> Admin -> Rate limit -> Storage -> Tasks ->
+LLM -> Vector DB -> Embedding -> Chat frontend -> Tracing -> Secrets -> Dockerfile -> Compose -> K8s.
+Conditional questions only appear when prior answers make them relevant. Presets (which questions to
+surface per preset) are deferred until all flags are implemented. Consequences: `copier.yml` ordering
+is irrelevant (prompting is in `cli/new.py`), DX.md updated to match, template guards unchanged.
