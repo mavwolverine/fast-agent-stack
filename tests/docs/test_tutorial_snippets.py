@@ -41,6 +41,7 @@ def _bash_snippets(path: Path) -> list[str]:
 # Part 1 — Hello World
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.docs
 class TestPart1HelloWorld:
     part = TUTORIAL_DIR / "01-hello-world.md"
@@ -78,9 +79,7 @@ class TestPart1HelloWorld:
             try:
                 ast.parse(textwrap.dedent(snippet))
             except SyntaxError as exc:
-                pytest.fail(
-                    f"Snippet failed to parse:\n{exc}\n\nSnippet:\n{snippet}"
-                )
+                pytest.fail(f"Snippet failed to parse:\n{exc}\n\nSnippet:\n{snippet}")
 
     def test_cli_commands_use_fas_entry_point(self):
         """CLI command lines must start with 'fas' or 'fastagentstack' (ADR-001, ADR-027)."""
@@ -91,9 +90,7 @@ class TestPart1HelloWorld:
                 if not stripped or stripped.startswith("#"):
                     continue
                 if any(cmd in stripped for cmd in fas_cmds):
-                    assert stripped.startswith("fas"), (
-                        f"CLI line does not use 'fas' or 'fastagentstack': {stripped!r}"
-                    )
+                    assert stripped.startswith("fas"), f"CLI line does not use 'fas' or 'fastagentstack': {stripped!r}"
 
     # 3. Architectural
 
@@ -101,16 +98,13 @@ class TestPart1HelloWorld:
         """User-facing code must not import from fast_agent_stack.core.* (I12)."""
         for snippet in _python_snippets(self.part):
             assert "from fast_agent_stack.core" not in snippet, (
-                "Tutorial exposes internal import path. Use the public API instead.\n"
-                f"Snippet:\n{snippet}"
+                f"Tutorial exposes internal import path. Use the public API instead.\nSnippet:\n{snippet}"
             )
 
     def test_import_name_uses_underscores(self):
         """Import name must be 'fast_agent_stack' (underscores), not 'fastagentstack' (ADR-001)."""
         for snippet in _python_snippets(self.part):
-            assert "import fastagentstack" not in snippet, (
-                "Tutorial uses wrong import name 'fastagentstack'."
-            )
+            assert "import fastagentstack" not in snippet, "Tutorial uses wrong import name 'fastagentstack'."
 
     # 4. NFR
 
@@ -135,9 +129,7 @@ class TestPart1HelloWorld:
     def test_index_links_use_new_naming(self):
         """Tutorial index must reference the descriptive file naming convention."""
         index_text = (TUTORIAL_DIR / "index.md").read_text()
-        assert "01-hello-world.md" in index_text, (
-            "index.md does not reference 01-hello-world.md"
-        )
+        assert "01-hello-world.md" in index_text, "index.md does not reference 01-hello-world.md"
 
     # Rewrite-enforcement: agent preset (ROADMAP Phase 10.1)
 
@@ -163,6 +155,7 @@ class TestPart1HelloWorld:
 # ---------------------------------------------------------------------------
 # Part 2 — Database & Models
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.docs
 class TestPart2DatabaseModels:
@@ -195,9 +188,7 @@ class TestPart2DatabaseModels:
             try:
                 ast.parse(textwrap.dedent(snippet))
             except SyntaxError as exc:
-                pytest.fail(
-                    f"Snippet failed to parse:\n{exc}\n\nSnippet:\n{snippet}"
-                )
+                pytest.fail(f"Snippet failed to parse:\n{exc}\n\nSnippet:\n{snippet}")
 
     def test_uses_get_async_session(self):
         assert "get_async_session" in self.part.read_text()
@@ -218,16 +209,13 @@ class TestPart2DatabaseModels:
         """User-facing code must not import from fast_agent_stack.core.* (I12)."""
         for snippet in _python_snippets(self.part):
             assert "from fast_agent_stack.core" not in snippet, (
-                "Tutorial exposes internal import path. Use the public API instead.\n"
-                f"Snippet:\n{snippet}"
+                f"Tutorial exposes internal import path. Use the public API instead.\nSnippet:\n{snippet}"
             )
 
     def test_import_name_uses_underscores(self):
         """Import name must be 'fast_agent_stack' (underscores), not 'fastagentstack' (ADR-001)."""
         for snippet in _python_snippets(self.part):
-            assert "import fastagentstack" not in snippet, (
-                "Tutorial uses wrong import name 'fastagentstack'."
-            )
+            assert "import fastagentstack" not in snippet, "Tutorial uses wrong import name 'fastagentstack'."
 
     # 4. NFR
 
@@ -251,14 +239,13 @@ class TestPart2DatabaseModels:
     def test_index_references_part2(self):
         """Tutorial index must reference 02-database-models.md."""
         index_text = (TUTORIAL_DIR / "index.md").read_text()
-        assert "02-database-models.md" in index_text, (
-            "index.md does not reference 02-database-models.md"
-        )
+        assert "02-database-models.md" in index_text, "index.md does not reference 02-database-models.md"
 
 
 # ---------------------------------------------------------------------------
 # Part 0 — Prerequisites
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.docs
 class TestPart0Prerequisites:
@@ -354,13 +341,9 @@ class TestPart0Prerequisites:
         for link in _MD_LINK_RE.findall(self.part.read_text()):
             if link.startswith("#") or link.startswith("http"):
                 continue
-            assert any(link.endswith(ext) for ext in _ALLOWED), (
-                f"Relative link targets unexpected file type: {link!r}"
-            )
+            assert any(link.endswith(ext) for ext in _ALLOWED), f"Relative link targets unexpected file type: {link!r}"
 
     def test_index_references_part0(self):
         """Tutorial index must reference 00-prerequisites.md."""
         index_text = (TUTORIAL_DIR / "index.md").read_text()
-        assert "00-prerequisites.md" in index_text, (
-            "index.md does not reference 00-prerequisites.md"
-        )
+        assert "00-prerequisites.md" in index_text, "index.md does not reference 00-prerequisites.md"

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
 __all__ = ["Message", "CompletionResult", "LLMBackend", "ToolCall", "ToolCallResult"]
@@ -17,6 +17,7 @@ class ToolCall:
 @dataclass(frozen=True)
 class ToolCallResult:
     """Returned by LLMBackend.complete() when the model wants to invoke a tool (ADR-046)."""
+
     tool_calls: list[ToolCall]
 
 
@@ -24,7 +25,7 @@ class ToolCallResult:
 class Message:
     role: str  # "user" | "assistant" | "system" | "tool"
     content: str
-    tool_call_id: str | None = None      # set for role="tool" responses
+    tool_call_id: str | None = None  # set for role="tool" responses
     tool_calls: list[ToolCall] | None = None  # set for role="assistant" tool-use turns
 
 

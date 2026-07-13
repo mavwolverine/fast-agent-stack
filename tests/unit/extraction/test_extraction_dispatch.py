@@ -62,6 +62,7 @@ async def test_eml_extractor_extract_returns_body_text():
 async def test_pdf_extractor_uses_to_thread():
     pytest.importorskip("pdfplumber")
     import fast_agent_stack.core.ai.extraction.backends.pdf as mod
+
     with open(mod.__file__) as f:
         src = f.read()
     assert "asyncio.to_thread" in src
@@ -70,6 +71,7 @@ async def test_pdf_extractor_uses_to_thread():
 async def test_docx_extractor_uses_to_thread():
     pytest.importorskip("docx")
     import fast_agent_stack.core.ai.extraction.backends.docx as mod
+
     with open(mod.__file__) as f:
         src = f.read()
     assert "asyncio.to_thread" in src
@@ -78,6 +80,7 @@ async def test_docx_extractor_uses_to_thread():
 async def test_xlsx_extractor_uses_to_thread():
     pytest.importorskip("openpyxl")
     import fast_agent_stack.core.ai.extraction.backends.xlsx as mod
+
     with open(mod.__file__) as f:
         src = f.read()
     assert "asyncio.to_thread" in src

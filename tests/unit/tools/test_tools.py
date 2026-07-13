@@ -25,7 +25,6 @@ from fast_agent_stack.core.ai.llm import (
 )
 from fast_agent_stack.core.ai.tools import Tool, agent_loop, tool
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -43,9 +42,7 @@ def _make_completion(content: str = "final answer") -> CompletionResult:
 
 
 def _make_tool_call_result(name: str = "search", args: dict | None = None) -> ToolCallResult:
-    return ToolCallResult(
-        tool_calls=[ToolCall(id="call-1", name=name, arguments=args or {"query": "test"})]
-    )
+    return ToolCallResult(tool_calls=[ToolCall(id="call-1", name=name, arguments=args or {"query": "test"})])
 
 
 def _make_backend(responses: list) -> MagicMock:
@@ -176,9 +173,7 @@ async def test_agent_loop_appends_tool_role_messages():
     async def search(query: str) -> str:
         return "found it"
 
-    await _collect(
-        agent_loop(backend, [Message(role="user", content="find")], tools=[search])
-    )
+    await _collect(agent_loop(backend, [Message(role="user", content="find")], tools=[search]))
 
     # Second complete() call receives tool-result messages
     second_call_messages = backend.complete.call_args_list[1][0][0]
@@ -308,9 +303,7 @@ async def test_agent_loop_respects_max_iterations_i23():
     async def search(query: str) -> str:
         return "result"
 
-    results = await _collect(
-        agent_loop(backend, [], tools=[search], max_iterations=3)
-    )
+    results = await _collect(agent_loop(backend, [], tools=[search], max_iterations=3))
 
     assert backend.complete.call_count == 3
     # Must yield a CompletionResult sentinel to signal end of stream
@@ -345,9 +338,7 @@ async def test_agent_loop_empty_tools_list_still_works():
 
 async def test_agent_loop_unknown_tool_produces_error_string():
     """Tool call for an unknown tool name does not crash; error fed back as message."""
-    call_result = ToolCallResult(
-        tool_calls=[ToolCall(id="c1", name="nonexistent_tool", arguments={})]
-    )
+    call_result = ToolCallResult(tool_calls=[ToolCall(id="c1", name="nonexistent_tool", arguments={})])
     final = _make_completion("recovered")
     backend = _make_backend([call_result, final])
 
@@ -371,9 +362,7 @@ async def test_agent_loop_tool_exception_is_caught_and_continued():
     async def failing_tool() -> str:
         raise ValueError("something broke")
 
-    results = await _collect(
-        agent_loop(backend, [], tools=[failing_tool])
-    )
+    results = await _collect(agent_loop(backend, [], tools=[failing_tool]))
 
     assert isinstance(results[-1], CompletionResult)
     second_messages = backend.complete.call_args_list[1][0][0]

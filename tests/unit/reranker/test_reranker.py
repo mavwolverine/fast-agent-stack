@@ -18,14 +18,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from fast_agent_stack.core.ai.rag import RagChunk, RagService
 from fast_agent_stack.core.ai.reranker import (
-    RerankResult,
     RerankerProtocol,
+    RerankResult,
     get_reranker,
 )
-from fast_agent_stack.core.ai.rag import RagChunk, RagService
 from fast_agent_stack.core.vector import VectorSearchResult
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -122,10 +121,9 @@ async def test_rag_service_retrieve_with_reranker_over_fetches():
     vs = _make_mock_vector_store(hits)
 
     mock_reranker = MagicMock()
-    mock_reranker.rerank = AsyncMock(return_value=[
-        RerankResult(content=h.content or "", score=float(i), index=i)
-        for i, h in enumerate(hits[:5])
-    ])
+    mock_reranker.rerank = AsyncMock(
+        return_value=[RerankResult(content=h.content or "", score=float(i), index=i) for i, h in enumerate(hits[:5])]
+    )
 
     svc = RagService(_make_mock_embedding(), vs, reranker=mock_reranker)
     results = await svc.retrieve("col", "question", top_k=5)
@@ -141,10 +139,7 @@ async def test_rag_service_retrieve_with_reranker_returns_reranked_order():
     vs = _make_mock_vector_store(hits)
 
     # Reranker returns results in descending score order (Protocol contract)
-    reranked = [
-        RerankResult(content=f"chunk {i}", score=float(5 - i) / 5, index=i)
-        for i in range(5)
-    ]
+    reranked = [RerankResult(content=f"chunk {i}", score=float(5 - i) / 5, index=i) for i in range(5)]
     mock_reranker = MagicMock()
     mock_reranker.rerank = AsyncMock(return_value=reranked)
 
@@ -159,9 +154,11 @@ async def test_rag_service_retrieve_with_reranker_passes_correct_query():
     hits = _make_vector_hits(3)
     vs = _make_mock_vector_store(hits)
     mock_reranker = MagicMock()
-    mock_reranker.rerank = AsyncMock(return_value=[
-        RerankResult(content="chunk 0", score=0.9, index=0),
-    ])
+    mock_reranker.rerank = AsyncMock(
+        return_value=[
+            RerankResult(content="chunk 0", score=0.9, index=0),
+        ]
+    )
     svc = RagService(_make_mock_embedding(), vs, reranker=mock_reranker)
     await svc.retrieve("col", "my query", top_k=1)
 
@@ -198,6 +195,7 @@ def test_rerank_result_dataclass_fields():
 
 def test_module_exports_all_names():
     from fast_agent_stack.core.ai.reranker import __all__ as exported
+
     assert "RerankerProtocol" in exported
     assert "RerankResult" in exported
     assert "get_reranker" in exported
@@ -211,20 +209,18 @@ def test_module_exports_all_names():
 def test_get_reranker_ollama_lazy_import():
     """httpx must not be imported at module load time; only inside factory."""
     import fast_agent_stack.core.ai.reranker as mod
+
     with open(mod.__file__) as f:
         src = f.read()
-    assert "import httpx" not in src, (
-        "httpx must not be imported at module top-level (I3 lazy import)"
-    )
+    assert "import httpx" not in src, "httpx must not be imported at module top-level (I3 lazy import)"
 
 
 def test_get_reranker_openai_lazy_import():
     import fast_agent_stack.core.ai.reranker.openai as mod
+
     with open(mod.__file__) as f:
         src = f.read()
-    assert src.strip().startswith("from __future__") or "try:" in src, (
-        "openai backend must have an I3 extras gate"
-    )
+    assert src.strip().startswith("from __future__") or "try:" in src, "openai backend must have an I3 extras gate"
 
 
 def test_rag_service_accepts_reranker_kwarg():
@@ -297,14 +293,12 @@ def test_openai_reranker_reads_timeout_from_settings_i22():
 
 def test_rag_service_overfetch_ratio_is_three():
     """Sanity: the over-fetch multiplier is exactly 3 (documented in ADR-045)."""
-    import ast
     import fast_agent_stack.core.ai.rag as mod
+
     with open(mod.__file__) as f:
         src = f.read()
     # The source must contain `top_k * 3` or `3 * top_k`
-    assert "top_k * 3" in src or "3 * top_k" in src, (
-        "RagService.retrieve must use top_k * 3 when reranker is set"
-    )
+    assert "top_k * 3" in src or "3 * top_k" in src, "RagService.retrieve must use top_k * 3 when reranker is set"
 
 
 # ---------------------------------------------------------------------------

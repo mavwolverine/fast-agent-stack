@@ -128,6 +128,7 @@ def test_no_storage_import_breaks_bare_install():
 
 def test_local_storage_uses_aiofiles_for_io():
     import fast_agent_stack.core.storage.backends.local as mod
+
     with open(mod.__file__) as f:
         src = f.read()
     assert "aiofiles" in src

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import inspect
 import typing
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from fast_agent_stack.core.ai.llm import (
     CompletionResult,
@@ -14,7 +14,7 @@ from fast_agent_stack.core.ai.llm import (
     ToolCallResult,
 )
 
-__all__ = ["tool", "Tool", "agent_loop"]
+__all__ = ["tool", "Tool", "agent_loop", "ToolCall", "ToolCallResult"]
 
 _PYTHON_TO_JSON_TYPE: dict[Any, str] = {
     str: "string",
@@ -28,6 +28,7 @@ _PYTHON_TO_JSON_TYPE: dict[Any, str] = {
 @dataclass
 class Tool:
     """An async callable decorated with its OpenAI-compatible JSON schema (ADR-046)."""
+
     fn: Callable[..., Any]
     name: str
     description: str
@@ -48,6 +49,7 @@ def tool(
         async def search(query: str, top_k: int = 5) -> str:
             ...
     """
+
     def decorator(fn: Callable[..., Any]) -> Tool:
         desc = description or (fn.__doc__ or "").strip()
         sig = inspect.signature(fn)
@@ -109,9 +111,7 @@ async def agent_loop(
         )
 
         if isinstance(result, ToolCallResult):
-            current_messages.append(
-                Message(role="assistant", content="", tool_calls=result.tool_calls)
-            )
+            current_messages.append(Message(role="assistant", content="", tool_calls=result.tool_calls))
             for call in result.tool_calls:
                 fn = tool_map.get(call.name)
                 if fn is None:
@@ -121,9 +121,7 @@ async def agent_loop(
                         tool_output = await fn(**call.arguments)
                     except Exception as exc:
                         tool_output = f"Error: {exc}"
-                current_messages.append(
-                    Message(role="tool", content=str(tool_output), tool_call_id=call.id)
-                )
+                current_messages.append(Message(role="tool", content=str(tool_output), tool_call_id=call.id))
         else:
             # Final text response — yield content chunk then sentinel
             yield result.content

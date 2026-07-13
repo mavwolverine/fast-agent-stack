@@ -210,6 +210,7 @@ async def test_rag_ingest_stores_chunk_count_in_metadata():
 
 def test_rag_module_imports_only_from_public_inits_i12():
     import fast_agent_stack.core.ai.rag as rag_mod
+
     rag_dir = Path(rag_mod.__file__).parent
     forbidden_prefixes = [
         "fast_agent_stack.core.ai.embedding.backends",
