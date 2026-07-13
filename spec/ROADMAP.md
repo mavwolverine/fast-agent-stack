@@ -90,7 +90,7 @@
 - [x] Documentation site
 - [x] CI/CD (GitHub Actions: lint, tox, integration, PyPI publish)
 - [x] Tests
-- [ ] ADR-048: seed migration template, head resolution in cli/new.py, `{project_name}@head` in cli/db.py
+- [x] ADR-048: seed migration template, head resolution in cli/new.py, `{project_name}@head` in cli/db.py
 
 ## Phase 8: Redis SDK Migration (ADR-037)
 - [x] Replace `redis>=5` with `fastapi-redis-sdk>=0.7` across `auth-jwt`, `auth-session`, `rate-limit` extras
@@ -124,7 +124,7 @@
 ## Phase 10: Progressive Tutorial (scenario-based documentation)
 - [x] Tutorial Part 0 — Prerequisites: docker-compose (Postgres, Redis, Qdrant), Ollama + pull chat/embedding/reranking models
 - [x] Tutorial Part 1 — Scaffold: scaffold `agent` preset, explore structure, add a route, run dev server
-- [ ] Tutorial Part 2 — Database & Models: document model, upload tracking, migrations, CRUD routes
+- [x] Tutorial Part 2 — Database & Models: document model, migrations, CRUD routes
 - [ ] Tutorial Part 3 — Authentication: JWT auth, create users, protect upload/chat endpoints
 - [ ] Tutorial Part 4 — Ingestion Agent: upload PDF → background task → extract → embed → store vectors
 - [ ] Tutorial Part 5 — Chat Agent with Tools: query → agent decides to search → retrieves → synthesizes → streams

@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import typer
+import yaml
 from alembic import command
 from alembic.config import Config
 
@@ -68,6 +69,24 @@ def _require_alembic_dir() -> None:
         raise typer.Exit(1)
 
 
+def _read_project_name() -> str:
+    """Read project_name from .copier-answers.yml (ADR-048)."""
+    answers_path = Path(".copier-answers.yml")
+    if not answers_path.exists():
+        typer.echo(
+            "Error: .copier-answers.yml not found.\n"
+            "Run this command from your project root (the directory created by 'fas new').",
+            err=True,
+        )
+        raise typer.Exit(1)
+    answers = yaml.safe_load(answers_path.read_text())
+    project_name: str = answers.get("project_name", "")
+    if not project_name:
+        typer.echo("Error: project_name not found in .copier-answers.yml.", err=True)
+        raise typer.Exit(1)
+    return project_name
+
+
 @app.command()
 def migrate() -> None:
     """Apply framework + user database migrations (ADR-044, heads = all branches)."""
@@ -80,14 +99,16 @@ def migrate() -> None:
 def makemigrations(
     message: str | None = typer.Option(None, "-m", "--message", help="Migration message."),
 ) -> None:
-    """Autogenerate a migration revision from user model changes (I16)."""
+    """Autogenerate a migration revision targeting the user's named branch (ADR-048, I16)."""
     _require_alembic_dir()
+    project_name = _read_project_name()
     user_versions = str(Path("alembic") / "versions")
     command.revision(
         _alembic_cfg(),
         autogenerate=True,
         message=message or "auto",
         version_path=user_versions,
+        head=f"{project_name}@head",
     )
     typer.echo("Migration file created.")
 

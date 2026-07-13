@@ -4,13 +4,13 @@
 
 In Part 1 you scaffolded the `docqa` project and hit a live dev server. In Part 2 you'll add a persistent data layer: a `Document` SQLAlchemy model, Pydantic schemas, an Alembic migration, and three CRUD routes.
 
-**By the end of this part** the Document Q&A Assistant can store and retrieve documents via a REST API backed by SQLite.
+**By the end of this part** the Document Q&A Assistant can store and retrieve documents via a REST API backed by PostgreSQL.
 
 ---
 
 ## Prerequisites
 
-- Part 1 complete (`docqa/` project scaffolded with `--preset minimal --db sqlite`)
+- Part 1 complete (`docqa/` project scaffolded with `--preset agent`, PostgreSQL running)
 - Dev server confirmed working (`fas dev` shows startup output)
 
 ---
@@ -89,21 +89,21 @@ Replace `docqa/routes.py` with the following:
 ```python
 import uuid
 
+from fast_agent_stack.database import get_async_session
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from fast_agent_stack.database import get_async_session
-
 from .models import Document
 from .schemas import DocumentCreate, DocumentResponse
+from .settings import Settings, get_settings
 
 router = APIRouter()
 
 
 @router.get("/")
-async def root() -> dict:
-    return {"message": "Welcome to the Document Q&A Assistant"}
+async def root(settings: Settings = Depends(get_settings)) -> dict[str, str]:
+    return {"message": "Hello from docqa!"}
 
 
 @router.post("/documents", response_model=DocumentResponse, status_code=201)
@@ -173,14 +173,6 @@ print(httpx.get(f"{base}/documents").json())
 The `/health/ready` endpoint now also verifies the database is reachable, useful when switching to an external database server.
 
 ---
-
-## Using PostgreSQL
-
-SQLite is fine for development. When you're ready to switch:
-
-1. Set `DOCQA_DATABASE_URL=postgresql+asyncpg://user:password@localhost/docqa` in `.env`
-2. Install the async driver: `uv pip install asyncpg`
-3. Run `fas migrate`; everything else in this tutorial is identical
 
 ---
 

@@ -400,6 +400,23 @@ def new(
     data["include_docker_compose"] = _get_bool("include_docker_compose", "Include docker-compose.yml?", False)
     data["include_k8s"] = _get_bool("include_k8s", "Include Kubernetes manifests?", False)
 
+    # ADR-048: resolve framework branch heads filtered by scaffold-time feature selections.
+    # A head is included only when the corresponding feature is enabled — omitting it
+    # avoids ResolutionError if the extra package is not installed (gate-on-importability, ADR-044).
+    _seed_heads: list[str] = []
+    if data.get("include_auth"):
+        _seed_heads.append("fas_auth_0001")
+    if data.get("llm_provider", "none") != "none" or data.get("vector_db", "none") != "none":
+        _seed_heads.append("fas_ai_0002")
+
+    if not _seed_heads:
+        data["seed_depends_on"] = "None"
+    elif len(_seed_heads) == 1:
+        data["seed_depends_on"] = f'"{_seed_heads[0]}"'
+    else:
+        items = ", ".join(f'"{h}"' for h in _seed_heads)
+        data["seed_depends_on"] = f"({items})"
+
     # --- Generate ---
     console.print(f"\nCreating [bold green]{project_name}[/] …")
 
