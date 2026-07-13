@@ -119,7 +119,7 @@ _LLM_CHOICES: list[tuple[str, str]] = [
     ("OpenAI-compatible (works with Ollama)", "openai"),
     ("AWS Bedrock", "bedrock"),
     ("Anthropic", "anthropic"),
-    ("LiteLLM Proxy", "litellm"),
+    ("LiteLLM", "litellm"),
     ("None", "none"),
 ]
 
@@ -273,6 +273,7 @@ def new(
     defaults: dict[str, str | bool] = {}
     if preset is not None:
         defaults = dict(PRESETS[preset])
+        accept_defaults = True  # named preset → use its defaults; individual CLI flags still override via overrides
 
     # Collect CLI overrides — these skip prompting for that question
     overrides: dict[str, str | bool] = {}
@@ -323,27 +324,10 @@ def new(
             return default_val
         return _prompt_bool(label, default_val)
 
-    # --- Core choices ---
+    # 1. Database
     data["db"] = _get_choice("db", "Which database?", _DB_CHOICES, "postgres")
-    data["llm_provider"] = _get_choice("llm_provider", "LLM provider?", _LLM_CHOICES, "none")
-    data["vector_db"] = _get_choice("vector_db", "Vector database?", _VECTOR_DB_CHOICES, "none")
 
-    if data["vector_db"] != "none":
-        data["embedding_provider"] = _get_choice(
-            "embedding_provider", "Embedding provider?", _EMBEDDING_CHOICES, "openai"
-        )
-    else:
-        data["embedding_provider"] = "none"
-
-    data["storage_backend"] = _get_choice("storage_backend", "File storage?", _STORAGE_CHOICES, "none")
-    data["task_broker"] = _get_choice("task_broker", "Background task broker?", _TASK_BROKER_CHOICES, "none")
-
-    if data["task_broker"] != "none":
-        data["include_scheduler"] = _get_bool("include_scheduler", "Include periodiq scheduler?", False)
-    else:
-        data["include_scheduler"] = False
-
-    # --- Auth ---
+    # 2. Auth
     data["include_auth"] = _get_bool("include_auth", "Include authentication?", False)
     if data["include_auth"]:
         data["auth_backends"] = _get_choice(
@@ -354,14 +338,64 @@ def new(
         data["auth_backends"] = "jwt"
         data["include_email"] = False
 
-    # --- Infrastructure ---
+    # 3. Admin
     data["include_admin"] = _get_bool("include_admin", "Include SQLAdmin panel?", False)
-    data["include_frontend"] = _get_bool("include_frontend", "Include chat frontend?", False)
-    data["include_rate_limit"] = _get_bool("include_rate_limit", "Include rate limiting?", False)
-    data["tracing"] = _get_choice("tracing", "Tracing backend?", _TRACING_CHOICES, "none")
-    data["secrets_backend"] = _get_choice("secrets_backend", "Secrets manager?", _SECRETS_CHOICES, "none")
 
-    # --- Deployment ---
+    # 4. Rate limiting
+    data["include_rate_limit"] = _get_bool("include_rate_limit", "Include rate limiting?", False)
+
+    # 5. Storage
+    data["storage_backend"] = _get_choice("storage_backend", "File storage?", _STORAGE_CHOICES, "local")
+
+    # 6. Tasks
+    if "task_broker" in overrides:
+        # CLI flag skips the gate question
+        data["task_broker"] = str(overrides["task_broker"])
+        if data["task_broker"] != "none":
+            data["include_scheduler"] = _get_bool("include_scheduler", "Include periodiq scheduler?", False)
+        else:
+            data["include_scheduler"] = False
+    else:
+        # Derive gate default from preset's task_broker value
+        tasks_default = defaults.get("task_broker", "none") != "none"
+        include_tasks = _get_bool("include_tasks", "Include background tasks?", tasks_default)
+        if include_tasks:
+            data["task_broker"] = _get_choice("task_broker", "Task broker?", _TASK_BROKER_CHOICES, "redis")
+            data["include_scheduler"] = _get_bool("include_scheduler", "Include periodiq scheduler?", False)
+        else:
+            data["task_broker"] = "none"
+            data["include_scheduler"] = False
+
+    # 7. AI
+    if "llm_provider" in overrides:
+        # CLI flag skips the gate question
+        include_ai = overrides["llm_provider"] != "none"
+    else:
+        ai_default = defaults.get("llm_provider", "none") != "none"
+        include_ai = _get_bool("include_ai", "Include AI/LLM support?", ai_default)
+    if include_ai:
+        data["llm_provider"] = _get_choice("llm_provider", "LLM provider?", _LLM_CHOICES, "openai")
+        data["vector_db"] = _get_choice("vector_db", "Vector database?", _VECTOR_DB_CHOICES, "none")
+        if data["vector_db"] != "none":
+            data["embedding_provider"] = _get_choice(
+                "embedding_provider", "Embedding provider?", _EMBEDDING_CHOICES, "openai"
+            )
+        else:
+            data["embedding_provider"] = "none"
+
+        # 8. UI
+        data["include_frontend"] = _get_bool("include_frontend", "Include chat frontend?", False)
+    else:
+        data["llm_provider"] = "none"
+        data["vector_db"] = "none"
+        data["embedding_provider"] = "none"
+        data["include_frontend"] = False
+
+    # 9. Observability
+    data["tracing"] = _get_choice("tracing", "Tracing backend?", _TRACING_CHOICES, "none")
+
+    # 10. Deployment
+    data["secrets_backend"] = _get_choice("secrets_backend", "Secrets manager?", _SECRETS_CHOICES, "none")
     data["include_dockerfile"] = _get_bool("include_dockerfile", "Include Dockerfile?", False)
     data["include_docker_compose"] = _get_bool("include_docker_compose", "Include docker-compose.yml?", False)
     data["include_k8s"] = _get_bool("include_k8s", "Include Kubernetes manifests?", False)

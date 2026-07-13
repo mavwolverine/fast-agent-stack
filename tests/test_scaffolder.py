@@ -342,6 +342,40 @@ def test_c13_full_preset_app_py_has_all_hooks(tmp_path: Path) -> None:
     assert "AdminLifespanHook" in app_py
 
 
+def test_c14_question_sequence_matches_adr047() -> None:
+    """ADR-047: new() must ask questions in the mandated order (source-level contract)."""
+    from fast_agent_stack.cli.new import TEMPLATE_DIR
+
+    src = (TEMPLATE_DIR.parent / "cli" / "new.py").read_text()
+
+    # Labels in ADR-047 order: DB → Auth → Admin → Rate limit → Storage →
+    # Tasks → LLM → Vector → Frontend → Tracing → Secrets → Dockerfile
+    ordered_labels = [
+        "Which database?",
+        "Include authentication?",
+        "Include SQLAdmin panel?",
+        "Include rate limiting?",
+        "File storage?",
+        "Include background tasks?",
+        "LLM provider?",
+        "Vector database?",
+        "Include chat frontend?",
+        "Tracing backend?",
+        "Secrets manager?",
+        "Include Dockerfile?",
+    ]
+
+    positions = {label: src.find(f'"{label}"') for label in ordered_labels}
+    missing = [label for label, pos in positions.items() if pos == -1]
+    assert not missing, f"Labels not found in new.py: {missing}"
+
+    for i in range(len(ordered_labels) - 1):
+        a, b = ordered_labels[i], ordered_labels[i + 1]
+        assert positions[a] < positions[b], (
+            f"ADR-047 sequence violation: {a!r} must appear before {b!r} in new.py"
+        )
+
+
 def test_f4_second_new_same_dir_succeeds_with_overwrite(tmp_path: Path) -> None:
     runner.invoke(
         app,
