@@ -1,4 +1,4 @@
-# Part 0 — Prerequisites
+# Part 0 - Prerequisites
 
 > **Series:** [Tutorial index](index.md) · **You are here:** Part 0 · [Part 1 →](01-scaffold.md)
 
@@ -8,7 +8,7 @@ Before building the **Document Q&A Assistant** you need three backing services r
 
 - Docker and Docker Compose (Docker Desktop or Docker Engine + Compose plugin)
 - Python 3.11 or newer
-- [Ollama](https://ollama.com) — local model server
+- [Ollama](https://ollama.com) - local model server
 
 This takes about 10–15 minutes the first time (mostly waiting for model downloads).
 
@@ -80,13 +80,13 @@ ollama serve
 The Document Q&A Assistant uses three Ollama models across different tutorial parts:
 
 ```bash
-# Chat model — used from Part 1 onwards for the conversational agent
+# Chat model - used from Part 1 onwards for the conversational agent
 ollama pull llama3.2
 
-# Embedding model — used in Part 4 to embed uploaded documents
+# Embedding model - used in Part 4 to embed uploaded documents
 ollama pull nomic-embed-text
 
-# Reranking model — used in Part 5 to rerank retrieved document chunks
+# Reranking model - used in Part 5 to rerank retrieved document chunks
 ollama pull qllama/bge-reranker-v2-m3
 ```
 
@@ -112,10 +112,18 @@ The connection strings for the services above are (note the `DOCQA_` prefix - th
 DOCQA_DATABASE_URL=postgresql+asyncpg://docqa:docqa@localhost:5432/docqa
 DOCQA_REDIS_URL=redis://localhost:6379
 DOCQA_QDRANT_URL=http://localhost:6333
-DOCQA_OLLAMA_URL=http://localhost:11434
+
+# Ollama for LLM and embedding (OpenAI-compatible endpoint)
+DOCQA_LLM_BASE_URL=http://localhost:11434/v1
+DOCQA_LLM_MODEL=llama3.2
+DOCQA_LLM_API_KEY=ollama
+DOCQA_EMBEDDING_PROVIDER=openai
+DOCQA_EMBEDDING_BASE_URL=http://localhost:11434/v1
+DOCQA_EMBEDDING_MODEL=nomic-embed-text
+DOCQA_EMBEDDING_API_KEY=ollama
 ```
 
-You do not need to create this file yet — `fas new` generates a `.env.example` you'll copy and fill in during Part 1.
+You do not need to create this file yet - `fas new` generates a `.env.example` you'll copy and fill in during Part 1.
 
 ---
 
@@ -131,4 +139,4 @@ Before continuing, confirm:
 
 ## Next steps
 
-You're ready to build. Head to [Part 1 — Scaffold](01-scaffold.md) to scaffold the `docqa` project.
+You're ready to build. Head to [Part 1 - Scaffold](01-scaffold.md) to scaffold the `docqa` project.

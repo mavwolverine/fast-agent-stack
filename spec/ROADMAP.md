@@ -92,6 +92,7 @@
 - [x] Tests
 - [x] ADR-048: seed migration template, head resolution in cli/new.py, `{project_name}@head` in cli/db.py
 - [x] ADR-049: remove admin_secret_key, database-backed admin auth (is_staff/is_superuser), single secret_key
+- [x] ADR-050: per-backend base_url and model settings (llm_base_url, llm_model, embedding_base_url, embedding_model; rename embedding_openai_model)
 
 ## Phase 8: Redis SDK Migration (ADR-037)
 - [x] Replace `redis>=5` with `fastapi-redis-sdk>=0.7` across `auth-jwt`, `auth-session`, `rate-limit` extras
@@ -127,7 +128,7 @@
 - [x] Tutorial Part 1 — Scaffold: scaffold `agent` preset, explore structure, add a route, run dev server
 - [x] Tutorial Part 2 — Database & Models: document model, migrations, CRUD routes
 - [x] Tutorial Part 3 — Authentication: JWT auth, create users, protect upload/chat endpoints
-- [ ] Tutorial Part 4 — Ingestion Agent: upload PDF → background task → extract → embed → store vectors
+- [x] Tutorial Part 4 — Ingestion Agent: upload PDF → background task → extract → embed → store vectors
 - [ ] Tutorial Part 5 — Chat Agent with Tools: query → agent decides to search → retrieves → synthesizes → streams
 - [ ] Tutorial Part 6 — Chat UI: single HTML page (vanilla JS), file upload, SSE streaming, served via app.frontend()
 - [ ] Tutorial Part 7 — Background Tasks: async ingestion via Dramatiq, scheduled re-indexing with periodiq

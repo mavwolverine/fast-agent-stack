@@ -18,6 +18,8 @@ class Settings(BaseSettings):
 {%- endif %}
 {%- if include_auth %}
     auth_backends: list[str] = [{%- if auth_backends == "jwt-and-session" %}"jwt", "session"{%- else %}"{{ auth_backends }}"{%- endif %}]
+{%- endif %}
+{%- if include_auth or include_admin %}
     secret_key: str = "change-me-in-production"
 {%- endif %}
 {%- if include_auth or include_rate_limit %}

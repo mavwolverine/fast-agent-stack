@@ -1231,3 +1231,13 @@ with `is_staff` or `is_superuser` gating access. `secret_key` is the single sign
 JWT tokens and admin session cookies. `fas createsuperuser` creates a user with access to both the
 API (`/auth/token`) and the admin panel (`/admin`). Permissions table determines view visibility;
 `is_superuser` overrides all permission checks.
+
+## ADR-050: Per-Backend Base URL and Model Settings
+
+**Status:** Accepted | **Date:** 2026-07-13
+
+Each backend family (LLM, embedding, reranker, vector) gets its own `base_url` and `model` setting
+in `BaseSettings`, following the `{family}_{setting}` pattern. This allows independent provider
+configuration (e.g., OpenAI for chat + Ollama for embedding) without env var conflicts. Supersedes
+the unnested `embedding_openai_model` setting. Ollama is configured by pointing `*_BASE_URL` at
+`http://localhost:11434/v1`.

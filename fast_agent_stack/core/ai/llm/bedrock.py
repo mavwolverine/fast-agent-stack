@@ -9,7 +9,7 @@ try:
 except ImportError:
     raise ImportError("pip install fast-agent-stack[bedrock]") from None
 
-from fast_agent_stack.core.ai.llm import CompletionResult, Message
+from fast_agent_stack.core.ai.llm import CompletionResult, Message, ToolCall, ToolCallResult
 
 
 class BedrockLLMBackend:
@@ -51,22 +51,59 @@ class BedrockLLMBackend:
         conv = [{"role": m.role, "content": [{"text": m.content}]} for m in messages if m.role != "system"]
         return system, conv
 
-    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult:
+    async def complete(
+        self,
+        messages: list[Message],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> CompletionResult | ToolCallResult:
         system, conv = self._convert_messages(messages)
+        call_kwargs: dict[str, Any] = {
+            "modelId": self._model_id,
+            "messages": conv,
+            "system": system,
+            **kwargs,
+        }
+        if tools:
+            # Convert OpenAI-format tools to Bedrock toolConfig
+            call_kwargs["toolConfig"] = {
+                "tools": [
+                    {
+                        "toolSpec": {
+                            "name": t.get("function", t)["name"],
+                            "description": t.get("function", t).get("description", ""),
+                            "inputSchema": {"json": t.get("function", t).get("parameters", {})},
+                        }
+                    }
+                    for t in tools
+                ]
+            }
+
         async with self._session.client(
             "bedrock-runtime",
             region_name=self._region,
             config=self._boto_config,
         ) as client:
-            response = await client.converse(
-                modelId=self._model_id,
-                messages=conv,
-                system=system,
-                **kwargs,
-            )
+            response = await client.converse(**call_kwargs)
+
         output = response.get("output", {}).get("message", {}).get("content", [])
-        content = output[0]["text"] if output else ""
         usage = response.get("usage", {})
+
+        # Check for tool use
+        tool_calls = [
+            ToolCall(
+                id=block.get("toolUse", {}).get("toolUseId", ""),
+                name=block.get("toolUse", {}).get("name", ""),
+                arguments=block.get("toolUse", {}).get("input", {}),
+            )
+            for block in output
+            if "toolUse" in block
+        ]
+        if tool_calls:
+            return ToolCallResult(tool_calls=tool_calls)
+
+        content = output[0]["text"] if output else ""
         return CompletionResult(
             content=content,
             model=self._model_id,
@@ -76,8 +113,34 @@ class BedrockLLMBackend:
             cost=None,
         )
 
-    async def stream(self, messages: list[Message], **kwargs: Any) -> AsyncIterator[str | CompletionResult]:
+    async def stream(
+        self,
+        messages: list[Message],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[str | CompletionResult | ToolCallResult]:
         system, conv = self._convert_messages(messages)
+        call_kwargs: dict[str, Any] = {
+            "modelId": self._model_id,
+            "messages": conv,
+            "system": system,
+            **kwargs,
+        }
+        if tools:
+            call_kwargs["toolConfig"] = {
+                "tools": [
+                    {
+                        "toolSpec": {
+                            "name": t.get("function", t)["name"],
+                            "description": t.get("function", t).get("description", ""),
+                            "inputSchema": {"json": t.get("function", t).get("parameters", {})},
+                        }
+                    }
+                    for t in tools
+                ]
+            }
+
         prompt_tokens = 0
         completion_tokens = 0
         total_tokens = 0
@@ -86,12 +149,7 @@ class BedrockLLMBackend:
             region_name=self._region,
             config=self._boto_config,
         ) as client:
-            response = await client.converse_stream(
-                modelId=self._model_id,
-                messages=conv,
-                system=system,
-                **kwargs,
-            )
+            response = await client.converse_stream(**call_kwargs)
             async for event in response["stream"]:
                 if "contentBlockDelta" in event:
                     chunk = event["contentBlockDelta"]["delta"].get("text", "")
@@ -102,7 +160,7 @@ class BedrockLLMBackend:
                     prompt_tokens = usage.get("inputTokens", 0)
                     completion_tokens = usage.get("outputTokens", 0)
                     total_tokens = usage.get("totalTokens", 0)
-        # ADR-036: sentinel is the absolute last item — no content after this
+        # ADR-036: sentinel is the absolute last item
         yield CompletionResult(
             content="",
             model=self._model_id,

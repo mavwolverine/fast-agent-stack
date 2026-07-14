@@ -37,7 +37,10 @@ class BaseSettings(_BaseSettings):
     # Rate limiting (ADR-016)
     include_rate_limit: bool = False
 
-    # LLM backend timeout — seconds to wait for provider API calls (NFR Reliability)
+    # LLM backend (ADR-050)
+    llm_base_url: str | None = None  # None = use SDK default (api.openai.com); set to e.g. http://localhost:11434/v1 for Ollama
+    llm_model: str = "gpt-4o"
+    llm_api_key: str | None = None  # None = SDK reads OPENAI_API_KEY; set to "ollama" for Ollama
     llm_timeout: float = 30.0
 
     # Storage backend (Phase 5, ADR-038)
@@ -64,11 +67,12 @@ class BaseSettings(_BaseSettings):
     weaviate_api_key: str | None = None
     vector_timeout: float = 30.0
 
-    # Embedding backend (Phase 5, ADR-038, ADR-039)
+    # Embedding backend (Phase 5, ADR-038, ADR-039, ADR-050)
     embedding_provider: str = "local"
-    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_model: str = "BAAI/bge-small-en-v1.5"  # model name for the active provider
+    embedding_base_url: str | None = None  # None = SDK default; set to e.g. http://localhost:11434/v1 for Ollama
+    embedding_api_key: str | None = None  # None = SDK reads OPENAI_API_KEY; set to "ollama" for Ollama
     embedding_cache_dir: str = ""
-    embedding_openai_model: str = "text-embedding-3-small"
     embedding_bedrock_model_id: str = "amazon.titan-embed-text-v2:0"
     embedding_timeout: float = 30.0
 

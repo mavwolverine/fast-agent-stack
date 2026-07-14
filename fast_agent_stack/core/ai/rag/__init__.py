@@ -68,6 +68,14 @@ class RagService:
             return paragraph_chunker(text)
         return fixed_chunker(text, self._chunk_size, self._chunk_overlap)
 
+    async def _ensure_collection(self, collection: str, dimensions: int) -> None:
+        """Create the vector collection if it doesn't exist."""
+        try:
+            await self._vector_store.create_collection(collection, dimensions)
+        except Exception:
+            # Collection likely already exists — ignore
+            pass
+
     async def ingest(
         self,
         collection: str,
@@ -84,6 +92,8 @@ class RagService:
         base_meta: dict[str, str | int | float | bool] = dict(metadata or {})
         base_meta["_chunk_count"] = len(chunks)
         vectors = await self._embedding.embed_batch(chunks)
+        # Ensure collection exists (auto-create on first ingest)
+        await self._ensure_collection(collection, dimensions=len(vectors[0]))
         for idx, (chunk_text, vector) in enumerate(zip(chunks, vectors)):
             chunk_meta = dict(base_meta)
             chunk_meta["_chunk_index"] = idx

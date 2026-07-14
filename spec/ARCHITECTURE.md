@@ -238,7 +238,7 @@ Inspired by Django's database backends. Each service type has:
 | `scheduler` | `periodiq>=0.9` | ADR-005 |
 | `rate-limit` | `fastapi-redis-sdk>=0.7` | ADR-016, ADR-037 |
 | `email-smtp` | `aiosmtplib>=3` | ADR-018 |
-| `extract-pdf` | `pdfplumber>=0.10` | ADR-040 |
+| `extract-pdf` | `pymupdf>=1.24` | ADR-040 |
 | `extract-docx` | `python-docx>=1.1` | ADR-040 |
 | `extract-xlsx` | `openpyxl>=3.1` | ADR-040 |
 | `secrets-aws` | `boto3>=1.34` | ADR-017 |

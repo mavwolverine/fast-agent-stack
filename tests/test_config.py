@@ -147,6 +147,49 @@ def test_f5_invalid_secrets_backend_raises(monkeypatch: pytest.MonkeyPatch) -> N
         BaseSettings()
 
 
+# ---------------------------------------------------------------------------
+# ADR-050: Per-Backend Base URL and Model Settings
+# ---------------------------------------------------------------------------
+
+
+def test_b5_llm_base_url_defaults_to_none() -> None:
+    s = BaseSettings.model_construct()
+    assert s.llm_base_url is None
+
+
+def test_b6_llm_model_default_is_gpt4o() -> None:
+    s = BaseSettings.model_construct()
+    assert s.llm_model == "gpt-4o"
+
+
+def test_b7_embedding_base_url_defaults_to_none() -> None:
+    s = BaseSettings.model_construct()
+    assert s.embedding_base_url is None
+
+
+def test_a4_embedding_openai_model_field_removed() -> None:
+    s = BaseSettings.model_construct()
+    assert not hasattr(s, "embedding_openai_model")
+
+
+def test_n2_embedding_model_default_is_local_fastembed() -> None:
+    """embedding_model default must align with the local/fastembed default provider."""
+    s = BaseSettings.model_construct()
+    assert s.embedding_model == "BAAI/bge-small-en-v1.5"
+
+
+def test_b8_llm_base_url_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_BASE_URL", "http://localhost:11434/v1")
+    s = BaseSettings()
+    assert s.llm_base_url == "http://localhost:11434/v1"
+
+
+def test_b9_embedding_base_url_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("EMBEDDING_BASE_URL", "http://localhost:11434/v1")
+    s = BaseSettings()
+    assert s.embedding_base_url == "http://localhost:11434/v1"
+
+
 def test_f6_invalid_auth_backend_name_raises() -> None:
     with pytest.raises(ValueError, match="Unknown auth backend"):
         BaseSettings(auth_backends=["magic"])

@@ -67,7 +67,7 @@ python -c "import secrets; print('DOCQA_SECRET_KEY=' + secrets.token_hex(32))"
 ```
 
 `DOCQA_SECRET_KEY` is used for:
-- Signing JWT access and refresh tokens — anyone with this value can forge tokens
+- Signing JWT access and refresh tokens - anyone with this value can forge tokens
 - Signing the SQLAdmin session cookie at `/admin` (ADR-049)
 
 A single key serves both purposes. Never commit it to version control. `.env` is in `.gitignore`.
@@ -243,11 +243,11 @@ The refresh token is stored in Redis. If Redis is unreachable during logout, the
 
 ## What you built
 
-- `DOCQA_SECRET_KEY` set in `.env` — signs JWT tokens and the admin session cookie
-- Framework auth migrations applied (`fas migrate`) — users, groups, permissions, API keys tables created automatically
-- Superuser account created via `fas createsuperuser` — grants access to both `/auth/token` and the SQLAdmin panel at `/admin`
+- `DOCQA_SECRET_KEY` set in `.env` - signs JWT tokens and the admin session cookie
+- Framework auth migrations applied (`fas migrate`) - users, groups, permissions, API keys tables created automatically
+- Superuser account created via `fas createsuperuser` - grants access to both `/auth/token` and the SQLAdmin panel at `/admin`
 - JWT tokens obtained via `POST /auth/token` (short-lived access token + long-lived refresh token)
-- Document routes protected with `Depends(get_current_user)` — unauthenticated requests return 401
+- Document routes protected with `Depends(get_current_user)` - unauthenticated requests return 401
 - Token refresh via `POST /auth/refresh`, revocation via `POST /auth/logout` (Redis-backed, fail-closed)
 - SQLAdmin panel at `/admin` authenticates against the user table (`is_staff` or `is_superuser` required)
 

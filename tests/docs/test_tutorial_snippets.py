@@ -460,3 +460,110 @@ class TestPart3Authentication:
     def test_index_references_part3(self):
         index_text = (TUTORIAL_DIR / "index.md").read_text()
         assert "03-authentication.md" in index_text
+
+
+# ---------------------------------------------------------------------------
+# Part 4 — Ingestion Agent
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.docs
+class TestPart4IngestionAgent:
+    part = TUTORIAL_DIR / "04-ingestion-agent.md"
+
+    # 1. Behavior
+
+    def test_file_exists(self):
+        assert self.part.exists(), f"Missing: {self.part}"
+
+    def test_links_to_part3(self):
+        assert "03-authentication.md" in self.part.read_text()
+
+    def test_links_to_part5(self):
+        assert "05-chat-agent.md" in self.part.read_text()
+
+    def test_mentions_upload(self):
+        assert "upload" in self.part.read_text().lower()
+
+    def test_mentions_qdrant_or_vector(self):
+        text = self.part.read_text().lower()
+        assert "qdrant" in text or "vector" in text
+
+    def test_mentions_background_task(self):
+        assert "BackgroundTask" in self.part.read_text()
+
+    def test_has_what_you_built(self):
+        assert "What you built" in self.part.read_text()
+
+    # 2. Contract
+
+    def test_python_snippets_compile(self):
+        for snippet in _python_snippets(self.part):
+            try:
+                ast.parse(textwrap.dedent(snippet))
+            except SyntaxError as exc:
+                pytest.fail(f"Snippet failed to parse:\n{exc}\n\nSnippet:\n{snippet}")
+
+    def test_shows_rag_service(self):
+        assert "RagService" in self.part.read_text()
+
+    def test_shows_ingest_file(self):
+        assert "ingest_file" in self.part.read_text()
+
+    def test_shows_status_field(self):
+        assert "status" in self.part.read_text()
+
+    def test_shows_upload_endpoint(self):
+        assert "/documents/upload" in self.part.read_text()
+
+    def test_cli_commands_use_fas_entry_point(self):
+        fas_cmds = {"migrate", "dev", "run", "makemigrations"}
+        for fence in _bash_snippets(self.part):
+            for line in fence.splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                if any(cmd in stripped for cmd in fas_cmds):
+                    assert stripped.startswith("fas"), (
+                        f"CLI line does not use 'fas' entry point: {stripped!r}"
+                    )
+
+    # 3. Architectural
+
+    def test_no_private_imports_shown(self):
+        """User-facing code must not import from fast_agent_stack.core.* (I12)."""
+        for snippet in _python_snippets(self.part):
+            assert "from fast_agent_stack.core" not in snippet, (
+                f"Tutorial exposes internal import path.\nSnippet:\n{snippet}"
+            )
+
+    def test_uses_public_rag_facade(self):
+        """Tutorial must import RagService from fast_agent_stack.rag (public facade)."""
+        text = self.part.read_text()
+        assert "fast_agent_stack.rag" in text
+
+    def test_uses_public_auth_facade(self):
+        text = self.part.read_text()
+        assert "fast_agent_stack.auth" in text
+
+    def test_import_name_uses_underscores(self):
+        for snippet in _python_snippets(self.part):
+            assert "import fastagentstack" not in snippet
+
+    # 4. NFR
+
+    def test_reasonable_word_count(self):
+        words = len(self.part.read_text().split())
+        assert words < 2500, f"Part 4 is {words} words — consider splitting"
+
+    def test_has_next_steps(self):
+        text = self.part.read_text()
+        assert "Next" in text or "next steps" in text.lower()
+
+    # 5. Failure-mode
+
+    def test_relative_links_target_md_files(self):
+        for link in _MD_LINK_RE.findall(self.part.read_text()):
+            if link.startswith("#") or link.startswith("http"):
+                continue
+            assert link.endswith(".md"), f"Relative link does not target a .md file: {link!r}"

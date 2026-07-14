@@ -19,8 +19,12 @@ _DIMENSION_MAP = {
 
 class OpenAIEmbedding:
     def __init__(self, settings: BaseSettings) -> None:
-        self._model = settings.embedding_openai_model
-        self._client = AsyncOpenAI(timeout=settings.embedding_timeout)
+        self._model = settings.embedding_model
+        self._client = AsyncOpenAI(
+            api_key=settings.embedding_api_key,
+            base_url=settings.embedding_base_url,
+            timeout=settings.embedding_timeout,
+        )
         self._dimensions = _DIMENSION_MAP.get(self._model, 1536)
 
     @property

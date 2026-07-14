@@ -79,11 +79,12 @@ class FastAgentStack:
         name: str,
         backend: Any,
         *,
+        tools: list[Any] | None = None,
         path: str | None = None,
         tags: list[str] | None = None,
         summary: str | None = None,
     ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        """Register an agent handler and mount a POST route at /agents/{name} (I6)."""
+        """Register an agent handler and mount a POST route at /agents/{name} (I6, ADR-046)."""
         from fast_agent_stack.core.ai.agents import make_agent_route_func
 
         def decorator(handler: Callable[..., Any]) -> Callable[..., Any]:
@@ -91,8 +92,8 @@ class FastAgentStack:
                 raise ValueError(
                     f"Agent name '{name}' is already registered. Each agent must have a unique name (I6)."
                 )
-            self._agents[name] = (handler, backend)
-            route_func = make_agent_route_func(name, handler, backend)
+            self._agents[name] = (handler, backend, tools)
+            route_func = make_agent_route_func(name, handler, backend, tools=tools)
             self.fastapi_app.add_api_route(
                 path or f"/agents/{name}",
                 route_func,

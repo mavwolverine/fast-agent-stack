@@ -267,6 +267,30 @@ class TestOpenAILLMBackend:
         _, kwargs = _MOCK_OPENAI.AsyncOpenAI.call_args
         assert kwargs.get("timeout") == 30.0
 
+    def test_n2_settings_llm_base_url_overrides_param(self):
+        """When settings is provided, llm_base_url from settings overrides the base_url constructor param."""
+        from unittest.mock import MagicMock
+
+        _MOCK_OPENAI.AsyncOpenAI.reset_mock()
+        settings = MagicMock()
+        settings.llm_base_url = "http://localhost:11434/v1"
+        settings.llm_timeout = 30.0
+        OpenAILLMBackend(model_id="llama3.2", settings=settings)
+        _, kwargs = _MOCK_OPENAI.AsyncOpenAI.call_args
+        assert kwargs.get("base_url") == "http://localhost:11434/v1"
+
+    def test_n3_settings_llm_base_url_none_uses_sdk_default(self):
+        """settings.llm_base_url=None passes None to AsyncOpenAI (uses SDK default endpoint)."""
+        from unittest.mock import MagicMock
+
+        _MOCK_OPENAI.AsyncOpenAI.reset_mock()
+        settings = MagicMock()
+        settings.llm_base_url = None
+        settings.llm_timeout = 30.0
+        OpenAILLMBackend(model_id="gpt-4o", settings=settings)
+        _, kwargs = _MOCK_OPENAI.AsyncOpenAI.call_args
+        assert kwargs.get("base_url") is None
+
     def test_f1_extras_gate(self, monkeypatch):
         import importlib
 

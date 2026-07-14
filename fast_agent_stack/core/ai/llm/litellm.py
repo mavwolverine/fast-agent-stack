@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import types
 from collections.abc import AsyncIterator
 from typing import Any
@@ -10,7 +11,7 @@ try:
 except ImportError:
     raise ImportError("pip install fast-agent-stack[litellm]") from None
 
-from fast_agent_stack.core.ai.llm import CompletionResult, Message
+from fast_agent_stack.core.ai.llm import CompletionResult, Message, ToolCall, ToolCallResult
 
 
 class LiteLLMLLMBackend:
@@ -37,15 +38,40 @@ class LiteLLMLLMBackend:
     def _to_messages(self, messages: list[Message]) -> list[dict[str, str]]:
         return [{"role": m.role, "content": m.content} for m in messages]
 
-    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult:
-        response = await litellm.acompletion(
-            model=self._model_id,
-            messages=self._to_messages(messages),
-            timeout=self._timeout,
+    async def complete(
+        self,
+        messages: list[Message],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> CompletionResult | ToolCallResult:
+        call_kwargs: dict[str, Any] = {
+            "model": self._model_id,
+            "messages": self._to_messages(messages),
+            "timeout": self._timeout,
             **self._litellm_kwargs,
             **kwargs,
-        )
-        content = response.choices[0].message.content or ""
+        }
+        if tools:
+            call_kwargs["tools"] = tools
+
+        response = await litellm.acompletion(**call_kwargs)
+        choice = response.choices[0]
+
+        # Check for tool calls
+        if choice.message.tool_calls:
+            return ToolCallResult(
+                tool_calls=[
+                    ToolCall(
+                        id=tc.id,
+                        name=tc.function.name,
+                        arguments=json.loads(tc.function.arguments),
+                    )
+                    for tc in choice.message.tool_calls
+                ]
+            )
+
+        content = choice.message.content or ""
         usage = response.usage
         try:
             cost: float | None = litellm.completion_cost(completion_response=response)
@@ -60,18 +86,28 @@ class LiteLLMLLMBackend:
             cost=cost,
         )
 
-    async def stream(self, messages: list[Message], **kwargs: Any) -> AsyncIterator[str | CompletionResult]:
+    async def stream(
+        self,
+        messages: list[Message],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[str | CompletionResult | ToolCallResult]:
+        call_kwargs: dict[str, Any] = {
+            "model": self._model_id,
+            "messages": self._to_messages(messages),
+            "stream": True,
+            "timeout": self._timeout,
+            **self._litellm_kwargs,
+            **kwargs,
+        }
+        if tools:
+            call_kwargs["tools"] = tools
+
         prompt_tokens = 0
         completion_tokens = 0
         total_tokens = 0
-        response = await litellm.acompletion(
-            model=self._model_id,
-            messages=self._to_messages(messages),
-            stream=True,
-            timeout=self._timeout,
-            **self._litellm_kwargs,
-            **kwargs,
-        )
+        response = await litellm.acompletion(**call_kwargs)
         async for chunk in response:
             delta = chunk.choices[0].delta.content if chunk.choices else None
             if delta:
