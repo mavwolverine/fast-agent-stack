@@ -30,7 +30,6 @@ class BaseSettings(_BaseSettings):
     secret_key: str | None = None
     auth_backends: list[str] = []  # e.g. ["jwt"] | ["session"] | ["jwt", "session"] (ADR-034)
     admin_enabled: bool = False
-    admin_secret_key: str | None = None
 
     # Redis (ADR-006, ADR-032, ADR-033)
     redis_url: str | None = None
@@ -121,14 +120,14 @@ class BaseSettings(_BaseSettings):
                 "For custom backends use a dotted Python path."
             )
         if "jwt" in builtin and not self.secret_key:
-            raise RuntimeError("secret_key must be set when 'jwt' is in auth_backends (I11)")
+            raise RuntimeError("secret_key must be set when 'jwt' is in auth_backends")
         if (builtin or self.include_rate_limit) and not self.redis_url:
             raise RuntimeError(
                 "redis_url must be set when auth_backends includes built-in backends "
-                "or include_rate_limit is True (I11, ADR-016)"
+                "or include_rate_limit is True"
             )
-        if self.admin_enabled and not (self.admin_secret_key or self.secret_key):
-            raise RuntimeError("admin_secret_key (or secret_key) must be set when admin is enabled (I11)")
+        if self.admin_enabled and not self.secret_key:
+            raise RuntimeError("secret_key must be set when admin is enabled")
         return self
 
     @classmethod

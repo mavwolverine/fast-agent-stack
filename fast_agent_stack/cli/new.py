@@ -433,10 +433,8 @@ def new(
     # --- Post-create notes ---
     env_notes: list[str] = []
     prefix = project_name.upper()
-    if data.get("include_admin"):
-        env_notes.append(f"  [yellow]![/] Set [bold]{prefix}_ADMIN_SECRET_KEY[/] in [dim].env[/] (admin panel)")
     if data.get("include_auth"):
-        env_notes.append(f"  [yellow]![/] Replace [bold]{prefix}_SECRET_KEY[/] in [dim].env[/] (auth signing)")
+        env_notes.append(f"  [yellow]![/] Replace [bold]{prefix}_SECRET_KEY[/] in [dim].env[/] (auth + admin signing)")
 
     env_block = ""
     if env_notes:

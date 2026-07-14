@@ -347,3 +347,116 @@ class TestPart0Prerequisites:
         """Tutorial index must reference 00-prerequisites.md."""
         index_text = (TUTORIAL_DIR / "index.md").read_text()
         assert "00-prerequisites.md" in index_text, "index.md does not reference 00-prerequisites.md"
+
+
+# ---------------------------------------------------------------------------
+# Part 3 — Authentication
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.docs
+class TestPart3Authentication:
+    part = TUTORIAL_DIR / "03-authentication.md"
+
+    # 1. Behavior
+
+    def test_file_exists(self):
+        assert self.part.exists(), f"Missing: {self.part}"
+
+    def test_mentions_through_line_app(self):
+        text = self.part.read_text()
+        assert "Document Q&A" in text or "docqa" in text.lower()
+
+    def test_links_to_part2(self):
+        assert "02-database-models.md" in self.part.read_text()
+
+    def test_links_to_part4(self):
+        assert "04-ingestion-agent.md" in self.part.read_text()
+
+    def test_shows_fas_migrate(self):
+        assert "fas migrate" in self.part.read_text()
+
+    def test_shows_fas_createsuperuser(self):
+        assert "createsuperuser" in self.part.read_text()
+
+    def test_shows_auth_token_endpoint(self):
+        assert "auth/token" in self.part.read_text()
+
+    def test_has_what_you_built(self):
+        assert "What you built" in self.part.read_text()
+
+    # 2. Contract
+
+    def test_python_snippets_compile(self):
+        for snippet in _python_snippets(self.part):
+            try:
+                ast.parse(textwrap.dedent(snippet))
+            except SyntaxError as exc:
+                pytest.fail(f"Snippet failed to parse:\n{exc}\n\nSnippet:\n{snippet}")
+
+    def test_shows_get_current_user(self):
+        assert "get_current_user" in self.part.read_text()
+
+    def test_shows_auth_refresh_endpoint(self):
+        assert "auth/refresh" in self.part.read_text()
+
+    def test_shows_secret_key(self):
+        assert "SECRET_KEY" in self.part.read_text()
+
+    def test_no_admin_secret_key(self):
+        """ADR-049: admin_secret_key removed — tutorial must not mention it."""
+        assert "ADMIN_SECRET_KEY" not in self.part.read_text()
+
+    def test_cli_commands_use_fas_entry_point(self):
+        fas_cmds = {"new ", "migrate", "dev", "run", "worker", "createsuperuser"}
+        for fence in _bash_snippets(self.part):
+            for line in fence.splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                if any(cmd in stripped for cmd in fas_cmds):
+                    assert stripped.startswith("fas"), (
+                        f"CLI line does not use 'fas' entry point: {stripped!r}"
+                    )
+
+    # 3. Architectural
+
+    def test_no_private_imports_shown(self):
+        """User-facing code must not import from fast_agent_stack.core.* (I12)."""
+        for snippet in _python_snippets(self.part):
+            assert "from fast_agent_stack.core" not in snippet, (
+                f"Tutorial exposes internal import path. Use the public API instead.\nSnippet:\n{snippet}"
+            )
+
+    def test_import_uses_public_auth_facade(self):
+        """Tutorial must import from fast_agent_stack.auth (public facade), not .core.auth."""
+        text = self.part.read_text()
+        assert "fast_agent_stack.auth" in text, (
+            "Tutorial must show 'from fast_agent_stack.auth import ...' for user-facing auth symbols"
+        )
+
+    def test_import_name_uses_underscores(self):
+        for snippet in _python_snippets(self.part):
+            assert "import fastagentstack" not in snippet
+
+    # 4. NFR
+
+    def test_reasonable_word_count(self):
+        words = len(self.part.read_text().split())
+        assert words < 2500, f"Part 3 is {words} words — consider splitting"
+
+    def test_has_next_steps(self):
+        text = self.part.read_text()
+        assert "Next" in text or "next steps" in text.lower()
+
+    # 5. Failure-mode
+
+    def test_relative_links_target_md_files(self):
+        for link in _MD_LINK_RE.findall(self.part.read_text()):
+            if link.startswith("#") or link.startswith("http"):
+                continue
+            assert link.endswith(".md"), f"Relative link does not target a .md file: {link!r}"
+
+    def test_index_references_part3(self):
+        index_text = (TUTORIAL_DIR / "index.md").read_text()
+        assert "03-authentication.md" in index_text

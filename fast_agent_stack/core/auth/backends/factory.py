@@ -5,13 +5,12 @@ from __future__ import annotations
 import importlib
 import uuid
 
-from fastapi import Depends, Request, Response
+from fastapi import Request, Response
 
 from fast_agent_stack.core.auth.backends import AuthBackend, TokenResponse
 from fast_agent_stack.core.config import BaseSettings
 
 try:
-    from redis.asyncio import Redis as _Redis
     from redis_fastapi import AsyncRedisDep
 except ImportError:
     raise ImportError(
@@ -70,12 +69,12 @@ class _AuthBackendChain:
 
 
 async def get_auth_backend(
-    redis: _Redis = Depends(AsyncRedisDep),
+    redis: AsyncRedisDep,
 ) -> AuthBackend:
     """Per-request factory — builds auth backend instances with the injected Redis client."""
     if _stored_settings is None:
         raise RuntimeError(
-            "Auth backend not initialised. Ensure AuthLifespanHook is registered before requests are served (I9)."
+            "Auth backend not initialised. Ensure AuthLifespanHook is registered in your app's lifespan hooks."
         )
     s = _stored_settings
     from fast_agent_stack.core.auth.backends.jwt import JWTAuthBackend

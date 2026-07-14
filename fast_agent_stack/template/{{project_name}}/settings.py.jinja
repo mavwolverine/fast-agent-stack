@@ -20,9 +20,6 @@ class Settings(BaseSettings):
     auth_backends: list[str] = [{%- if auth_backends == "jwt-and-session" %}"jwt", "session"{%- else %}"{{ auth_backends }}"{%- endif %}]
     secret_key: str = "change-me-in-production"
 {%- endif %}
-{%- if include_admin %}
-    admin_secret_key: str = ""
-{%- endif %}
 {%- if include_auth or include_rate_limit %}
     redis_url: str = "redis://localhost:6379/0"
 {%- endif %}

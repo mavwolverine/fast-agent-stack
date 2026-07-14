@@ -107,7 +107,7 @@ fastagentstack new myproject
 
 **Context:** The framework needs a web admin panel that integrates with FastAPI and SQLAlchemy without requiring a separate Django-style admin framework.
 
-**Decision:** SQLAdmin — purpose-built for FastAPI + SQLAlchemy.
+**Decision:** SQLAdmin — purpose-built for FastAPI + SQLAlchemy. **Amended by ADR-049:** admin panel authenticates against the user table (email + password, `is_staff`/`is_superuser` gating), not a shared secret. `admin_secret_key` removed.
 
 **Consequences:**
 - No additional ASGI app needed — mounts directly onto the FastAPI app
@@ -1221,3 +1221,13 @@ time (only enabled features included). `fas makemigrations` always targets `{pro
 eliminating "Multiple heads" errors. The `depends_on` is an ordering constraint, not a completeness
 guarantee — `fas migrate` runs `upgrade "heads"` which applies all branches regardless. Supersedes
 ADR-044's "user migrations use the main branch" — they now use a named branch.
+
+## ADR-049: Unified Secret Key and Database-Backed Admin Authentication
+
+**Status:** Accepted | **Date:** 2026-07-13 | **Amends:** ADR-007
+
+Remove `admin_secret_key`. Admin panel authenticates against the user table (email + password)
+with `is_staff` or `is_superuser` gating access. `secret_key` is the single signing key for both
+JWT tokens and admin session cookies. `fas createsuperuser` creates a user with access to both the
+API (`/auth/token`) and the admin panel (`/admin`). Permissions table determines view visibility;
+`is_superuser` overrides all permission checks.

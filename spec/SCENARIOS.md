@@ -39,7 +39,7 @@ Concrete use cases that validate the framework design. Module briefs and impleme
 1. `fastagentstack new myapi --preset standard`
 2. Define models, routes, schemas in the project root
 3. `fastagentstack migrate` + `fastagentstack createsuperuser`
-4. Admin panel auto-registers models
+4. Admin panel auto-registers models; `createsuperuser` account grants both API and `/admin` access (ADR-049 — no separate `admin_secret_key`)
 
 **What this validates:**
 - Framework works as a non-AI FastAPI wrapper (AI-native, not AI-only)

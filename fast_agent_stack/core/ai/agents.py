@@ -76,7 +76,7 @@ async def dispatch(
                 db=db,
             )
         except Exception:
-            logger.warning("dispatch: log_usage raised (swallowed per I21)", exc_info=True)
+            logger.warning("dispatch: log_usage raised (swallowed — usage write must not abort response)", exc_info=True)
         return JSONResponse({"content": result.content, "model": result.model})
 
 

@@ -19,7 +19,7 @@ def test_b1_constructs_with_defaults() -> None:
     assert s.secret_key is None
     assert s.auth_backends == []
     assert s.admin_enabled is False
-    assert s.admin_secret_key is None
+    assert not hasattr(s, "admin_secret_key")
 
 
 def test_b2_field_resolves_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -128,16 +128,15 @@ def test_f2_multi_backend_no_secret_key_raises(monkeypatch: pytest.MonkeyPatch) 
         BaseSettings(auth_backends=["jwt", "session"], redis_url="redis://localhost:6379")
 
 
-def test_f3_admin_enabled_no_keys_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    """I11: admin_enabled requires admin_secret_key or secret_key."""
+def test_f3_admin_enabled_no_secret_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """I11 / ADR-049: admin_enabled requires secret_key."""
     monkeypatch.delenv("SECRET_KEY", raising=False)
-    monkeypatch.delenv("ADMIN_SECRET_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="admin"):
+    with pytest.raises(RuntimeError, match="secret_key"):
         BaseSettings(auth_backends=[], admin_enabled=True)
 
 
 def test_f4_admin_enabled_with_secret_key_does_not_raise() -> None:
-    """I11: admin may reuse secret_key when admin_secret_key is absent."""
+    """I11 / ADR-049: single secret_key covers both JWT and admin panel."""
     s = BaseSettings(auth_backends=[], admin_enabled=True, secret_key="s3cr3t")
     assert s.admin_enabled is True
 

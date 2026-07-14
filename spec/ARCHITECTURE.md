@@ -48,6 +48,9 @@
 ### 5. Admin Console
 - SQLAdmin integration, auto-registered from models
 - User activity and model usage monitoring
+- Admin login authenticates against the user table (`is_staff` or `is_superuser` required); shared-secret login removed (ADR-049)
+- `fas createsuperuser` is the single entry point for both API (`/auth/token`) and admin panel (`/admin`) access
+- `AdminLifespanHook(app, secret_key=_settings.secret_key)` — `secret_key` signs the session cookie only, not used as a credential
 
 ### 6. Background Tasks & Scheduling
 - Dramatiq integration with Redis/Valkey broker

@@ -50,7 +50,7 @@ auth-jwt     = ["pwdlib[argon2]>=0.3", "pyjwt[crypto]>=2.8", "fastapi-redis-sdk>
 auth-session = ["pwdlib[argon2]>=0.3", "fastapi-redis-sdk>=0.7"]
 
 # Admin (ADR-007)
-admin = ["sqladmin>=0.16"]
+admin = ["sqladmin>=0.16", "itsdangerous>=2.1"]
 
 # LLM backends (ADR-021)
 bedrock   = ["aioboto3>=12"]

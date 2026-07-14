@@ -68,7 +68,7 @@ class PgVectorStore:
         db_url = settings.pgvector_database_url
         if not db_url:
             raise RuntimeError(
-                "pgvector_database_url must be set to use PgVectorStore. Add it to your settings (I11)."
+                "pgvector_database_url must be set to use PgVectorStore. Add it to your settings."
             )
         _validate_name(settings.pgvector_collection_schema)
         self._schema: str = settings.pgvector_collection_schema

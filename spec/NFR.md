@@ -59,8 +59,8 @@
   so that revocation in one worker is immediately visible to all others.
 - **Required secrets must be validated at startup.** An app must not start in a configuration
   where the first authenticated request will fail due to a missing secret. Specifically:
-  `secret_key` when `"jwt" in settings.auth_backends`; `admin_secret_key` when admin is
-  enabled without auth. Startup validation must raise `RuntimeError` with a clear message naming
+  `secret_key` when `"jwt" in settings.auth_backends` or admin panel is enabled (ADR-049).
+  Startup validation must raise `RuntimeError` with a clear message naming
   the missing setting. See I11 and ADR-034.
 - **`redis_url` must be set and connectable (≤5s timeout, per I11) when any builtin auth backend
   is present in `auth_backends`.** Startup must raise `RuntimeError` on failure. This applies

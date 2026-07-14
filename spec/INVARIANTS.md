@@ -114,8 +114,7 @@ Python `set` on the backend instance) is forbidden.
 An application must not start in a configuration where the first authenticated request will fail
 due to a missing secret. The following are hard startup requirements:
 
-- `secret_key` must be set when `"jwt" in settings.auth_backends`
-- `admin_secret_key` must be set when the admin panel is enabled without auth
+- `secret_key` must be set when `"jwt" in settings.auth_backends` or admin panel is enabled (ADR-049)
 - `redis_url` must be set and connectable (≤5s timeout) when `"jwt" in settings.auth_backends`,
   `"session" in settings.auth_backends`, or `settings.include_rate_limit is True` (token
   revocation store for JWT — see I10; session storage — see ADR-032; rate-limit counters —

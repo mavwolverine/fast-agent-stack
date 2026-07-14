@@ -333,7 +333,7 @@ def test_a4_admin_lifespan_hook_implements_protocol() -> None:
     from fast_agent_stack.core.protocols import LifespanHook
 
     app = FastAPI()
-    hook = AdminLifespanHook(app, admin_secret_key="secret")
+    hook = AdminLifespanHook(app, secret_key="secret")
     assert isinstance(hook, LifespanHook)
 
 
