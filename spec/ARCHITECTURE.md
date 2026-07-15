@@ -326,9 +326,10 @@ Chain delegation rules (see ADR-034):
 | Storage | `StorageProtocol` | `upload`, `download`, `delete`, `exists`, `url` |
 | Reranker | `RerankerProtocol` | `rerank` |
 
-**LLM return types (ADR-036):** `complete()` returns `CompletionResult`. `stream()` returns
-`AsyncIterator[str | CompletionResult]` where the final item is always a `CompletionResult`
-sentinel (content="", full token counts). See Module 9 above for the full Protocol definition
+**LLM return types (ADR-036, ADR-046):** `complete()` returns `CompletionResult | ToolCallResult`. `stream()` returns
+`AsyncIterator[str | CompletionResult | ToolCallResult]` where the final item is always a `CompletionResult`
+sentinel (content="", full token counts) for text responses, or a `ToolCallResult` when tool calls are requested.
+Both accept `tools: list[dict] | None = None`. See Module 9 above for the full Protocol definition
 and streaming sentinel contract.
 
 **Phase 5 Protocol signatures (ADR-038):** Full typed signatures for Storage, Vector, and Embedding protocols:

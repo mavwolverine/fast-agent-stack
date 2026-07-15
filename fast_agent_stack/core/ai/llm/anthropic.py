@@ -38,16 +38,41 @@ class AnthropicLLMBackend:
         return self._client
 
     def _convert_messages(self, messages: list[Message]) -> tuple[str, list[dict[str, Any]]]:
+        """Convert Message dataclasses to Anthropic Messages API format.
+
+        Anthropic requires:
+        - role="tool" → {"role": "user", "content": [{"type": "tool_result", ...}]}
+        - assistant with tool_calls → {"role": "assistant", "content": [{"type": "tool_use", ...}]}
+        - regular messages → {"role": ..., "content": text}
+        """
         system_parts = [m.content for m in messages if m.role == "system"]
         conv: list[dict[str, Any]] = []
         for m in messages:
             if m.role == "system":
                 continue
-            msg: dict[str, Any] = {"role": m.role, "content": m.content}
-            if m.tool_call_id is not None:
-                msg["tool_use_id"] = m.tool_call_id
-                msg["type"] = "tool_result"
-            conv.append(msg)
+            if m.role == "tool" and m.tool_call_id:
+                conv.append({
+                    "role": "user",
+                    "content": [{
+                        "type": "tool_result",
+                        "tool_use_id": m.tool_call_id,
+                        "content": m.content,
+                    }],
+                })
+            elif m.role == "assistant" and m.tool_calls:
+                content: list[dict[str, Any]] = []
+                if m.content:
+                    content.append({"type": "text", "text": m.content})
+                for tc in m.tool_calls:
+                    content.append({
+                        "type": "tool_use",
+                        "id": tc.id,
+                        "name": tc.name,
+                        "input": tc.arguments,
+                    })
+                conv.append({"role": "assistant", "content": content})
+            else:
+                conv.append({"role": m.role, "content": m.content})
         return " ".join(system_parts), conv
 
     def _convert_tools(self, tools: list[dict[str, Any]]) -> list[dict[str, Any]]:

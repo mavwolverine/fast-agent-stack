@@ -180,7 +180,7 @@ and a completion summary after project generation.
 ## Presets
 
 ```bash
-# Full AI agent stack (Bedrock + Qdrant + S3 + auth + admin + frontend)
+# Full AI agent stack (OpenAI-compatible + Qdrant + local storage + auth + admin + frontend)
 fastagentstack new myproject --preset agent
 
 # Full non-AI stack (auth + admin + tasks + rate-limit + tracing)
@@ -194,12 +194,14 @@ fastagentstack new myproject --preset minimal
 
 # Custom via flags (CI-friendly, no prompts)
 fastagentstack new myproject \
+  --preset agent \
   --db postgres \
-  --llm bedrock \
-  --vector qdrant \
-  --storage s3 \
-  --auth jwt \
-  --admin
+  --llm openai \
+  --vector-db qdrant \
+  --storage local \
+  --auth \
+  --admin \
+  -y
 ```
 
 ## Project Update

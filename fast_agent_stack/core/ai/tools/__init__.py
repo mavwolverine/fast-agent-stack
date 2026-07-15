@@ -105,14 +105,27 @@ async def agent_loop(
     current_messages = list(messages)
 
     for _ in range(max_iterations):
-        result = await backend.complete(
+        tool_call_result: ToolCallResult | None = None
+
+        async for chunk in backend.stream(
             current_messages,
             tools=tool_schemas if tool_schemas else None,
-        )
+        ):
+            if isinstance(chunk, ToolCallResult):
+                tool_call_result = chunk
+                break
+            elif isinstance(chunk, CompletionResult):
+                # Sentinel — final item from stream, forward and exit
+                yield chunk
+                return
+            else:
+                # Text token — yield directly for SSE streaming
+                yield chunk
 
-        if isinstance(result, ToolCallResult):
-            current_messages.append(Message(role="assistant", content="", tool_calls=result.tool_calls))
-            for call in result.tool_calls:
+        if tool_call_result is not None:
+            # Dispatch tool calls and loop
+            current_messages.append(Message(role="assistant", content="", tool_calls=tool_call_result.tool_calls))
+            for call in tool_call_result.tool_calls:
                 fn = tool_map.get(call.name)
                 if fn is None:
                     tool_output = f"Error: unknown tool {call.name!r}"
@@ -123,9 +136,7 @@ async def agent_loop(
                         tool_output = f"Error: {exc}"
                 current_messages.append(Message(role="tool", content=str(tool_output), tool_call_id=call.id))
         else:
-            # Final text response — yield content chunk then sentinel
-            yield result.content
-            yield result
+            # Stream ended without sentinel or tool call — exit cleanly
             return
 
     # Reached iteration cap (I23) — emit empty sentinel to close the stream

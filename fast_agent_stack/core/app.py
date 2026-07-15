@@ -80,6 +80,7 @@ class FastAgentStack:
         backend: Any,
         *,
         tools: list[Any] | None = None,
+        dependencies: list[Any] | None = None,
         path: str | None = None,
         tags: list[str] | None = None,
         summary: str | None = None,
@@ -98,6 +99,7 @@ class FastAgentStack:
                 path or f"/agents/{name}",
                 route_func,
                 methods=["POST"],
+                dependencies=dependencies,
                 tags=tags or ["agents"],  # type: ignore[arg-type]
                 summary=summary or f"Agent: {name}",
             )

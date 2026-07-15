@@ -1,4 +1,4 @@
-"""Public RAG facade — re-exports the user-facing RAG, embedding, and vector-store symbols."""
+"""Public RAG facade — re-exports the user-facing RAG, embedding, vector-store, and reranker symbols."""
 
 from fast_agent_stack.core.ai.embedding import EmbeddingProtocol, get_embedding_provider
 from fast_agent_stack.core.ai.rag import (
@@ -8,6 +8,7 @@ from fast_agent_stack.core.ai.rag import (
     RagService,
     UnsupportedFileTypeError,
 )
+from fast_agent_stack.core.ai.reranker import RerankResult, RerankerProtocol, get_reranker
 from fast_agent_stack.core.vector import (
     CollectionNotFoundError,
     VectorSearchResult,
@@ -30,4 +31,8 @@ __all__ = [
     "VectorSearchResult",
     "CollectionNotFoundError",
     "get_vector_store",
+    # Reranker
+    "RerankerProtocol",
+    "RerankResult",
+    "get_reranker",
 ]

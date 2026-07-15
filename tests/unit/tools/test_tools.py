@@ -13,7 +13,7 @@ from __future__ import annotations
 import dataclasses
 import inspect
 from collections.abc import AsyncIterator
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -46,9 +46,35 @@ def _make_tool_call_result(name: str = "search", args: dict | None = None) -> To
 
 
 def _make_backend(responses: list) -> MagicMock:
-    """Backend whose complete() returns responses in sequence."""
+    """Backend whose stream() yields responses in sequence.
+
+    Each response in the list becomes one stream() call:
+    - CompletionResult → yields text content tokens then the sentinel
+    - ToolCallResult → yields the ToolCallResult directly
+    """
+    call_idx = {"i": 0}
+
+    async def _stream_side_effect(*args, **kwargs):  # type: ignore[no-untyped-def]
+        idx = call_idx["i"]
+        call_idx["i"] += 1
+        resp = responses[idx]
+        if isinstance(resp, ToolCallResult):
+            yield resp
+        elif isinstance(resp, CompletionResult):
+            # Yield content as tokens then sentinel
+            if resp.content:
+                yield resp.content
+            yield CompletionResult(
+                content="",
+                model=resp.model,
+                prompt_tokens=resp.prompt_tokens,
+                completion_tokens=resp.completion_tokens,
+                total_tokens=resp.total_tokens,
+                cost=resp.cost,
+            )
+
     backend = MagicMock()
-    backend.complete = AsyncMock(side_effect=responses)
+    backend.stream = MagicMock(side_effect=_stream_side_effect)
     return backend
 
 
@@ -122,7 +148,7 @@ async def test_agent_loop_no_tool_calls_yields_content_and_sentinel():
 
     assert results[0] == "hello world"
     assert isinstance(results[1], CompletionResult)
-    assert results[1].content == "hello world"
+    assert results[1].content == ""  # ADR-036: sentinel always has content=""
 
 
 async def test_agent_loop_one_tool_call_then_final_response():
@@ -148,7 +174,7 @@ async def test_agent_loop_one_tool_call_then_final_response():
 
 
 async def test_agent_loop_passes_tool_schemas_to_backend():
-    """agent_loop passes list[dict] schemas to backend.complete()."""
+    """agent_loop passes list[dict] schemas to backend.stream()."""
     backend = _make_backend([_make_completion()])
 
     @tool(description="a tool")
@@ -157,7 +183,7 @@ async def test_agent_loop_passes_tool_schemas_to_backend():
 
     await _collect(agent_loop(backend, [], tools=[my_fn]))
 
-    _, kwargs = backend.complete.call_args
+    _, kwargs = backend.stream.call_args
     assert kwargs["tools"] is not None
     assert isinstance(kwargs["tools"], list)
     assert kwargs["tools"][0]["function"]["name"] == "my_fn"
@@ -175,8 +201,8 @@ async def test_agent_loop_appends_tool_role_messages():
 
     await _collect(agent_loop(backend, [Message(role="user", content="find")], tools=[search]))
 
-    # Second complete() call receives tool-result messages
-    second_call_messages = backend.complete.call_args_list[1][0][0]
+    # Second stream() call receives tool-result messages
+    second_call_messages = backend.stream.call_args_list[1][0][0]
     tool_msgs = [m for m in second_call_messages if m.role == "tool"]
     assert len(tool_msgs) == 1
     assert tool_msgs[0].tool_call_id == "call-1"
@@ -189,7 +215,7 @@ async def test_agent_loop_passes_none_tools_when_empty():
 
     await _collect(agent_loop(backend, [], tools=[]))
 
-    _, kwargs = backend.complete.call_args
+    _, kwargs = backend.stream.call_args
     assert kwargs["tools"] is None
 
 
@@ -295,9 +321,12 @@ def test_tools_module_does_not_import_from_internals():
 async def test_agent_loop_respects_max_iterations_i23():
     """agent_loop stops after max_iterations even if backend keeps returning tool calls."""
     call_result = _make_tool_call_result()
-    # Always returns a tool call — would loop forever without the cap
+
+    async def _always_tool_call(*args, **kwargs):  # type: ignore[no-untyped-def]
+        yield call_result
+
     backend = MagicMock()
-    backend.complete = AsyncMock(return_value=call_result)
+    backend.stream = MagicMock(side_effect=_always_tool_call)
 
     @tool(description="infinite tool")
     async def search(query: str) -> str:
@@ -305,7 +334,7 @@ async def test_agent_loop_respects_max_iterations_i23():
 
     results = await _collect(agent_loop(backend, [], tools=[search], max_iterations=3))
 
-    assert backend.complete.call_count == 3
+    assert backend.stream.call_count == 3
     # Must yield a CompletionResult sentinel to signal end of stream
     sentinels = [r for r in results if isinstance(r, CompletionResult)]
     assert len(sentinels) == 1
@@ -313,15 +342,19 @@ async def test_agent_loop_respects_max_iterations_i23():
 
 async def test_agent_loop_custom_max_iterations():
     """max_iterations parameter overrides the default of 10."""
+
+    async def _always_tool_call(*args, **kwargs):  # type: ignore[no-untyped-def]
+        yield _make_tool_call_result()
+
     backend = MagicMock()
-    backend.complete = AsyncMock(return_value=_make_tool_call_result())
+    backend.stream = MagicMock(side_effect=_always_tool_call)
 
     @tool(description="t")
     async def t(query: str) -> str:
         return "r"
 
     await _collect(agent_loop(backend, [], tools=[t], max_iterations=2))
-    assert backend.complete.call_count == 2
+    assert backend.stream.call_count == 2
 
 
 async def test_agent_loop_empty_tools_list_still_works():
@@ -347,7 +380,7 @@ async def test_agent_loop_unknown_tool_produces_error_string():
     # Should complete normally with the final response
     assert isinstance(results[-1], CompletionResult)
     # The second call receives an error tool message
-    second_messages = backend.complete.call_args_list[1][0][0]
+    second_messages = backend.stream.call_args_list[1][0][0]
     error_msg = next(m for m in second_messages if m.role == "tool")
     assert "nonexistent_tool" in error_msg.content or "Error" in error_msg.content
 
@@ -365,14 +398,19 @@ async def test_agent_loop_tool_exception_is_caught_and_continued():
     results = await _collect(agent_loop(backend, [], tools=[failing_tool]))
 
     assert isinstance(results[-1], CompletionResult)
-    second_messages = backend.complete.call_args_list[1][0][0]
+    second_messages = backend.stream.call_args_list[1][0][0]
     error_msg = next(m for m in second_messages if m.role == "tool")
     assert "something broke" in error_msg.content or "Error" in error_msg.content
 
 
 async def test_agent_loop_max_iterations_1_yields_empty_sentinel():
     """With max_iterations=1 and a tool call response, yields empty sentinel immediately."""
-    backend = _make_backend([_make_tool_call_result()])
+
+    async def _tool_call_stream(*args, **kwargs):  # type: ignore[no-untyped-def]
+        yield _make_tool_call_result()
+
+    backend = MagicMock()
+    backend.stream = MagicMock(side_effect=_tool_call_stream)
 
     @tool(description="t")
     async def t(query: str) -> str:

@@ -80,13 +80,14 @@ class QdrantStore:
     ) -> list[VectorSearchResult]:
         try:
             qdrant_filter = _build_filter(filter) if filter else None
-            results = await self._client.search(
+            response = await self._client.query_points(
                 collection_name=collection,
-                query_vector=vector,
+                query=vector,
                 limit=top_k,
                 query_filter=qdrant_filter,
                 with_payload=True,
             )
+            results = response.points
         except (UnexpectedResponse, Exception) as exc:
             msg = str(exc).lower()
             if "not found" in msg or "collection" in msg:

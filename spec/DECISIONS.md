@@ -388,12 +388,12 @@ Run via: `fastagentstack scheduler` (starts the periodiq worker process that che
 ```python
 class LLMBackend(Protocol):
     model_id: str
-    async def complete(self, messages: list[Message], **kwargs) -> CompletionResult: ...
-    async def stream(self, messages: list[Message], **kwargs) -> AsyncIterator[str]: ...
+    async def complete(self, messages: list[Message], *, tools: list[dict] | None = None, **kwargs) -> CompletionResult | ToolCallResult: ...
+    async def stream(self, messages: list[Message], *, tools: list[dict] | None = None, **kwargs) -> AsyncIterator[str | CompletionResult | ToolCallResult]: ...
     async def count_tokens(self, messages: list[Message]) -> int: ...
 ```
 
-**Note:** The `CompletionResult` return type for `complete()` and the full streaming contract for `stream()` are defined by ADR-036, which amends this ADR. The signature shown above reflects the post-ADR-036 state.
+**Note:** The signatures above reflect the post-ADR-036, post-ADR-046 state. `CompletionResult` return type and streaming sentinel are defined by ADR-036. The `tools` kwarg and `ToolCallResult` return type are defined by ADR-046.
 
 **Consequences:**
 - Minimal dependency footprint — only the SDK you use gets installed
@@ -838,18 +838,18 @@ The `LLMBackend.complete()` and `LLMBackend.stream()` methods return token count
       cost: float | None    # None when the backend cannot compute cost (e.g., self-hosted)
   ```
 
-  **Updated `LLMBackend` Protocol** (amends ADR-021):
+  **Updated `LLMBackend` Protocol** (amends ADR-021, further amended by ADR-046):
 
   ```python
   class LLMBackend(Protocol):
       @property
       def model_id(self) -> str: ...
       async def complete(
-          self, messages: list[Message], **kwargs
-      ) -> CompletionResult: ...
+          self, messages: list[Message], *, tools: list[dict] | None = None, **kwargs
+      ) -> CompletionResult | ToolCallResult: ...
       async def stream(
-          self, messages: list[Message], **kwargs
-      ) -> AsyncIterator[str | CompletionResult]: ...
+          self, messages: list[Message], *, tools: list[dict] | None = None, **kwargs
+      ) -> AsyncIterator[str | CompletionResult | ToolCallResult]: ...
       async def count_tokens(self, messages: list[Message]) -> int: ...
   ```
 
@@ -882,7 +882,7 @@ The `LLMBackend.complete()` and `LLMBackend.stream()` methods return token count
   - `CompletionResult` is defined in `core/ai/llm/__init__.py` and exported from `fast_agent_stack.core.ai.llm`.
   - All `LLMBackend` implementations (Bedrock, OpenAI, Anthropic, LiteLLM) must emit a trailing `CompletionResult` as the final item of their `stream()` async generator.
   - `core/ai/streaming.py` (`stream_sse` helper) is responsible for splitting `str` chunks (→ SSE) from the trailing `CompletionResult` (→ `UsageService.log_usage()`).
-  - ADR-021 is amended by this ADR (not superseded) — it adds return-type specificity to the previously undefined `CompletionResult` reference and corrects the `stream()` return type annotation.
+  - ADR-021 is amended by this ADR (not superseded) — it adds return-type specificity to the previously undefined `CompletionResult` reference and corrects the `stream()` return type annotation. Further amended by ADR-046 (tools kwarg, ToolCallResult). See ARCHITECTURE.md Module 9 for the current canonical signature.
   - ADR-035 is updated to reference `CompletionResult` as the token count carrier for both `complete()` and `stream()` paths.
   - Invariant I21 is added: token usage log write failures must not abort or delay the LLM response.
   - `spec/GLOSSARY.md` gains three terms: `CompletionResult`, `UsageService`, `ConversationLog`.

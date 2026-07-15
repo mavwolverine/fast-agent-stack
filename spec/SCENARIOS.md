@@ -442,8 +442,8 @@ configuration is missing or an external service is unreachable.
 
 **Flow (Redis unreachable):**
 1. Deploy with `auth_backends = ["jwt"]`, `REDIS_URL = "redis://bad-host:6379"`
-2. `AuthLifespanHook.__aenter__()` attempts a Redis `PING` with a 5-second timeout
-3. On failure: raises `RuntimeError("Cannot connect to Redis at redis://bad-host:6379 — required for token revocation")` and process exits
+2. `FastAPIRedisLifespanHook.__aenter__()` attempts a Redis `PING` with a 5-second timeout (I9, ADR-037)
+3. On failure: raises `RuntimeError("Cannot connect to Redis at redis://bad-host:6379 — check that redis_url is correct and Redis is running")` and process exits
 
 **What this validates:**
 - Invariant I11 is enforced: missing secrets fail fast at startup

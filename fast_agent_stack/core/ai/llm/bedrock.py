@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -47,8 +48,45 @@ class BedrockLLMBackend:
         return self._session
 
     def _convert_messages(self, messages: list[Message]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Convert Message dataclasses to Bedrock Converse API format.
+
+        Bedrock requires:
+        - role="tool" messages → {"role": "user", "content": [{"toolResult": {...}}]}
+        - assistant messages with tool_calls → {"role": "assistant", "content": [{"toolUse": {...}}]}
+        - regular messages → {"role": ..., "content": [{"text": ...}]}
+        """
         system = [{"text": m.content} for m in messages if m.role == "system"]
-        conv = [{"role": m.role, "content": [{"text": m.content}]} for m in messages if m.role != "system"]
+        conv: list[dict[str, Any]] = []
+        for m in messages:
+            if m.role == "system":
+                continue
+            if m.role == "tool" and m.tool_call_id:
+                # Tool result message
+                conv.append({
+                    "role": "user",
+                    "content": [{
+                        "toolResult": {
+                            "toolUseId": m.tool_call_id,
+                            "content": [{"text": m.content}],
+                        }
+                    }],
+                })
+            elif m.role == "assistant" and m.tool_calls:
+                # Assistant requesting tool use
+                content: list[dict[str, Any]] = []
+                if m.content:
+                    content.append({"text": m.content})
+                for tc in m.tool_calls:
+                    content.append({
+                        "toolUse": {
+                            "toolUseId": tc.id,
+                            "name": tc.name,
+                            "input": tc.arguments,
+                        }
+                    })
+                conv.append({"role": "assistant", "content": content})
+            else:
+                conv.append({"role": m.role, "content": [{"text": m.content}]})
         return system, conv
 
     async def complete(
@@ -150,25 +188,57 @@ class BedrockLLMBackend:
             config=self._boto_config,
         ) as client:
             response = await client.converse_stream(**call_kwargs)
+            tool_use_blocks: dict[int, dict[str, Any]] = {}
+            current_block_idx = 0
             async for event in response["stream"]:
-                if "contentBlockDelta" in event:
-                    chunk = event["contentBlockDelta"]["delta"].get("text", "")
-                    if chunk:
-                        yield chunk
+                if "contentBlockStart" in event:
+                    start = event["contentBlockStart"]
+                    current_block_idx = start.get("contentBlockIndex", 0)
+                    if "toolUse" in start.get("start", {}):
+                        tool_use_blocks[current_block_idx] = {
+                            "toolUseId": start["start"]["toolUse"]["toolUseId"],
+                            "name": start["start"]["toolUse"]["name"],
+                            "input_json": "",
+                        }
+                elif "contentBlockDelta" in event:
+                    delta = event["contentBlockDelta"]["delta"]
+                    if "text" in delta:
+                        chunk = delta["text"]
+                        if chunk:
+                            yield chunk
+                    elif "toolUse" in delta:
+                        # Accumulate tool input JSON fragments
+                        idx = event["contentBlockDelta"].get("contentBlockIndex", current_block_idx)
+                        if idx in tool_use_blocks:
+                            tool_use_blocks[idx]["input_json"] += delta["toolUse"].get("input", "")
                 elif "metadata" in event:
                     usage = event["metadata"].get("usage", {})
                     prompt_tokens = usage.get("inputTokens", 0)
                     completion_tokens = usage.get("outputTokens", 0)
                     total_tokens = usage.get("totalTokens", 0)
-        # ADR-036: sentinel is the absolute last item
-        yield CompletionResult(
-            content="",
-            model=self._model_id,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-            cost=None,
-        )
+
+        # If tool calls were accumulated, yield ToolCallResult
+        if tool_use_blocks:
+            yield ToolCallResult(
+                tool_calls=[
+                    ToolCall(
+                        id=block["toolUseId"],
+                        name=block["name"],
+                        arguments=json.loads(block["input_json"]) if block["input_json"] else {},
+                    )
+                    for block in tool_use_blocks.values()
+                ]
+            )
+        else:
+            # ADR-036: sentinel is the absolute last item
+            yield CompletionResult(
+                content="",
+                model=self._model_id,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                cost=None,
+            )
 
     async def count_tokens(self, messages: list[Message]) -> int:
         # Bedrock has no public token-count endpoint for the converse API.

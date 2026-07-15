@@ -567,3 +567,117 @@ class TestPart4IngestionAgent:
             if link.startswith("#") or link.startswith("http"):
                 continue
             assert link.endswith(".md"), f"Relative link does not target a .md file: {link!r}"
+
+
+# ---------------------------------------------------------------------------
+# Part 5 — Chat Agent with Tools
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.docs
+class TestPart5ChatAgent:
+    part = TUTORIAL_DIR / "05-chat-agent.md"
+
+    # 1. Behavior
+
+    def test_file_exists(self):
+        assert self.part.exists(), f"Missing: {self.part}"
+
+    def test_links_to_part4(self):
+        assert "04-ingestion-agent.md" in self.part.read_text()
+
+    def test_links_to_part6(self):
+        assert "06-chat-ui.md" in self.part.read_text()
+
+    def test_mentions_agent_loop(self):
+        assert "agent_loop" in self.part.read_text()
+
+    def test_mentions_tool_decorator(self):
+        text = self.part.read_text()
+        assert "@tool" in text or "tool(" in text
+
+    def test_mentions_streaming(self):
+        text = self.part.read_text().lower()
+        assert "sse" in text or "stream" in text
+
+    def test_has_what_you_built(self):
+        assert "What you built" in self.part.read_text()
+
+    # 2. Contract
+
+    def test_python_snippets_compile(self):
+        for snippet in _python_snippets(self.part):
+            try:
+                ast.parse(textwrap.dedent(snippet))
+            except SyntaxError as exc:
+                pytest.fail(f"Snippet failed to parse:\n{exc}\n\nSnippet:\n{snippet}")
+
+    def test_shows_search_tool(self):
+        assert "search_docs" in self.part.read_text()
+
+    def test_shows_app_agent_registration(self):
+        assert "app.agent" in self.part.read_text()
+
+    def test_agent_registration_targets_agents_py(self):
+        """Tutorial must instruct the user to edit agents.py, not app.py directly."""
+        text = self.part.read_text()
+        assert "agents.py" in text
+        assert "register_agents" in text
+
+    def test_agent_endpoint_requires_auth(self):
+        """Chat agent must be protected with get_current_user (not open to anonymous requests)."""
+        text = self.part.read_text()
+        assert "get_current_user" in text
+        assert "dependencies" in text
+
+    def test_shows_curl_example(self):
+        assert "curl" in self.part.read_text().lower()
+
+    def test_cli_commands_use_fas_entry_point(self):
+        fas_cmds = {"dev", "run"}
+        for fence in _bash_snippets(self.part):
+            for line in fence.splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                if any(cmd in stripped for cmd in fas_cmds):
+                    assert stripped.startswith("fas"), (
+                        f"CLI line does not use 'fas' entry point: {stripped!r}"
+                    )
+
+    # 3. Architectural
+
+    def test_no_private_imports_shown(self):
+        """User-facing code must not import from fast_agent_stack.core.* (I12)."""
+        for snippet in _python_snippets(self.part):
+            assert "from fast_agent_stack.core" not in snippet, (
+                f"Tutorial exposes internal import path.\nSnippet:\n{snippet}"
+            )
+
+    def test_uses_public_ai_facade(self):
+        """Tutorial must import tool/agent_loop from fast_agent_stack.ai (public facade)."""
+        assert "fast_agent_stack.ai" in self.part.read_text()
+
+    def test_uses_public_rag_facade(self):
+        assert "fast_agent_stack.rag" in self.part.read_text()
+
+    # 4. NFR
+
+    def test_reasonable_word_count(self):
+        words = len(self.part.read_text().split())
+        assert words < 2500, f"Part 5 is {words} words — consider splitting"
+
+    def test_has_next_steps(self):
+        text = self.part.read_text()
+        assert "Next" in text or "next steps" in text.lower()
+
+    def test_no_emdashes(self):
+        assert "—" not in self.part.read_text(), "Found em-dash in Part 5"
+
+    # 5. Failure-mode
+
+    def test_relative_links_target_md_files(self):
+        for link in _MD_LINK_RE.findall(self.part.read_text()):
+            if link.startswith("#") or link.startswith("http"):
+                continue
+            assert link.endswith(".md"), f"Relative link does not target a .md file: {link!r}"

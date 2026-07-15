@@ -30,7 +30,7 @@ thread-level usage attribution (ADR-035).
 
 **EmailProtocol** — the Protocol for email delivery backends (ADR-041). Single method: `send(*, to, subject, body_text, body_html) -> None`. Built-in: `SmtpEmailBackend` (aiosmtplib). Custom backends via ADR-012 dotted-path in `email_backend` setting. Located in `core/email/`.
 
-**ExtractionProtocol** — the Protocol for document text extraction (ADR-040). Single method: `extract(data: bytes) -> str`. Built-in implementations: PDF (pdfplumber), DOCX (python-docx), XLSX (openpyxl), EML (stdlib). Each is extras-gated (I3).
+**ExtractionProtocol** — the Protocol for document text extraction (ADR-040). Single method: `extract(data: bytes) -> str`. Built-in implementations: PDF (pymupdf), DOCX (python-docx), XLSX (openpyxl), EML (stdlib). Each is extras-gated (I3).
 
 **Extras gate** — a guard around an optional import that raises a clear error pointing to the correct install command:
 ```python

@@ -84,6 +84,8 @@ def make_agent_route_func(
     name: str,
     handler: Callable[..., Any],
     backend: LLMBackend,
+    *,
+    tools: list[Any] | None = None,
 ) -> Callable[..., Any]:
     """Return a FastAPI-compatible async route handler for the named agent."""
 
