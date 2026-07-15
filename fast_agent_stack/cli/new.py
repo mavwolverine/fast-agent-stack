@@ -384,7 +384,7 @@ def new(
             data["embedding_provider"] = "none"
 
         # 8. UI
-        data["include_frontend"] = _get_bool("include_frontend", "Include chat frontend?", False)
+        data["include_frontend"] = _get_bool("include_frontend", "Include frontend placeholder directory?", False)
     else:
         data["llm_provider"] = "none"
         data["vector_db"] = "none"

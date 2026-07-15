@@ -107,5 +107,13 @@ class FastAgentStack:
 
         return decorator
 
+    def frontend(self, directory: str, *, path: str = "/") -> None:
+        """Mount a static SPA build directory (ADR-024).
+
+        Delegates to FastAPI's native frontend() (>=0.138.0). API routes take
+        priority; unmatched paths fall back to index.html for SPA routing.
+        """
+        self.fastapi_app.frontend(path, directory=directory)
+
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         await self.fastapi_app(scope, receive, send)

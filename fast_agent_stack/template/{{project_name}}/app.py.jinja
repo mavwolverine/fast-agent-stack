@@ -45,3 +45,6 @@ app.include_router(router)
 {%- if include_auth %}
 app.include_router(auth_router)
 {%- endif %}
+{%- if include_frontend %}
+_stack.frontend("./frontend")
+{%- endif %}

@@ -359,7 +359,7 @@ def test_c14_question_sequence_matches_adr047() -> None:
         "Include background tasks?",
         "LLM provider?",
         "Vector database?",
-        "Include chat frontend?",
+        "Include frontend placeholder directory?",
         "Tracing backend?",
         "Secrets manager?",
         "Include Dockerfile?",

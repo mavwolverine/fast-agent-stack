@@ -101,6 +101,11 @@ include_admin:
     help: Include SQLAdmin panel?
     default: false
 
+include_frontend:
+    type: bool
+    help: Include frontend placeholder directory?
+    default: false
+
 tracing:
     type: str
     help: Tracing backend?

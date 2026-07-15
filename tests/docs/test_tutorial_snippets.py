@@ -681,3 +681,90 @@ class TestPart5ChatAgent:
             if link.startswith("#") or link.startswith("http"):
                 continue
             assert link.endswith(".md"), f"Relative link does not target a .md file: {link!r}"
+
+
+# ---------------------------------------------------------------------------
+# Part 6 — Chat UI
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.docs
+class TestPart6ChatUI:
+    part = TUTORIAL_DIR / "06-chat-ui.md"
+
+    # 1. Behavior
+
+    def test_file_exists(self):
+        assert self.part.exists(), f"Missing: {self.part}"
+
+    def test_links_to_part5(self):
+        assert "05-chat-agent.md" in self.part.read_text()
+
+    def test_links_to_part7(self):
+        assert "07-background-tasks.md" in self.part.read_text()
+
+    def test_mentions_frontend_method(self):
+        assert "frontend(" in self.part.read_text()
+
+    def test_mentions_streaming(self):
+        text = self.part.read_text().lower()
+        assert "sse" in text or "stream" in text
+
+    def test_has_what_you_built(self):
+        assert "What you built" in self.part.read_text()
+
+    # 2. Contract
+
+    def test_python_snippets_compile(self):
+        for snippet in _python_snippets(self.part):
+            try:
+                ast.parse(textwrap.dedent(snippet))
+            except SyntaxError as exc:
+                pytest.fail(f"Snippet failed to parse:\n{exc}\n\nSnippet:\n{snippet}")
+
+    def test_shows_stack_frontend_call(self):
+        assert "_stack.frontend(" in self.part.read_text()
+
+    def test_shows_fetch_reader_not_eventsource(self):
+        text = self.part.read_text()
+        assert "getReader" in text, "Must show fetch()+getReader() for POST SSE"
+        assert "EventSource" not in text, "EventSource does not support POST endpoints"
+
+    def test_cli_commands_use_fas_entry_point(self):
+        fas_cmds = {"dev", "run"}
+        for fence in _bash_snippets(self.part):
+            for line in fence.splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                if any(cmd in stripped for cmd in fas_cmds):
+                    assert stripped.startswith("fas"), (
+                        f"CLI line does not use 'fas' entry point: {stripped!r}"
+                    )
+
+    # 3. Architectural
+
+    def test_no_private_imports_shown(self):
+        for snippet in _python_snippets(self.part):
+            assert "from fast_agent_stack.core" not in snippet
+
+    # 4. NFR
+
+    def test_reasonable_word_count(self):
+        words = len(self.part.read_text().split())
+        assert words < 2500, f"Part 6 is {words} words - consider splitting"
+
+    def test_has_next_steps(self):
+        text = self.part.read_text()
+        assert "Next" in text or "next steps" in text.lower()
+
+    def test_no_emdashes(self):
+        assert "—" not in self.part.read_text(), "Found em-dash in Part 6"
+
+    # 5. Failure-mode
+
+    def test_relative_links_target_md_files(self):
+        for link in _MD_LINK_RE.findall(self.part.read_text()):
+            if link.startswith("#") or link.startswith("http"):
+                continue
+            assert link.endswith(".md"), f"Relative link does not target a .md file: {link!r}"

@@ -82,7 +82,7 @@ async def info(settings: Settings = Depends(get_settings)) -> dict:
 ├── .env.example
 ├── Dockerfile         # {% if include_dockerfile %}
 ├── docker-compose.yml # {% if include_docker_compose %}
-├── frontend/          # {% if include_frontend %} — SPA build output root (ADR-024)
+├── frontend/          # {% if include_frontend %} — empty drop target for compiled SPA output (ADR-024); no starter content generated
 ├── alembic/
 │   └── versions/
 │       └── 0001_{project_name}_initial.py  # seed migration (ADR-048)
@@ -154,7 +154,7 @@ AI / LLM:
 ? Embedding provider? (OpenAI-compatible / Bedrock / Local / None)
 
 UI:
-? Include chat frontend? (Yes / No)
+? Include frontend placeholder directory? (Yes / No)
 
 Observability:
 ? Tracing? (Jaeger + OpenTelemetry / None)

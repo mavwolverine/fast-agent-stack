@@ -434,8 +434,8 @@ fast_agent_stack/
 
 ## Frontend Serving
 
-- Uses FastAPI's `app.frontend("./frontend/dist")` to serve a static SPA build
+- Uses FastAPI's `_stack.frontend("./frontend")` to serve a static SPA build; users place compiled output in `frontend/`
 - API routes take priority; frontend files are served only when no path operation matches
 - SPA fallback routing handled automatically (client-side routing works)
-- Optional — only generated when `include_frontend` is enabled in scaffolder
+- Optional — scaffolder generates an empty `frontend/` directory when `include_frontend` is enabled; no HTML/JS starter content is scaffolded (users bring their own SPA)
 - Separate from SQLAdmin (admin = server-rendered model CRUD; frontend = user-facing app)

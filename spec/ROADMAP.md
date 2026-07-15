@@ -134,7 +134,7 @@
 - [x] Tutorial Part 3 — Authentication: JWT auth, create users, protect upload/chat endpoints
 - [x] Tutorial Part 4 — Ingestion Agent: upload PDF → background task → extract → embed → store vectors
 - [x] Tutorial Part 5 — Chat Agent with Tools: query → agent decides to search → retrieves → synthesizes → streams
-- [ ] Tutorial Part 6 — Chat UI: single HTML page (vanilla JS), file upload, SSE streaming, served via app.frontend()
+- [x] Tutorial Part 6 — Chat UI: single HTML page (vanilla JS), file upload, SSE streaming, served via app.frontend()
 - [ ] Tutorial Part 7 — Background Tasks: async ingestion via Dramatiq, scheduled re-indexing with periodiq
 - [ ] Tutorial Part 8 — Production: rate limit chat, trace agent calls (Jaeger), Docker Compose, K8s deploy
 
