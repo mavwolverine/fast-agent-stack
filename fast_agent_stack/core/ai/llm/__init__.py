@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
-__all__ = ["Message", "CompletionResult", "LLMBackend", "ToolCall", "ToolCallResult"]
+__all__ = ["Message", "CompletionResult", "LLMBackend", "ToolCall", "ToolCallResult", "get_llm"]
 
 
 @dataclass(frozen=True)
@@ -61,3 +61,31 @@ class LLMBackend(Protocol):
     ) -> AsyncIterator[str | CompletionResult | ToolCallResult]: ...
 
     async def count_tokens(self, messages: list[Message]) -> int: ...
+
+
+def get_llm(settings: Any) -> LLMBackend:
+    """Factory: resolves alias or ADR-012 dotted path for LLM backend."""
+    import importlib
+
+    provider = settings.llm_provider
+    if provider == "openai":
+        from fast_agent_stack.core.ai.llm.openai import OpenAILLMBackend
+
+        return OpenAILLMBackend(model_id=settings.llm_model, settings=settings)
+    if provider == "anthropic":
+        from fast_agent_stack.core.ai.llm.anthropic import AnthropicLLMBackend
+
+        return AnthropicLLMBackend(model_id=settings.llm_model, settings=settings)
+    if provider == "bedrock":
+        from fast_agent_stack.core.ai.llm.bedrock import BedrockLLMBackend
+
+        return BedrockLLMBackend(model_id=settings.llm_model, settings=settings)
+    if provider == "litellm":
+        from fast_agent_stack.core.ai.llm.litellm import LiteLLMLLMBackend
+
+        return LiteLLMLLMBackend(model_id=settings.llm_model, settings=settings)
+    # ADR-012 dotted-path custom backend
+    module_path, _, class_name = provider.rpartition(".")
+    mod = importlib.import_module(module_path)
+    cls = getattr(mod, class_name)
+    return cls(settings=settings)  # type: ignore[no-any-return]
