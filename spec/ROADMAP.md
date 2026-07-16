@@ -136,7 +136,7 @@
 - [x] Tutorial Part 5 — Chat Agent with Tools: query → agent decides to search → retrieves → synthesizes → streams
 - [x] Tutorial Part 6 — Chat UI: single HTML page (vanilla JS), file upload, SSE streaming, served via app.frontend()
 - [x] Tutorial Part 7 — Background Tasks: async ingestion via Dramatiq, scheduled re-indexing with periodiq
-- [ ] Tutorial Part 8 — Production: rate limit chat, trace agent calls (Jaeger), Docker Compose, K8s deploy
+- [x] Tutorial Part 8 — Production: rate limiting, tracing (Jaeger), Docker Compose
 
 Tutorial builds a "Document Q&A Assistant" with agentic behavior (tool use, multi-step reasoning, streaming).
 Each part is progressive (builds on previous) but self-contained enough to jump into independently.
