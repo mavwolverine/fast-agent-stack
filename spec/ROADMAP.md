@@ -142,3 +142,34 @@ Tutorial builds a "Document Q&A Assistant" with agentic behavior (tool use, mult
 Each part is progressive (builds on previous) but self-contained enough to jump into independently.
 All code snippets tested manually by the author during writing.
 Lives in `docs/tutorial/` as Zensical pages (part-1.md through part-8.md). No separate repo.
+
+## Phase 11: Framework Integration Guides
+
+Standalone 1-pager guides showing how to use fast-agent-stack as the production infrastructure layer
+alongside an external agent framework. fast-agent-stack's built-in `@app.agent()` covers simple
+single-agent endpoints (like FastAPI's `BackgroundTasks`); these guides cover the "graduate to a
+real agent framework" path (like moving to Celery/Dramatiq for serious background work).
+
+Lives in `docs/guides/`. Each guide covers: project structure, wiring the framework to FastAPI routes,
+and accessing fast-agent-stack's infra (DB, vector store, storage, Redis) from within the framework's tools.
+
+### 11.1: Strands Agents Guide
+
+- [ ] `docs/guides/strands-agents.md` — Building agentic apps with Strands + fast-agent-stack
+  - Positioning: fast-agent-stack = production infrastructure, Strands = agentic AI runtime
+  - When to use `@app.agent()` (simple single-agent) vs. Strands (multi-agent, graphs, swarms)
+  - Project structure: `agentic_ai/agents/`, `agentic_ai/tools/`, `agentic_ai/prompts/`
+  - Wiring Strands to FastAPI: `@router.post` → `agent.stream_async()` → `StreamingResponse`
+  - Using fast-agent-stack infra from Strands tools (DB sessions, vector store, storage, Redis)
+  - Multi-agent patterns: `GraphBuilder` (parallel DAGs), `Swarm` (handoffs)
+  - Conversation persistence: Strands SDK's `ValkeySessionManager` pointed at fast-agent-stack's Redis/Valkey URL
+  - Background processing: Strands agents inside Dramatiq tasks
+
+### 11.2: Pydantic AI Guide
+
+- [ ] `docs/guides/pydantic-ai.md` — Building agentic apps with Pydantic AI + fast-agent-stack
+  - Positioning: fast-agent-stack = production infrastructure, Pydantic AI = agentic AI runtime
+  - When to use `@app.agent()` (simple single-agent) vs. Pydantic AI (structured output, typed deps)
+  - Wiring Pydantic AI to FastAPI: `@router.post` → `agent.run()` / `agent.run_stream()` → response
+  - Using fast-agent-stack infra from Pydantic AI deps (DB sessions, vector store, storage, Redis)
+  - Dependency injection: sharing fast-agent-stack resources via Pydantic AI's `deps` system
