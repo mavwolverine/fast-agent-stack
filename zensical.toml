@@ -1,24 +1,9 @@
-[site]
-name = "fast-agent-stack"
-description = "FastAPI framework for production AI agents"
-url = "https://fast-agent-stack.readthedocs.io"
+[project]
+site_name = "fast-agent-stack"
+site_description = "Production AI agent stack built on FastAPI"
+site_url = "https://fast-agent-stack.readthedocs.io"
+docs_dir = "docs"
 
-[theme]
+[project.theme]
 palette = { primary = "indigo", accent = "blue" }
-features = ["navigation.tabs", "navigation.sections", "search.highlight"]
-
-[[nav]]
-title = "Home"
-file = "index.md"
-
-[[nav]]
-title = "Getting Started"
-file = "getting-started.md"
-
-[[nav]]
-title = "Configuration"
-file = "configuration.md"
-
-[[nav]]
-title = "API Reference"
-file = "api-reference.md"
+features = ["navigation.sections", "navigation.expand", "search.highlight", "content.code.copy"]

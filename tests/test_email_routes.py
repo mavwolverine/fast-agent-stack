@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 def test_i12_auth_routes_imports_from_email_init_not_smtp():
     import fast_agent_stack.core.auth.routes as mod
+
     src = Path(mod.__file__).read_text()
     tree = ast.parse(src)
     for node in ast.walk(tree):
@@ -24,6 +25,7 @@ def test_i12_auth_routes_imports_from_email_init_not_smtp():
 
 def test_i18_reset_password_uses_password_hash_function():
     import fast_agent_stack.core.auth.routes as mod
+
     src = Path(mod.__file__).read_text()
     # Confirm hash_password is imported/used (not raw hashlib)
     assert "hash_password" in src, "reset_password must call hash_password() (I18)"

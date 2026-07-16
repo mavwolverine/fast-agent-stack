@@ -16,8 +16,9 @@ def _make_settings(**kwargs):  # type: ignore[no-untyped-def]
     m = MagicMock()
     m.embedding_provider = kwargs.get("embedding_provider", "local")
     m.embedding_model = kwargs.get("embedding_model", "BAAI/bge-small-en-v1.5")
+    m.embedding_base_url = kwargs.get("embedding_base_url", None)
+    m.embedding_api_key = kwargs.get("embedding_api_key", None)
     m.embedding_cache_dir = kwargs.get("embedding_cache_dir", "")
-    m.embedding_openai_model = kwargs.get("embedding_openai_model", "text-embedding-3-small")
     m.embedding_bedrock_model_id = kwargs.get("embedding_bedrock_model_id", "amazon.titan-embed-text-v2:0")
     m.embedding_timeout = kwargs.get("embedding_timeout", 30.0)
     return m
@@ -80,6 +81,44 @@ def test_openai_embedding_with_mocked_client():
         sys.modules.pop(mod_name, None)
 
 
+def test_openai_embedding_uses_embedding_model():
+    """OpenAIEmbedding must use settings.embedding_model as the model name."""
+    mock_openai = MagicMock(name="openai")
+    mock_openai.AsyncOpenAI = MagicMock(return_value=MagicMock())
+    saved = sys.modules.get("openai")
+    sys.modules["openai"] = mock_openai
+    mod_name = "fast_agent_stack.core.ai.embedding.backends.openai"
+    sys.modules.pop(mod_name, None)
+    try:
+        mod = importlib.import_module(mod_name)
+        backend = mod.OpenAIEmbedding(_make_settings(embedding_model="nomic-embed-text"))
+        assert backend._model == "nomic-embed-text"
+    finally:
+        sys.modules.pop(mod_name, None)
+        if saved is not None:
+            sys.modules["openai"] = saved
+
+
+def test_openai_embedding_passes_base_url_to_client():
+    """OpenAIEmbedding must pass settings.embedding_base_url to AsyncOpenAI."""
+    mock_openai = MagicMock(name="openai")
+    mock_client_cls = MagicMock()
+    mock_openai.AsyncOpenAI = mock_client_cls
+    saved = sys.modules.get("openai")
+    sys.modules["openai"] = mock_openai
+    mod_name = "fast_agent_stack.core.ai.embedding.backends.openai"
+    sys.modules.pop(mod_name, None)
+    try:
+        mod = importlib.import_module(mod_name)
+        mod.OpenAIEmbedding(_make_settings(embedding_base_url="http://localhost:11434/v1"))
+        _, kwargs = mock_client_cls.call_args
+        assert kwargs.get("base_url") == "http://localhost:11434/v1"
+    finally:
+        sys.modules.pop(mod_name, None)
+        if saved is not None:
+            sys.modules["openai"] = saved
+
+
 # ---------------------------------------------------------------------------
 # ARCHITECTURAL — I4 attribute presence
 # ---------------------------------------------------------------------------
@@ -107,8 +146,12 @@ def test_openai_embedding_exposes_client_attribute_i4():
 
 
 def test_local_embedding_uses_run_in_executor_i2():
-    import fast_agent_stack.core.ai.embedding.backends.local as mod
-    with open(mod.__file__) as f:
+    # find_spec locates the file without importing it — avoids triggering the I3 fastembed guard
+    import importlib.util
+
+    spec = importlib.util.find_spec("fast_agent_stack.core.ai.embedding.backends.local")
+    assert spec and spec.origin, "Could not locate local embedding backend source"
+    with open(spec.origin) as f:
         src = f.read()
     assert "run_in_executor" in src
 

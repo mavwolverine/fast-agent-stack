@@ -101,6 +101,11 @@ include_admin:
     help: Include SQLAdmin panel?
     default: false
 
+include_frontend:
+    type: bool
+    help: Include frontend placeholder directory?
+    default: false
+
 tracing:
     type: str
     help: Tracing backend?
@@ -147,3 +152,8 @@ python_version:
         - "3.13"
         - "3.14"
     default: "3.14"
+
+seed_depends_on:
+    type: str
+    help: "Framework branch heads this project depends on (computed at scaffold time, ADR-048)"
+    default: "None"

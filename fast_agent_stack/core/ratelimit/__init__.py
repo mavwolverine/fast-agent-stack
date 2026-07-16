@@ -98,14 +98,15 @@ class RateLimitLifespanHook:
     def __init__(self, settings: BaseSettings, *, app: Any = None) -> None:
         self._settings = settings
         self._app = app
-
-    async def __aenter__(self) -> RateLimitLifespanHook:
+        # Middleware must be registered before app starts (Starlette requirement)
         if self._app is not None:
             self._app.add_middleware(
                 RateLimitMiddleware,
                 requests=self._settings.rate_limit_requests,
                 period=self._settings.rate_limit_period,
             )
+
+    async def __aenter__(self) -> RateLimitLifespanHook:
         return self
 
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:

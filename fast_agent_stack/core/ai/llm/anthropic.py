@@ -8,7 +8,7 @@ try:
 except ImportError:
     raise ImportError("pip install fast-agent-stack[anthropic]") from None
 
-from fast_agent_stack.core.ai.llm import CompletionResult, Message
+from fast_agent_stack.core.ai.llm import CompletionResult, Message, ToolCall, ToolCallResult
 
 
 class AnthropicLLMBackend:
@@ -37,20 +37,93 @@ class AnthropicLLMBackend:
         """Escape hatch (I4): direct access to the underlying AsyncAnthropic client."""
         return self._client
 
-    def _convert_messages(self, messages: list[Message]) -> tuple[str, list[dict[str, str]]]:
+    def _convert_messages(self, messages: list[Message]) -> tuple[str, list[dict[str, Any]]]:
+        """Convert Message dataclasses to Anthropic Messages API format.
+
+        Anthropic requires:
+        - role="tool" → {"role": "user", "content": [{"type": "tool_result", ...}]}
+        - assistant with tool_calls → {"role": "assistant", "content": [{"type": "tool_use", ...}]}
+        - regular messages → {"role": ..., "content": text}
+        """
         system_parts = [m.content for m in messages if m.role == "system"]
-        conv = [{"role": m.role, "content": m.content} for m in messages if m.role != "system"]
+        conv: list[dict[str, Any]] = []
+        for m in messages:
+            if m.role == "system":
+                continue
+            if m.role == "tool" and m.tool_call_id:
+                conv.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": m.tool_call_id,
+                                "content": m.content,
+                            }
+                        ],
+                    }
+                )
+            elif m.role == "assistant" and m.tool_calls:
+                content: list[dict[str, Any]] = []
+                if m.content:
+                    content.append({"type": "text", "text": m.content})
+                for tc in m.tool_calls:
+                    content.append(
+                        {
+                            "type": "tool_use",
+                            "id": tc.id,
+                            "name": tc.name,
+                            "input": tc.arguments,
+                        }
+                    )
+                conv.append({"role": "assistant", "content": content})
+            else:
+                conv.append({"role": m.role, "content": m.content})
         return " ".join(system_parts), conv
 
-    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResult:
+    def _convert_tools(self, tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Convert OpenAI-format tools to Anthropic format."""
+        result = []
+        for t in tools:
+            func = t.get("function", t)
+            result.append(
+                {
+                    "name": func["name"],
+                    "description": func.get("description", ""),
+                    "input_schema": func.get("parameters", {}),
+                }
+            )
+        return result
+
+    async def complete(
+        self,
+        messages: list[Message],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> CompletionResult | ToolCallResult:
         system_text, conv = self._convert_messages(messages)
-        response = await self._client.messages.create(
-            model=self._model_id,
-            max_tokens=self._max_tokens,
-            system=system_text,
-            messages=conv,
+        call_kwargs: dict[str, Any] = {
+            "model": self._model_id,
+            "max_tokens": self._max_tokens,
+            "system": system_text,
+            "messages": conv,
             **kwargs,
-        )
+        }
+        if tools:
+            call_kwargs["tools"] = self._convert_tools(tools)
+
+        response = await self._client.messages.create(**call_kwargs)
+
+        # Check for tool use blocks
+        tool_calls = [
+            ToolCall(id=block.id, name=block.name, arguments=dict(block.input))
+            for block in response.content
+            if block.type == "tool_use"
+        ]
+        if tool_calls:
+            return ToolCallResult(tool_calls=tool_calls)
+
         content = response.content[0].text if response.content else ""
         usage = response.usage
         return CompletionResult(
@@ -62,23 +135,44 @@ class AnthropicLLMBackend:
             cost=None,
         )
 
-    async def stream(self, messages: list[Message], **kwargs: Any) -> AsyncIterator[str | CompletionResult]:
+    async def stream(
+        self,
+        messages: list[Message],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[str | CompletionResult | ToolCallResult]:
         system_text, conv = self._convert_messages(messages)
+        call_kwargs: dict[str, Any] = {
+            "model": self._model_id,
+            "max_tokens": self._max_tokens,
+            "system": system_text,
+            "messages": conv,
+            **kwargs,
+        }
+        if tools:
+            call_kwargs["tools"] = self._convert_tools(tools)
+
         prompt_tokens = 0
         completion_tokens = 0
-        async with self._client.messages.stream(
-            model=self._model_id,
-            max_tokens=self._max_tokens,
-            system=system_text,
-            messages=conv,
-            **kwargs,
-        ) as stream:
+        async with self._client.messages.stream(**call_kwargs) as stream:
             async for text in stream.text_stream:
                 yield text
             final = await stream.get_final_message()
             prompt_tokens = final.usage.input_tokens
             completion_tokens = final.usage.output_tokens
-        # ADR-036: sentinel is the absolute last item — no content after this
+
+            # Check for tool use in final message
+            tool_calls = [
+                ToolCall(id=block.id, name=block.name, arguments=dict(block.input))
+                for block in final.content
+                if block.type == "tool_use"
+            ]
+            if tool_calls:
+                yield ToolCallResult(tool_calls=tool_calls)
+                return
+
+        # ADR-036: sentinel is the absolute last item
         yield CompletionResult(
             content="",
             model=self._model_id,

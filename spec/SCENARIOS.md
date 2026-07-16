@@ -39,7 +39,7 @@ Concrete use cases that validate the framework design. Module briefs and impleme
 1. `fastagentstack new myapi --preset standard`
 2. Define models, routes, schemas in the project root
 3. `fastagentstack migrate` + `fastagentstack createsuperuser`
-4. Admin panel auto-registers models
+4. Admin panel auto-registers models; `createsuperuser` account grants both API and `/admin` access (ADR-049 — no separate `admin_secret_key`)
 
 **What this validates:**
 - Framework works as a non-AI FastAPI wrapper (AI-native, not AI-only)
@@ -442,8 +442,8 @@ configuration is missing or an external service is unreachable.
 
 **Flow (Redis unreachable):**
 1. Deploy with `auth_backends = ["jwt"]`, `REDIS_URL = "redis://bad-host:6379"`
-2. `AuthLifespanHook.__aenter__()` attempts a Redis `PING` with a 5-second timeout
-3. On failure: raises `RuntimeError("Cannot connect to Redis at redis://bad-host:6379 — required for token revocation")` and process exits
+2. `FastAPIRedisLifespanHook.__aenter__()` attempts a Redis `PING` with a 5-second timeout (I9, ADR-037)
+3. On failure: raises `RuntimeError("Cannot connect to Redis at redis://bad-host:6379 — check that redis_url is correct and Redis is running")` and process exits
 
 **What this validates:**
 - Invariant I11 is enforced: missing secrets fail fast at startup
@@ -484,3 +484,103 @@ async def delete_post(id: int): ...
 - `is_active=False` short-circuits before permission check
 - `require_permission()` is a reusable FastAPI dependency
 - Permission string format: `"resource.action"` (dot-separated)
+
+
+## S18 — Agent Tool-Call Loop (ADR-046)
+
+**Trigger:** User sends a chat message to an agent endpoint that has tools registered.
+
+**Flow:**
+
+1. Client POSTs `{"messages": [...]}` to `/agents/chat`
+2. Handler calls `agent_loop(backend, messages, tools, max_iterations=10)`
+3. `agent_loop` calls `backend.complete(messages, tools=tool_schemas)`
+4. Backend returns `ToolCallResult(tool_calls=[ToolCall(id="tc_1", name="search_docs", arguments=...)])`
+5. `agent_loop` dispatches: finds the `@tool`-decorated function named `search_docs`, calls it
+6. Result appended as `Message(role="tool", content=result_str, tool_call_id="tc_1")`
+7. `agent_loop` calls `backend.complete(messages + [tool_msg], tools=tool_schemas)` again
+8. Backend returns `CompletionResult(content="Based on the document...")` — no more tool calls
+9. `agent_loop` returns the final `CompletionResult`
+10. Handler streams or returns the response to the client
+
+**Failure modes:**
+
+| Condition | Behavior |
+|---|---|
+| `max_iterations` exceeded (I23) | `agent_loop` yields empty `CompletionResult` sentinel (`content=""`); caller treats empty content as a bounded failure and may return 500 |
+| Tool function raises exception | Error message returned as tool result, loop continues |
+| Tool name not found in registry | Error message returned as tool result, loop continues |
+| Backend timeout (I22) | `TimeoutError` propagates, handler returns 504 |
+
+**Invariants enforced:** I22 (timeout), I23 (iteration cap)
+
+## S19 — RAG Retrieval with Reranking (ADR-045)
+
+**Trigger:** User asks a question; RAG pipeline retrieves and reranks document chunks.
+
+**Flow:**
+
+1. Query arrives at `RagService.retrieve(query, top_k=5)`
+2. `RagService` embeds the query via `EmbeddingProtocol.embed(query)`
+3. `RagService` over-fetches from vector store: `vector_store.search(embedding, top_k=top_k * 3)`
+4. Returns 15 candidate `VectorSearchResult` items
+5. If `reranker is not None`:
+   a. Extracts content strings from candidates
+   b. Calls `reranker.rerank(query, documents, top_k=5)`
+   c. Returns reranked `RerankResult` list (sorted by relevance score)
+6. If `reranker is None`: returns the top 5 vector results as-is (cosine similarity ordering)
+7. Chunks are formatted and passed to the LLM as context
+
+**Failure modes:**
+
+| Condition | Behavior |
+|---|---|
+| Reranker timeout (I22) | Falls back to vector similarity ordering, logs warning |
+| Reranker returns empty results | Falls back to vector similarity ordering |
+| Vector store timeout (I22) | `TimeoutError` propagates to caller |
+| No documents match threshold | Empty context passed to LLM (LLM answers from knowledge) |
+
+**Over-fetch ratio:** 3x (hardcoded, documented in ADR-045). Retrieving `top_k * 3` candidates
+gives the reranker enough material to surface genuinely relevant chunks that cosine similarity
+may have ranked lower.
+
+**Invariants enforced:** I22 (timeout on both vector store and reranker)
+
+
+## S20 — User Migration Branch Lifecycle (ADR-048)
+
+**Trigger:** Developer scaffolds a project and creates their first model migration.
+
+**Flow:**
+
+1. Developer runs `fas new docqa --preset agent -y`
+2. Scaffolder resolves framework heads filtered by enabled features:
+   - `include_auth=True` → includes `fas_auth_0001`
+   - `llm_provider != "none"` → includes `fas_ai_0002`
+3. Scaffolder generates `alembic/versions/0001_docqa_initial.py`:
+   - `revision = "docqa_0001"`, `branch_labels = ("docqa",)`
+   - `depends_on = ("fas_auth_0001", "fas_ai_0002")`
+   - `upgrade()` is a no-op
+4. Developer adds a `Document` model to `docqa/models.py`
+5. Developer runs `fas makemigrations -m "add-documents"`
+6. CLI reads `project_name` from `.copier-answers.yml` → `"docqa"`
+7. CLI calls `command.revision(cfg, head="docqa@head", autogenerate=True, ...)`
+8. Alembic generates `alembic/versions/0002_add_documents.py` with `down_revision = "docqa_0001"`
+9. Developer runs `fas migrate` → applies all heads (framework + user) in dependency order
+
+**Variant — minimal preset (no auth, no AI):**
+
+1. `fas new api --preset minimal -y`
+2. No framework features enabled → `depends_on = None`
+3. Seed migration: `branch_labels = ("api",)`, fully independent branch
+4. `fas migrate` applies only user branch (no framework migrations in version_locations)
+
+**Failure modes:**
+
+| Condition | Behavior |
+|---|---|
+| `.copier-answers.yml` missing | `makemigrations` prints error, exits 1 |
+| Seed migration deleted by user | `{project_name}@head` resolves to nothing, Alembic error |
+| Framework feature added post-scaffold | `fas migrate` still works (heads), but `depends_on` doesn't list it |
+
+**Invariants enforced:** I16 (branched migrations)

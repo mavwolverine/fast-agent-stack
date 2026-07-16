@@ -81,7 +81,7 @@
 - [x] Observability (OpenTelemetry + Jaeger, config-driven)
 - [x] Password reset + email verification (aiosmtplib)
 - [x] Secrets manager backends (AWS, GCP)
-- [x] `UsageService.get_usage(user_id, period)` query API (ADR-035)
+- [x] `UsageService.get_usage(user_id, period)` query API (ADR-042)
 - [x] Tests
 
 ## Phase 7: Scaffolder Completion & Release (standard preset complete)
@@ -90,6 +90,9 @@
 - [x] Documentation site
 - [x] CI/CD (GitHub Actions: lint, tox, integration, PyPI publish)
 - [x] Tests
+- [x] ADR-048: seed migration template, head resolution in cli/new.py, `{project_name}@head` in cli/db.py
+- [x] ADR-049: remove admin_secret_key, database-backed admin auth (is_staff/is_superuser), single secret_key
+- [x] ADR-050: per-backend base_url and model settings (llm_base_url, llm_model, embedding_base_url, embedding_model; rename embedding_openai_model)
 
 ## Phase 8: Redis SDK Migration (ADR-037)
 - [x] Replace `redis>=5` with `fastapi-redis-sdk>=0.7` across `auth-jwt`, `auth-session`, `rate-limit` extras
@@ -119,3 +122,23 @@
 - [x] Integration test: scaffold each preset → build → run → smoke test
 - [x] E2E test: testcontainers (Postgres + Redis) → scaffold → migrate → hit endpoints (release gate)
 - [x] PyPI test publish (TestPyPI dry-run)
+
+## Phase 10: Progressive Tutorial (scenario-based documentation)
+- [x] ADR-045: RerankerProtocol + Ollama/OpenAI reranker backends (`core/ai/reranker/`)
+- [x] ADR-046: `@tool` decorator, `agent_loop`, `ToolCall`/`ToolCallResult` types, tool calling on all four LLM backends (`core/ai/tools/`)
+- [x] ADR-050: per-backend `base_url`/`model`/`api_key` settings; `embedding_openai_model` renamed to `embedding_model`
+- [x] Public facades: `fast_agent_stack.ai`, `fast_agent_stack.ai.llm` (lazy re-exports, I3-gated)
+- [x] Tutorial Part 0 — Prerequisites: docker-compose (Postgres, Redis, Qdrant), Ollama + pull chat/embedding/reranking models
+- [x] Tutorial Part 1 — Scaffold: scaffold `agent` preset, explore structure, add a route, run dev server
+- [x] Tutorial Part 2 — Database & Models: document model, migrations, CRUD routes
+- [x] Tutorial Part 3 — Authentication: JWT auth, create users, protect upload/chat endpoints
+- [x] Tutorial Part 4 — Ingestion Agent: upload PDF → background task → extract → embed → store vectors
+- [x] Tutorial Part 5 — Chat Agent with Tools: query → agent decides to search → retrieves → synthesizes → streams
+- [x] Tutorial Part 6 — Chat UI: single HTML page (vanilla JS), file upload, SSE streaming, served via app.frontend()
+- [x] Tutorial Part 7 — Background Tasks: async ingestion via Dramatiq, scheduled re-indexing with periodiq
+- [x] Tutorial Part 8 — Production: rate limiting, tracing (Jaeger), Docker Compose
+
+Tutorial builds a "Document Q&A Assistant" with agentic behavior (tool use, multi-step reasoning, streaming).
+Each part is progressive (builds on previous) but self-contained enough to jump into independently.
+All code snippets tested manually by the author during writing.
+Lives in `docs/tutorial/` as Zensical pages (part-1.md through part-8.md). No separate repo.

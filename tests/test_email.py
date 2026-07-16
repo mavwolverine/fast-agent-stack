@@ -174,6 +174,7 @@ async def test_smtp_backend_send_wraps_errors_as_email_delivery_error():
 
 def test_i2_smtp_backend_uses_aiosmtplib_not_smtplib():
     import fast_agent_stack.core.email.smtp as mod
+
     src = Path(mod.__file__).read_text()
     tree = ast.parse(src)
     for node in ast.walk(tree):

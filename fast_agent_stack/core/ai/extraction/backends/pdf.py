@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import io
 
 try:
-    import pdfplumber
+    import pymupdf
 except ImportError:
     raise ImportError("pip install fast-agent-stack[extract-pdf]") from None
 
@@ -12,7 +11,7 @@ except ImportError:
 class PdfExtractor:
     async def extract(self, data: bytes) -> str:
         def _sync() -> str:
-            with pdfplumber.open(io.BytesIO(data)) as pdf:
-                return "\n".join(page.extract_text() or "" for page in pdf.pages)
+            doc = pymupdf.open(stream=data, filetype="pdf")
+            return "\n".join(page.get_text() for page in doc)
 
         return await asyncio.to_thread(_sync)

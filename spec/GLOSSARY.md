@@ -7,7 +7,7 @@ across backends in order; `create_token` and `refresh_token` delegate to the pri
 backend only; `revoke_token` runs on all backends so every authentication path is invalidated on
 logout (I20). Single-entry lists return the backend directly with no wrapper.
 
-**Backend family** — a category of pluggable service with a shared Protocol/ABC. The four families are: LLM provider, vector store, embedding, and storage. Each family has multiple implementations shipped as extras.
+**Backend family** — a category of pluggable service with a shared Protocol/ABC. The five families are: LLM provider, vector store, embedding, reranker (ADR-045), and storage. Each family has multiple implementations shipped as extras.
 
 **CompletionResult** — a frozen dataclass defined in `core/ai/llm/__init__.py` that carries the
 output of a single LLM call: `content: str`, `model: str`, `prompt_tokens: int`,
@@ -30,7 +30,7 @@ thread-level usage attribution (ADR-035).
 
 **EmailProtocol** — the Protocol for email delivery backends (ADR-041). Single method: `send(*, to, subject, body_text, body_html) -> None`. Built-in: `SmtpEmailBackend` (aiosmtplib). Custom backends via ADR-012 dotted-path in `email_backend` setting. Located in `core/email/`.
 
-**ExtractionProtocol** — the Protocol for document text extraction (ADR-040). Single method: `extract(data: bytes) -> str`. Built-in implementations: PDF (pdfplumber), DOCX (python-docx), XLSX (openpyxl), EML (stdlib). Each is extras-gated (I3).
+**ExtractionProtocol** — the Protocol for document text extraction (ADR-040). Single method: `extract(data: bytes) -> str`. Built-in implementations: PDF (pymupdf), DOCX (python-docx), XLSX (openpyxl), EML (stdlib). Each is extras-gated (I3).
 
 **Extras gate** — a guard around an optional import that raises a clear error pointing to the correct install command:
 ```python
@@ -57,19 +57,33 @@ contribute models and admin views. See `spec/ARCHITECTURE.md` Module 1.
 
 **Lifespan hook** — a class implementing `async __aenter__` / `async __aexit__` that is registered with FastAgentStack's lifespan. Used to open and close database connections, broker connections, etc. on startup/shutdown.
 
-**Preset** — a named set of copier answers that bypasses the interactive CLI. Defined in `spec/SCAFFOLDER.md`. Current presets: `minimal`, `standard`, `full`, `agent`.
+**Message** — a frozen dataclass (defined in `core/ai/llm/__init__.py`, ADR-046) representing a single turn in an LLM conversation. Fields: `role: str` (`"user"` | `"assistant"` | `"system"` | `"tool"`), `content: str`, optional `tool_call_id: str | None` (set on `role="tool"` messages carrying a tool result back to the LLM), optional `tool_calls: list[ToolCall] | None` (set on `role="assistant"` messages where the LLM requested tool invocation). The `tool_call_id` and `tool_calls` fields default to `None` for ordinary text messages (backwards compatible).
+
+**Preset** — a named set of copier answers that sets defaults for the interactive CLI. Defined in `spec/DX.md` and `cli/new.py`. Current presets: `minimal`, `standard`, `full`, `agent` (ADR-047).
 
 **Protocol/ABC** — the abstract interface all backends of a family must fully implement. Defined in code; documented in `spec/ARCHITECTURE.md`. Partial implementation is forbidden (see Invariant I1).
 
 **RagChunk** — a frozen dataclass returned by `RagService.retrieve()` (ADR-040). Fields: `content: str`, `score: float`, `metadata: dict`, `document_id: str | None`, `chunk_index: int`. Represents a single retrieved chunk with relevance score and source traceability.
 
-**RagService** — the concrete RAG orchestration service (ADR-040) in `core/ai/rag/`. Takes `EmbeddingProtocol` + `VectorStoreProtocol` at construction. Not a Protocol — not pluggable via ADR-012. Public API: `ingest()`, `ingest_file()`, `retrieve()`, `delete_document()`. Composes embedding and vector search with chunking strategies.
+**RagService** — the concrete RAG orchestration service (ADR-040) in `core/ai/rag/`. Takes `EmbeddingProtocol` + `VectorStoreProtocol` at construction and an optional `RerankerProtocol`. Not a Protocol — not pluggable via ADR-012. Public API: `ingest()`, `ingest_file()`, `retrieve()`, `delete_document()`. When a reranker is provided, `retrieve()` over-fetches then reranks before returning results (ADR-045).
+
+**RerankerProtocol** — the Protocol for post-retrieval reranking backends (ADR-045). Single async method: `rerank(query, documents, *, top_k) -> list[RerankResult]`. Built-in implementations: `OllamaReranker` (`reranker-ollama` extra), `OpenAIReranker` (`reranker-openai` extra, compatible with Jina and Cohere endpoints). Custom backends supported via ADR-012 dotted path in `reranker_provider` setting. Located in `core/ai/reranker/`.
+
+**RerankResult** — a frozen dataclass returned by `RerankerProtocol.rerank()` (ADR-045). Fields: `content: str`, `score: float`, `index: int`. `index` is the original position of the document in the input list, enabling traceability back to the source retrieval results. Results are ordered by `score` descending (highest relevance first).
+
+**Seed migration** — a no-op Alembic migration generated by `fas new` that establishes the user's named branch (`{project_name}`) and declares `depends_on` the framework heads active at scaffold time (ADR-048). All subsequent user migrations chain from this revision.
 
 **StorageProtocol** — the Protocol for object storage backends (ADR-038). Methods: `upload`, `download`, `delete`, `exists`, `url`. Built-in implementations: S3, local filesystem, MinIO. Takes `bytes` input (not streams); returns pre-signed URLs for remote backends.
+
+**ToolCall** — a frozen dataclass (defined in `core/ai/llm/__init__.py`, ADR-046) representing a single tool invocation requested by the LLM. Fields: `id: str` (opaque call ID from the LLM, echoed back in the `tool_call_id` field of the tool-result `Message`), `name: str` (the tool function name), `arguments: dict[str, Any]` (parsed from the LLM's JSON output). Contained within `ToolCallResult.tool_calls`.
+
+**ToolCallResult** — a frozen dataclass returned by `LLMBackend.complete()` or yielded from `LLMBackend.stream()` (ADR-046) when the model requests tool invocation rather than producing text. Fields: `tool_calls: list[ToolCall]`. The `agent_loop` in `core/ai/tools/` consumes this, dispatches each tool call, appends results as `role="tool"` messages, and re-invokes the backend. Individual route handlers never receive `ToolCallResult` directly.
 
 **VectorSearchResult** — a frozen dataclass returned by `VectorStoreProtocol.search()` (ADR-038). Fields: `id: str`, `score: float`, `metadata: dict[str, str|int|float|bool]`, `content: str | None`. Defined in `core/vector/__init__.py`.
 
 **VectorStoreProtocol** — the Protocol for vector store backends (ADR-038). Methods: `create_collection`, `upsert`, `search`, `delete`, `close`. Search takes a pre-computed `vector: list[float]`, not a text query (embedding is a separate concern). Built-in implementations: Qdrant, pgvector, OpenSearch, Weaviate.
+
+**User migration branch** — the named Alembic branch (`{project_name}`) that holds all user-generated migrations (ADR-048). Established by the seed migration at scaffold time. `fas makemigrations` targets `{project_name}@head` to chain new revisions onto this branch.
 
 **Escape hatch** — direct access to the underlying third-party object (e.g., `app.fastapi_app`, the raw SQLAlchemy engine). Every wrapped component must expose one.
 

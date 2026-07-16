@@ -82,9 +82,10 @@ async def info(settings: Settings = Depends(get_settings)) -> dict:
 ├── .env.example
 ├── Dockerfile         # {% if include_dockerfile %}
 ├── docker-compose.yml # {% if include_docker_compose %}
-├── frontend/          # {% if include_frontend %} — SPA build output root (ADR-024)
+├── frontend/          # {% if include_frontend %} — empty drop target for compiled SPA output (ADR-024); no starter content generated
 ├── alembic/
 │   └── versions/
+│       └── 0001_{project_name}_initial.py  # seed migration (ADR-048)
 └── {project_name}/    # importable package
     ├── __init__.py
     ├── app.py         # app factory (FastAgentStack instance + router wiring)
@@ -122,44 +123,45 @@ Behavior mirrors Django's `manage.py makemigrations` / `manage.py migrate`:
 $ fastagentstack new myproject
 
 ? Project name: myproject
-? Description: My AI-powered API
+
+Preset:
+? Which preset? (minimal / standard / full / agent / custom)
 
 Database:
 ? Which database? (PostgreSQL / MySQL / SQLite)
 
-AI / LLM:
-? LLM provider? (Bedrock / OpenAI / Anthropic / LiteLLM proxy / None)
-? Default model? (claude-sonnet / gpt-4o / ...)
+Auth:
+? Include authentication? (Yes / No)
+? Auth backend? (JWT / Session / JWT + Session)
+? Include email (password reset, verification)? (Yes / No)
 
-Vector Store:
-? Vector database? (Qdrant / pgvector / OpenSearch / Weaviate / None)
+Admin:
+? Include SQLAdmin panel? (Yes / No)
 
-Embedding:
-? Embedding provider? (Bedrock / OpenAI / Local / None)
+Rate Limiting:
+? Include rate limiting? (Yes / No)
 
 Storage:
-? File storage backend? (S3 / Local / MinIO / None)
+? File storage backend? (Local / S3 / MinIO / None)
 
 Task Queue:
 ? Background task broker? (Redis/Valkey / None)
 ? Include scheduler? (Yes / No)
 
-Auth:
-? Include user auth? (Yes / No)
-? Auth backends? (JWT / Session / JWT + Session)
+AI / LLM:
+? LLM provider? (OpenAI-compatible / Bedrock / Anthropic / LiteLLM proxy / None)
+? Vector database? (Qdrant / pgvector / OpenSearch / Weaviate / None)
+? Embedding provider? (OpenAI-compatible / Bedrock / Local / None)
 
-Admin:
-? Include admin panel? (Yes / No)
+UI:
+? Include frontend placeholder directory? (Yes / No)
 
 Observability:
 ? Tracing? (Jaeger + OpenTelemetry / None)
 
-Secrets:
-? Cloud secrets backend? (None / AWS Secrets Manager / GCP Secret Manager)
-
 Deployment:
+? Secrets manager? (None / AWS Secrets Manager / GCP Secret Manager)
 ? Include Dockerfile? (Yes / No)
-? Python version? (3.11 / 3.12 / 3.13 / 3.14)
 ? Include docker-compose? (Yes / No)
 ? Include K8s manifests? (Yes / No)
 
@@ -168,12 +170,17 @@ Deployment:
    Prod: fastagentstack migrate && fastagentstack run
 ```
 
-**CLI presentation:** Rich (via `typer[all]`) provides styled prompts, grouped sections with panels, colored output, and a summary table of selections before project generation.
+**Sequence rationale (ADR-047):** Secure it, store it, make it smart, show it, observe it, ship it.
+Conditional questions only appear when a prior answer makes them relevant (e.g., Vector DB only if
+LLM != None, Auth backend only if auth enabled, Scheduler only if task broker != None).
+
+**CLI presentation:** Rich (via `typer[all]`) provides styled prompts, numbered choice menus,
+and a completion summary after project generation.
 
 ## Presets
 
 ```bash
-# Full AI agent stack (Bedrock + Qdrant + S3 + auth + admin + frontend)
+# Full AI agent stack (OpenAI-compatible + Qdrant + local storage + auth + admin + frontend)
 fastagentstack new myproject --preset agent
 
 # Full non-AI stack (auth + admin + tasks + rate-limit + tracing)
@@ -187,12 +194,14 @@ fastagentstack new myproject --preset minimal
 
 # Custom via flags (CI-friendly, no prompts)
 fastagentstack new myproject \
+  --preset agent \
   --db postgres \
-  --llm bedrock \
-  --vector qdrant \
-  --storage s3 \
-  --auth jwt \
-  --admin
+  --llm openai \
+  --vector-db qdrant \
+  --storage local \
+  --auth \
+  --admin \
+  -y
 ```
 
 ## Project Update

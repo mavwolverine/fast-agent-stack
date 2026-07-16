@@ -17,7 +17,7 @@ from fast_agent_stack.core.ai.extraction.backends.eml import EmlExtractor
 
 
 def test_get_extractor_pdf_returns_pdf_extractor():
-    pytest.importorskip("pdfplumber")
+    pytest.importorskip("pymupdf")
     from fast_agent_stack.core.ai.extraction.backends.pdf import PdfExtractor
 
     result = get_extractor("application/pdf")
@@ -60,8 +60,9 @@ async def test_eml_extractor_extract_returns_body_text():
 
 
 async def test_pdf_extractor_uses_to_thread():
-    pytest.importorskip("pdfplumber")
+    pytest.importorskip("pymupdf")
     import fast_agent_stack.core.ai.extraction.backends.pdf as mod
+
     with open(mod.__file__) as f:
         src = f.read()
     assert "asyncio.to_thread" in src
@@ -70,6 +71,7 @@ async def test_pdf_extractor_uses_to_thread():
 async def test_docx_extractor_uses_to_thread():
     pytest.importorskip("docx")
     import fast_agent_stack.core.ai.extraction.backends.docx as mod
+
     with open(mod.__file__) as f:
         src = f.read()
     assert "asyncio.to_thread" in src
@@ -78,6 +80,7 @@ async def test_docx_extractor_uses_to_thread():
 async def test_xlsx_extractor_uses_to_thread():
     pytest.importorskip("openpyxl")
     import fast_agent_stack.core.ai.extraction.backends.xlsx as mod
+
     with open(mod.__file__) as f:
         src = f.read()
     assert "asyncio.to_thread" in src
@@ -121,8 +124,8 @@ def test_get_extractor_returns_none_for_unsupported_mime():
 
 
 def test_pdf_extractor_import_guard_i3():
-    saved = sys.modules.pop("pdfplumber", None)
-    sys.modules["pdfplumber"] = None  # type: ignore[assignment]
+    saved = sys.modules.pop("pymupdf", None)
+    sys.modules["pymupdf"] = None  # type: ignore[assignment]
     # Remove cached backend module so it reimports
     mod_name = "fast_agent_stack.core.ai.extraction.backends.pdf"
     cached = sys.modules.pop(mod_name, None)
@@ -132,9 +135,9 @@ def test_pdf_extractor_import_guard_i3():
     finally:
         sys.modules.pop(mod_name, None)
         if saved is not None:
-            sys.modules["pdfplumber"] = saved
-        elif "pdfplumber" in sys.modules:
-            del sys.modules["pdfplumber"]
+            sys.modules["pymupdf"] = saved
+        elif "pymupdf" in sys.modules:
+            del sys.modules["pymupdf"]
         if cached is not None:
             sys.modules[mod_name] = cached
 

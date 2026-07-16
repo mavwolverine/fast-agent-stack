@@ -34,7 +34,7 @@ class FastAPIRedisLifespanHook:
                 "Install it with: pip install fast-agent-stack[auth-jwt]"
             )
         if not settings.redis_url:
-            raise RuntimeError("redis_url must be set when Redis integration is enabled (I11)")
+            raise RuntimeError("redis_url must be set when Redis integration is enabled")
         self._settings = settings
         self._app = app
         # Wrap the app's lifespan at setup time (before startup).
@@ -53,7 +53,8 @@ class FastAPIRedisLifespanHook:
         except (TimeoutError, Exception) as exc:
             await client.aclose()
             raise RuntimeError(
-                f"Cannot connect to Redis at {self._settings.redis_url} — required for auth/rate-limit (I11)"
+                f"Cannot connect to Redis at {self._settings.redis_url} "
+                "- check that redis_url is correct and Redis is running"
             ) from exc
         await client.aclose()
         return self

@@ -18,9 +18,9 @@ class AuthLifespanHook:
             return
         # I11: validate required settings before serving requests
         if not self._settings.redis_url:
-            raise RuntimeError("redis_url must be set when auth_backends is not empty (I11)")
+            raise RuntimeError("redis_url must be set when auth_backends is not empty")
         if "jwt" in self._settings.auth_backends and not self._settings.secret_key:
-            raise RuntimeError("secret_key must be set when auth_backends includes 'jwt' (I11)")
+            raise RuntimeError("secret_key must be set when auth_backends includes 'jwt'")
         from fast_agent_stack.core.auth.backends.factory import _set_backend_settings
 
         _set_backend_settings(self._settings)

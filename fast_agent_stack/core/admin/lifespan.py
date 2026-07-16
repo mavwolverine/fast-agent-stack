@@ -1,12 +1,15 @@
-"""Admin lifespan hook — mounts SQLAdmin on the FastAPI app (ADR-007, I3, I9)."""
+"""Admin lifespan hook — mounts SQLAdmin on the FastAPI app (ADR-007, ADR-049, I3, I9)."""
 
 from __future__ import annotations
 
+import logging
 from types import TracebackType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
+
+logger = logging.getLogger(__name__)
 
 
 class AdminLifespanHook:
@@ -14,17 +17,19 @@ class AdminLifespanHook:
 
     Must be registered AFTER DatabaseLifespanHook (position 5 in I9 ordering).
     sqladmin import is deferred to __aenter__ and guarded by I3 pattern.
+    Admin panel authenticates against the user table (is_staff / is_superuser) — ADR-049.
+    secret_key signs the session cookie; it is not used as a login credential.
     """
 
     def __init__(
         self,
         fastapi_app: FastAPI,
         *,
-        admin_secret_key: str,
+        secret_key: str,
         title: str = "Admin",
     ) -> None:
         self._app = fastapi_app
-        self._admin_secret_key = admin_secret_key
+        self._secret_key = secret_key
         self._title = title
         self._admin: object | None = None
 
@@ -44,28 +49,44 @@ class AdminLifespanHook:
         engine = get_engine()
         if engine is None:
             raise RuntimeError(
-                "Database engine not initialized. DatabaseLifespanHook must run before AdminLifespanHook (I9)."
+                "Database engine not initialized. Ensure DatabaseLifespanHook is registered "
+                "before AdminLifespanHook in your app's lifespan hooks."
             )
-
-        secret = self._admin_secret_key
 
         class _PasswordAuth(AuthenticationBackend):
             async def login(self, request: Request) -> bool:
                 form = await request.form()
-                password = form.get("password", "")
-                if password == secret:
-                    request.session.update({"admin_authenticated": True})
+                email = str(form.get("username", ""))
+                password = str(form.get("password", ""))
+
+                from sqlalchemy import select
+
+                from fast_agent_stack.core.auth.models import User
+                from fast_agent_stack.core.auth.password import verify_password
+                from fast_agent_stack.core.database import get_async_session
+
+                async for session in get_async_session():
+                    result = await session.execute(select(User).where(User.email == email))
+                    user = result.scalar_one_or_none()
+                    if user is None or not user.is_active:
+                        return False
+                    ok, _ = verify_password(password, user.password_hash or "")
+                    if not ok:
+                        return False
+                    if not user.is_staff and not user.is_superuser:
+                        return False
+                    request.session.update({"admin_user_id": str(user.id)})
                     return True
-                return False
+                return False  # pragma: no cover
 
             async def authenticate(self, request: Request) -> Response | bool:
-                return bool(request.session.get("admin_authenticated"))
+                return bool(request.session.get("admin_user_id"))
 
             async def logout(self, request: Request) -> bool:
                 request.session.clear()
                 return True
 
-        auth_backend = _PasswordAuth(secret_key=self._admin_secret_key)
+        auth_backend = _PasswordAuth(secret_key=self._secret_key)
 
         from fast_agent_stack.core.admin.views import get_admin_views
 

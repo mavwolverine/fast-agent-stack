@@ -1,19 +1,62 @@
 import asyncio
 import importlib
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
 import typer
+import yaml
 from alembic import command
 from alembic.config import Config
 
 app = typer.Typer(help="Database management commands.")
 
+# ADR-044: maps framework migration module → gate packages.
+# A module's versions directory is added to version_locations only when at least
+# one gate package is importable (any-of semantics, same as I16).
+FRAMEWORK_MIGRATION_GATES: list[tuple[str, list[str]]] = [
+    ("fast_agent_stack.core.auth.migrations", ["pwdlib"]),
+    (
+        "fast_agent_stack.core.ai.migrations",
+        ["anthropic", "openai", "litellm", "aioboto3"],
+    ),
+]
+
+
+def _gate_package_available(pkg: str) -> bool:
+    """Return True if *pkg* is findable without importing it."""
+    try:
+        return importlib.util.find_spec(pkg) is not None
+    except (ValueError, AttributeError):
+        # find_spec raises ValueError when sys.modules contains a non-module (e.g. MagicMock).
+        return False
+
+
+def _framework_version_locations() -> list[str]:
+    """Return version directories for enabled framework modules (ADR-044)."""
+    locs: list[str] = []
+    for module_name, gate_packages in FRAMEWORK_MIGRATION_GATES:
+        if not any(_gate_package_available(pkg) for pkg in gate_packages):
+            continue
+        try:
+            mod = importlib.import_module(module_name)
+            if mod.__file__ is None:
+                continue
+            locs.append(str(Path(mod.__file__).parent / "versions"))
+        except ImportError:
+            pass
+    return locs
+
 
 def _alembic_cfg() -> Config:
     cfg = Config()
     cfg.set_main_option("script_location", "alembic")
+    cfg.set_main_option("path_separator", "os")
+    # ADR-044: version_locations must be set before ScriptDirectory.from_config() runs,
+    # which happens at the start of every alembic command — not inside env.py.
+    locs = [str(Path("alembic") / "versions")] + _framework_version_locations()
+    cfg.set_main_option("version_locations", os.pathsep.join(locs))
     return cfg
 
 
@@ -26,71 +69,29 @@ def _require_alembic_dir() -> None:
         raise typer.Exit(1)
 
 
-def _discover_database_url() -> str | None:
-    """Return the project's database URL by importing its settings module."""
-    sys.path.insert(0, str(Path.cwd()))
-    candidates = ["settings"] + [
-        f"{p.name}.settings"
-        for p in Path.cwd().iterdir()
-        if p.is_dir() and not p.name.startswith(".") and not p.name.startswith("_") and (p / "settings.py").exists()
-    ]
-    for module_name in candidates:
-        try:
-            mod = importlib.import_module(module_name)
-            get_settings = getattr(mod, "get_settings", None)
-            if callable(get_settings):
-                return get_settings().database_url  # type: ignore[no-any-return]
-        except Exception:
-            continue
-    return None
-
-
-# I16: registry mapping feature keys to (migration_module, gate_packages) tuples.
-# fas migrate applies AI migrations when ANY gate package is importable (any-of semantics).
-FRAMEWORK_MIGRATION_MODULES: dict[str, tuple[str, list[str]]] = {
-    "auth": ("fast_agent_stack.core.auth.migrations", ["pwdlib"]),
-    "ai": (
-        "fast_agent_stack.core.ai.migrations",
-        ["anthropic", "openai", "litellm", "aioboto3"],
-    ),
-}
-
-
-def _gate_package_available(pkg: str) -> bool:
-    """Return True if *pkg* is findable without importing it."""
-    try:
-        return importlib.util.find_spec(pkg) is not None
-    except (ValueError, AttributeError):
-        # find_spec raises ValueError when sys.modules contains a non-module
-        # (e.g. a MagicMock in tests). Treat as not available.
-        return False
-
-
-def _run_framework_migrations(database_url: str) -> None:
-    """Apply framework-bundled migrations for enabled modules (I16)."""
-    import importlib.resources as ilr
-
-    for _key, (module_path, gate_packages) in FRAMEWORK_MIGRATION_MODULES.items():
-        # Any-of gating: run migrations if at least one gate package is findable.
-        if not any(_gate_package_available(pkg) for pkg in gate_packages):
-            continue
-
-        pkg = ilr.files(module_path)
-        migrations_dir = str(pkg)
-        cfg = Config()
-        cfg.set_main_option("script_location", migrations_dir)
-        cfg.attributes["database_url"] = database_url
-        command.upgrade(cfg, "head")
+def _read_project_name() -> str:
+    """Read project_name from .copier-answers.yml (ADR-048)."""
+    answers_path = Path(".copier-answers.yml")
+    if not answers_path.exists():
+        typer.echo(
+            "Error: .copier-answers.yml not found.\n"
+            "Run this command from your project root (the directory created by 'fas new').",
+            err=True,
+        )
+        raise typer.Exit(1)
+    answers = yaml.safe_load(answers_path.read_text())
+    project_name: str = answers.get("project_name", "")
+    if not project_name:
+        typer.echo("Error: project_name not found in .copier-answers.yml.", err=True)
+        raise typer.Exit(1)
+    return project_name
 
 
 @app.command()
 def migrate() -> None:
-    """Apply framework + user database migrations (framework first, I16)."""
+    """Apply framework + user database migrations (ADR-044, heads = all branches)."""
     _require_alembic_dir()
-    database_url = _discover_database_url()
-    if database_url is not None:
-        _run_framework_migrations(database_url)
-    command.upgrade(_alembic_cfg(), "head")
+    command.upgrade(_alembic_cfg(), "heads")
     typer.echo("Migrations applied.")
 
 
@@ -98,9 +99,17 @@ def migrate() -> None:
 def makemigrations(
     message: str | None = typer.Option(None, "-m", "--message", help="Migration message."),
 ) -> None:
-    """Autogenerate a migration revision from user model changes (I16)."""
+    """Autogenerate a migration revision targeting the user's named branch (ADR-048, I16)."""
     _require_alembic_dir()
-    command.revision(_alembic_cfg(), autogenerate=True, message=message or "auto")
+    project_name = _read_project_name()
+    user_versions = str(Path("alembic") / "versions")
+    command.revision(
+        _alembic_cfg(),
+        autogenerate=True,
+        message=message or "auto",
+        version_path=user_versions,
+        head=f"{project_name}@head",
+    )
     typer.echo("Migration file created.")
 
 

@@ -20,6 +20,7 @@ uv venv && source .venv/bin/activate
 uv pip install fast-agent-stack
 
 fastagentstack new myproject --preset standard
+uv pip install -r pyproject.toml
 ```
 
 The interactive prompt covers database, auth, LLM provider, and deployment options. Use `--preset` to skip prompts for CI environments.

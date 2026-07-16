@@ -1,0 +1,24 @@
+"""Establish {{ project_name }} migration branch.
+
+This is an ordering constraint, not a completeness guarantee. If the framework
+later ships new migrations (e.g., fas_auth_0002), they will be applied by
+``fas migrate`` (which runs "heads") regardless of this depends_on list.
+depends_on pins to the framework heads that existed when this project was
+scaffolded (ADR-048).
+"""
+
+from alembic import op  # noqa: F401
+import sqlalchemy as sa  # noqa: F401
+
+revision: str = "{{ project_name }}_0001"
+down_revision = None
+branch_labels = ("{{ project_name }}",)
+depends_on = {{ seed_depends_on }}
+
+
+def upgrade() -> None:
+    pass
+
+
+def downgrade() -> None:
+    pass

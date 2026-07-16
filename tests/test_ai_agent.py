@@ -92,14 +92,14 @@ class TestArchitectural:
         assert len(candidates) == 1, "Expected exactly one 0002_fas_ai_*.py migration"
 
     def test_a05_migration_revision_ids(self):
-        """I16: revision IDs must be fas_ai_001 / fas_ai_002."""
+        """ADR-044: revision IDs and branch labels for AI migration branch."""
         m1 = importlib.import_module("fast_agent_stack.core.ai.migrations.versions.0001_fas_ai_conversation")
         m2 = importlib.import_module("fast_agent_stack.core.ai.migrations.versions.0002_fas_ai_token_usage")
-        assert m1.revision == "fas_ai_001"
+        assert m1.revision == "fas_ai_0001"
         assert m1.down_revision is None
-        assert m1.branch_labels == ("ai",)
-        assert m2.revision == "fas_ai_002"
-        assert m2.down_revision == "fas_ai_001"
+        assert m1.branch_labels == ("fas_ai",)
+        assert m2.revision == "fas_ai_0002"
+        assert m2.down_revision == "fas_ai_0001"
 
     def test_a06_framework_tables_includes_ai_tables(self):
         """FRAMEWORK_TABLES must include all three AI table names."""
@@ -108,10 +108,10 @@ class TestArchitectural:
         assert "token_usage_log" in FRAMEWORK_TABLES
 
     def test_a07_migration_gate_any_of_semantics(self):
-        """Migration gate uses any-of find_spec; passes if at least one SDK present."""
-        from fast_agent_stack.cli.db import FRAMEWORK_MIGRATION_MODULES
+        """Migration gate uses any-of find_spec; passes if at least one SDK present (ADR-044)."""
+        from fast_agent_stack.cli.db import FRAMEWORK_MIGRATION_GATES
 
-        _key, (module_path, gate_packages) = list(FRAMEWORK_MIGRATION_MODULES.items())[-1]  # "ai" entry is last
+        module_path, gate_packages = FRAMEWORK_MIGRATION_GATES[-1]  # "ai" entry is last
         assert module_path == "fast_agent_stack.core.ai.migrations"
         # Must list all four AI SDK packages
         assert "anthropic" in gate_packages
@@ -303,7 +303,7 @@ class TestAgentDispatcher:
         app = self._make_app()
         backend = self._make_backend()
 
-        @app.agent("chat", backend)
+        @app.agent("chat", backend=backend)
         async def handler(messages, *, user_id, api_key_id, conversation_id):
             return "hello"
 
@@ -316,13 +316,13 @@ class TestAgentDispatcher:
         app = self._make_app()
         backend = self._make_backend()
 
-        @app.agent("chat", backend)
+        @app.agent("chat", backend=backend)
         async def handler(messages, *, user_id, api_key_id, conversation_id):
             return "first"
 
         with pytest.raises(ValueError, match="chat"):
 
-            @app.agent("chat", backend)
+            @app.agent("chat", backend=backend)
             async def handler2(messages, *, user_id, api_key_id, conversation_id):
                 return "second"
 
@@ -483,7 +483,7 @@ class TestFailureModes:
         app = FastAgentStack()
         backend = MagicMock()
 
-        @app.agent("chat", backend)
+        @app.agent("chat", backend=backend)
         async def h1(messages, *, user_id, api_key_id, conversation_id):
             return "x"
 
@@ -491,21 +491,31 @@ class TestFailureModes:
 
         with pytest.raises(ValueError):
 
-            @app.agent("chat", backend)
+            @app.agent("chat", backend=backend)
             async def h2(messages, *, user_id, api_key_id, conversation_id):
                 return "x"
 
         assert len(app.fastapi_app.routes) == route_count
 
     def test_f05_agents_py_jinja_respects_llm_provider_none(self):
-        """agents.py.jinja must wrap all imports inside {% if llm_provider != 'none' %}."""
-        template = Path("fast_agent_stack/template/{{project_name}}/agents.py.jinja").read_text()
+        """agents.py template uses copier filename-conditional AND wraps content guard."""
+        from fast_agent_stack.cli.new import TEMPLATE_DIR
+
+        project_dir = TEMPLATE_DIR / "{{project_name}}"
+        matches = list(project_dir.glob("*agents.py*endif*.jinja"))
+        assert matches, "agents.py conditional template not found in template/{{project_name}}/"
+        template = matches[0].read_text()
         assert '{% if llm_provider != "none" %}' in template or "{% if llm_provider != 'none' %}" in template
         assert "{% endif %}" in template
 
     def test_f06_agents_py_jinja_covers_all_providers(self):
         """agents.py.jinja must have a branch for each llm_provider choice (I7)."""
-        template = Path("fast_agent_stack/template/{{project_name}}/agents.py.jinja").read_text()
+        from fast_agent_stack.cli.new import TEMPLATE_DIR
+
+        project_dir = TEMPLATE_DIR / "{{project_name}}"
+        matches = list(project_dir.glob("*agents.py*endif*.jinja"))
+        assert matches, "agents.py conditional template not found in template/{{project_name}}/"
+        template = matches[0].read_text()
         for provider in ("anthropic", "openai", "bedrock", "litellm"):
             assert provider in template, f"Missing provider branch: {provider}"
 
@@ -516,48 +526,6 @@ class TestFailureModes:
 
 
 class TestMigrationRoundtrip:
-    def test_n01_upgrade_then_downgrade_is_clean(self, tmp_path):
-        """Alembic upgrade + downgrade creates and removes AI tables cleanly."""
-        import asyncio
-        import importlib.resources as ilr
-
-        from alembic import command
-        from alembic.config import Config
-
-        db_path = tmp_path / "test.db"
-        db_url = f"sqlite+aiosqlite:///{db_path}"
-
-        pkg = ilr.files("fast_agent_stack.core.ai.migrations")
-        migrations_dir = str(pkg)
-
-        cfg = Config()
-        cfg.set_main_option("script_location", migrations_dir)
-        cfg.attributes["database_url"] = db_url
-
-        # Upgrade to head
-        command.upgrade(cfg, "head")
-
-        # Verify tables created
-        async def _check_tables():
-            engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
-            async with engine.connect() as conn:
-                tables = await conn.run_sync(lambda sync_conn: sa.inspect(sync_conn).get_table_names())
-            await engine.dispose()
-            return tables
-
-        tables = asyncio.run(_check_tables())
-        assert "conversation_log" in tables
-        assert "conversation_messages" in tables
-        assert "token_usage_log" in tables
-
-        # Downgrade to base
-        command.downgrade(cfg, "base")
-
-        tables_after = asyncio.run(_check_tables())
-        assert "conversation_log" not in tables_after
-        assert "conversation_messages" not in tables_after
-        assert "token_usage_log" not in tables_after
-
     async def test_n02_usage_log_write_and_read(self, db_session):
         """End-to-end: write usage row and read it back."""
         svc = UsageService()

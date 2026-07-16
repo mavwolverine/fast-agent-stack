@@ -41,7 +41,7 @@ async def stream_sse(
                     )
                 except Exception:
                     logger.warning(
-                        "stream_sse: log_usage raised unexpectedly (swallowed per I21)",
+                        "stream_sse: log_usage raised unexpectedly (swallowed — usage write must not abort response)",
                         exc_info=True,
                     )
                 return

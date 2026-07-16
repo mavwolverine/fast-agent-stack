@@ -114,8 +114,7 @@ Python `set` on the backend instance) is forbidden.
 An application must not start in a configuration where the first authenticated request will fail
 due to a missing secret. The following are hard startup requirements:
 
-- `secret_key` must be set when `"jwt" in settings.auth_backends`
-- `admin_secret_key` must be set when the admin panel is enabled without auth
+- `secret_key` must be set when `"jwt" in settings.auth_backends` or admin panel is enabled (ADR-049)
 - `redis_url` must be set and connectable (≤5s timeout) when `"jwt" in settings.auth_backends`,
   `"session" in settings.auth_backends`, or `settings.include_rate_limit is True` (token
   revocation store for JWT — see I10; session storage — see ADR-032; rate-limit counters —
@@ -160,27 +159,60 @@ The database engine must read `DATABASE_URL` from the `Settings` object (which p
 
 ---
 
-## I16 — Framework and User Migrations Are Separate
+## I16 — Framework and User Migrations Use Alembic Branches
 
-Framework-provided models (User, ConversationLog, etc.) ship with their own migrations bundled inside the `fast_agent_stack` package. User project models have their own `alembic/versions/` directory.
+**Amended by ADR-044, ADR-048.** Framework-provided models (User, ConversationLog, etc.) ship with their own migrations bundled inside the `fast_agent_stack` package as **Alembic branches** in a single Alembic instance. User project models use a named `{project_name}` branch (ADR-048) established by a scaffold-time seed migration.
 
-- `fastagentstack makemigrations` autogenerates revisions for **user models only** — framework models are excluded from the diff.
-- `fastagentstack migrate` applies **both** framework-bundled migrations and user migrations (framework first).
+- `fastagentstack makemigrations` autogenerates revisions for **user models only** targeting `{project_name}@head` — framework models are excluded from the diff.
+- `fastagentstack migrate` runs `alembic upgrade heads` (plural) — upgrades all branches (framework + user) in dependency order.
 - Framework migrations are shipped inside the package and applied automatically — users never edit or generate them.
-- When the framework adds new models in a future version, `migrate` picks them up on next run (no `makemigrations` needed for framework changes).
+- When the framework adds new models in a future version, `migrate` picks them up on next run.
+- The seed migration's `depends_on` is filtered by scaffold-time feature selections (ADR-048).
 
-### Framework migration discovery (`fas migrate`)
+### Framework migration discovery (generated `alembic/env.py`)
 
-A settings-driven registry maps enabled features to their migration modules. The gate is the **presence of the corresponding extras package** (not a settings field):
+The generated `alembic/env.py` discovers framework migration locations at runtime. The gate is the **presence of the corresponding extras package** (not a settings field):
 
 ```python
-FRAMEWORK_MIGRATION_MODULES = {
-    "auth": ("fast_agent_stack.core.auth.migrations", "pwdlib"),  # gate: pwdlib importable
-    "ai": ("fast_agent_stack.core.ai.migrations", ["anthropic", "openai", "litellm", "aioboto3"]),  # gate: any one importable
-}
+_FRAMEWORK_MIGRATION_GATES = [
+    ("fast_agent_stack.core.auth.migrations", "pwdlib"),
+    ("fast_agent_stack.core.ai.migrations", ["anthropic", "openai", "litellm", "aioboto3"]),
+]
+
+def _framework_version_locations() -> list[str]:
+    locs = []
+    for module_name, gate_packages in _FRAMEWORK_MIGRATION_GATES:
+        gates = gate_packages if isinstance(gate_packages, list) else [gate_packages]
+        if not any(_importable(pkg) for pkg in gates):
+            continue
+        try:
+            mod = importlib.import_module(module_name)
+            locs.append(str(Path(mod.__file__).parent / "versions"))
+        except ImportError:
+            pass
+    return locs
 ```
 
-`fas migrate` attempts to import the gate package. If it succeeds, the module's migrations are applied. If the extra isn't installed, the migrations are skipped silently. This avoids needing a settings field for each feature — installation of the extra is the signal.
+If the gate package is not importable, that branch's `version_locations` entry is omitted and its migrations are invisible to Alembic. All framework and user version locations are passed as `version_locations` before each `alembic upgrade heads` call via `cli/db.py`.
+
+### Branch labels and cross-module dependencies
+
+Framework migrations declare `branch_labels` and may declare `depends_on`:
+
+```python
+# core/auth/migrations/versions/0001_fas_auth_initial.py
+revision: str = "fas_auth_0001"
+down_revision: str | None = None
+branch_labels: tuple[str, ...] = ("fas_auth",)
+
+# core/ai/migrations/versions/0001_fas_ai_conversation.py
+revision: str = "fas_ai_0001"
+down_revision: str | None = None
+branch_labels: tuple[str, ...] = ("fas_ai",)
+depends_on: str | tuple[str, ...] | None = "fas_auth_0001"  # AI requires auth tables
+```
+
+This enables cross-module dependencies that were impossible under the previous multi-instance approach.
 
 ### User autogenerate exclusion (`fas makemigrations`)
 
@@ -197,15 +229,19 @@ def include_object(object, name, type_, reflected, compare_to):
 
 `FRAMEWORK_TABLES` is a `set[str]` exported by the framework listing all table names owned by core modules. This ensures `fas makemigrations` never generates migrations for framework tables.
 
+### Version table
+
+A single `alembic_version` table (Alembic default) holds multiple head rows — one per active branch. This replaces the previous `fas_alembic_version` table.
+
 ### Naming convention
 
 Framework migration files: `NNNN_fas_<module>_<description>.py`
 
 ```
 fast_agent_stack/core/auth/migrations/
-├── 0001_fas_auth_initial.py
-├── 0002_fas_auth_api_keys.py
-└── ...
+├── versions/
+│   ├── 0001_fas_auth_initial.py
+│   └── 0002_fas_auth_api_keys.py
 ```
 
 - `NNNN` — sequential number within the module
@@ -293,6 +329,7 @@ Settings by family:
 - `vector_timeout` — vector store operations (`upsert`, `search`, `create_collection`)
 - `storage_timeout` — storage operations (`upload`, `download`, `url`)
 - `embedding_timeout` — embedding API calls (`embed`, `embed_batch`)
+- `reranker_timeout` — reranker API calls (`rerank`) (ADR-045)
 
 **Exemption:** Pure-arithmetic operations that make no network I/O (e.g., character-count
 `count_tokens` heuristics, local fastembed inference via `run_in_executor`) are exempt — they
@@ -304,3 +341,21 @@ cannot block the event loop for a meaningful duration.
 **Rationale:** A hung backend with no timeout keeps an async worker occupied indefinitely,
 eventually exhausting the worker pool and degrading the entire application. Timeouts convert
 silent hangs into actionable errors.
+
+---
+
+## I23 — Agentic Tool-Call Loops Must Have a Maximum Iteration Limit
+
+`agent_loop` in `core/ai/tools/` must enforce a `max_iterations` cap on the LLM-tool dispatch
+cycle. The default is 10. Any `agent_loop` invocation that reaches the cap must stop and return
+the accumulated results rather than continuing to invoke the LLM or tools.
+
+An implementation that allows the loop to run without bound is a BLOCK.
+
+**Applies to:** `core/ai/tools/__init__.py` (`agent_loop` function)
+
+**Rationale:** An LLM that repeatedly requests tools without producing a final text response
+would consume unbounded API credits, hold an async worker indefinitely, and degrade the
+application. The cap converts a potential infinite loop into a bounded, observable failure.
+Callers may override the default via the `max_iterations` parameter but may not remove the cap
+entirely.

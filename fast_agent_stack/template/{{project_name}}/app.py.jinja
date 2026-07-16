@@ -11,7 +11,7 @@ from fast_agent_stack.core.auth.routes import router as auth_router
 from fast_agent_stack.core.ratelimit import RateLimitLifespanHook
 {%- endif %}
 {%- if tracing == "jaeger" %}
-from fast_agent_stack.core.observability import TracingLifespanHook
+from fast_agent_stack.observability import TracingLifespanHook
 {%- endif %}
 {%- if include_admin %}
 from fast_agent_stack.core.admin import AdminLifespanHook
@@ -38,10 +38,13 @@ _stack.add_lifespan_hook(RateLimitLifespanHook(_settings, app=app))
 _stack.add_lifespan_hook(TracingLifespanHook(_settings))
 {%- endif %}
 {%- if include_admin %}
-_stack.add_lifespan_hook(AdminLifespanHook(_settings))
+_stack.add_lifespan_hook(AdminLifespanHook(app, secret_key=_settings.secret_key))
 {%- endif %}
 
 app.include_router(router)
 {%- if include_auth %}
 app.include_router(auth_router)
+{%- endif %}
+{%- if include_frontend %}
+_stack.frontend("./frontend")
 {%- endif %}

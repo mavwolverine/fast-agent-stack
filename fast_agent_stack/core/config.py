@@ -30,7 +30,6 @@ class BaseSettings(_BaseSettings):
     secret_key: str | None = None
     auth_backends: list[str] = []  # e.g. ["jwt"] | ["session"] | ["jwt", "session"] (ADR-034)
     admin_enabled: bool = False
-    admin_secret_key: str | None = None
 
     # Redis (ADR-006, ADR-032, ADR-033)
     redis_url: str | None = None
@@ -38,7 +37,10 @@ class BaseSettings(_BaseSettings):
     # Rate limiting (ADR-016)
     include_rate_limit: bool = False
 
-    # LLM backend timeout — seconds to wait for provider API calls (NFR Reliability)
+    # LLM backend (ADR-050)
+    llm_base_url: str | None = None  # None = SDK default; set to http://localhost:11434/v1 for Ollama
+    llm_model: str = "gpt-4o"
+    llm_api_key: str | None = None  # None = SDK reads OPENAI_API_KEY; set to "ollama" for Ollama
     llm_timeout: float = 30.0
 
     # Storage backend (Phase 5, ADR-038)
@@ -65,11 +67,12 @@ class BaseSettings(_BaseSettings):
     weaviate_api_key: str | None = None
     vector_timeout: float = 30.0
 
-    # Embedding backend (Phase 5, ADR-038, ADR-039)
+    # Embedding backend (Phase 5, ADR-038, ADR-039, ADR-050)
     embedding_provider: str = "local"
-    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_model: str = "BAAI/bge-small-en-v1.5"  # model name for the active provider
+    embedding_base_url: str | None = None  # None = SDK default; set to e.g. http://localhost:11434/v1 for Ollama
+    embedding_api_key: str | None = None  # None = SDK reads OPENAI_API_KEY; set to "ollama" for Ollama
     embedding_cache_dir: str = ""
-    embedding_openai_model: str = "text-embedding-3-small"
     embedding_bedrock_model_id: str = "amazon.titan-embed-text-v2:0"
     embedding_timeout: float = 30.0
 
@@ -77,6 +80,12 @@ class BaseSettings(_BaseSettings):
     rag_chunk_size: int = 512
     rag_chunk_overlap: int = 64
     rag_chunking_strategy: str = "fixed"
+
+    # Reranker backend (Phase 10, ADR-045)
+    reranker_provider: str = "none"  # "ollama" | "openai" | dotted path | "none"
+    reranker_model: str = "jina-reranker-v2-base-multilingual"
+    reranker_url: str = "http://localhost:11434"
+    reranker_timeout: float = 30.0
 
     # Background tasks (Phase 6, ADR-005, ADR-020)
     tasks_broker_url: str | None = None  # falls back to redis_url when None
@@ -115,14 +124,13 @@ class BaseSettings(_BaseSettings):
                 "For custom backends use a dotted Python path."
             )
         if "jwt" in builtin and not self.secret_key:
-            raise RuntimeError("secret_key must be set when 'jwt' is in auth_backends (I11)")
+            raise RuntimeError("secret_key must be set when 'jwt' is in auth_backends")
         if (builtin or self.include_rate_limit) and not self.redis_url:
             raise RuntimeError(
-                "redis_url must be set when auth_backends includes built-in backends "
-                "or include_rate_limit is True (I11, ADR-016)"
+                "redis_url must be set when auth_backends includes built-in backends or include_rate_limit is True"
             )
-        if self.admin_enabled and not (self.admin_secret_key or self.secret_key):
-            raise RuntimeError("admin_secret_key (or secret_key) must be set when admin is enabled (I11)")
+        if self.admin_enabled and not self.secret_key:
+            raise RuntimeError("secret_key must be set when admin is enabled")
         return self
 
     @classmethod

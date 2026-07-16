@@ -140,6 +140,7 @@ async def test_rate_limit_response_has_ratelimit_headers():
 def test_i3_rate_limit_middleware_guards_on_redis_fastapi():
     """I3: ratelimit/__init__.py must guard on redis_fastapi, not bare redis (ADR-037)."""
     import fast_agent_stack.core.ratelimit as mod
+
     src = Path(mod.__file__).read_text()
     tree = ast.parse(src)
 
@@ -201,6 +202,7 @@ async def test_rate_limit_lifespan_hook_aexit_is_noop():
 
 def test_rate_limit_middleware_source_has_no_blocking_imports():
     import fast_agent_stack.core.ratelimit as mod
+
     src = Path(mod.__file__).read_text()
     tree = ast.parse(src)
     for node in ast.walk(tree):
@@ -225,6 +227,7 @@ def test_pyproject_toml_rate_limit_uses_fastapi_redis_sdk():
 
 def test_pyproject_toml_contains_tracing_extra():
     import tomllib
+
     toml_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
     data = tomllib.loads(toml_path.read_text())

@@ -44,10 +44,14 @@ class QdrantStore:
         distance_metric: str = "cosine",
     ) -> None:
         distance = _DISTANCE_MAP.get(distance_metric, Distance.COSINE)
-        await self._client.recreate_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=dimensions, distance=distance),
-        )
+        # Only create if it doesn't already exist
+        collections = await self._client.get_collections()
+        existing = {c.name for c in collections.collections}
+        if name not in existing:
+            await self._client.create_collection(
+                collection_name=name,
+                vectors_config=VectorParams(size=dimensions, distance=distance),
+            )
 
     async def upsert(
         self,
@@ -76,13 +80,14 @@ class QdrantStore:
     ) -> list[VectorSearchResult]:
         try:
             qdrant_filter = _build_filter(filter) if filter else None
-            results = await self._client.search(
+            response = await self._client.query_points(
                 collection_name=collection,
-                query_vector=vector,
+                query=vector,
                 limit=top_k,
                 query_filter=qdrant_filter,
                 with_payload=True,
             )
+            results = response.points
         except (UnexpectedResponse, Exception) as exc:
             msg = str(exc).lower()
             if "not found" in msg or "collection" in msg:
@@ -118,7 +123,16 @@ class QdrantStore:
 
 
 def _str_to_id(id: str) -> str:
-    return id
+    """Convert an arbitrary string ID to a valid Qdrant point ID (UUID format)."""
+    import uuid as _uuid
+
+    try:
+        # If it's already a valid UUID, use as-is
+        _uuid.UUID(id)
+        return id
+    except ValueError:
+        # Generate a deterministic UUID v5 from the string
+        return str(_uuid.uuid5(_uuid.NAMESPACE_URL, id))
 
 
 def _build_filter(filter: dict[str, str | int | float | bool]) -> Filter:

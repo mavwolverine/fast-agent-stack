@@ -7,9 +7,10 @@ fast-agent-stack wires together the infrastructure you need for real AI applicat
 ## Quick Start
 
 ```bash
+mkdir myproject && cd myproject
 pip install fast-agent-stack
 fastagentstack new myproject --preset agent
-cd myproject
+uv pip install -r pyproject.toml
 fastagentstack migrate
 fastagentstack dev
 ```

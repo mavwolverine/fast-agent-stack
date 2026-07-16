@@ -84,7 +84,7 @@ pip install "fast-agent-stack[admin]"
 ```python
 class Settings(BaseSettings):
     admin_enabled: bool = True
-    admin_secret_key: str = "admin-secret"
+    secret_key: str = "change-me-in-production"  # signs both JWT tokens and admin sessions (ADR-049)
 ```
 
 ## Custom Auth Backend
