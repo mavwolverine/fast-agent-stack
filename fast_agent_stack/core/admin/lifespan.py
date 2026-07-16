@@ -49,7 +49,8 @@ class AdminLifespanHook:
         engine = get_engine()
         if engine is None:
             raise RuntimeError(
-                "Database engine not initialized. Ensure DatabaseLifespanHook is registered before AdminLifespanHook in your app's lifespan hooks."
+                "Database engine not initialized. Ensure DatabaseLifespanHook is registered "
+                "before AdminLifespanHook in your app's lifespan hooks."
             )
 
         class _PasswordAuth(AuthenticationBackend):
@@ -65,9 +66,7 @@ class AdminLifespanHook:
                 from fast_agent_stack.core.database import get_async_session
 
                 async for session in get_async_session():
-                    result = await session.execute(
-                        select(User).where(User.email == email)
-                    )
+                    result = await session.execute(select(User).where(User.email == email))
                     user = result.scalar_one_or_none()
                     if user is None or not user.is_active:
                         return False

@@ -303,8 +303,7 @@ def test_c9_seed_migration_upgrade_is_no_op(tmp_path: Path) -> None:
         None,
     )
     assert upgrade_fn is not None, "upgrade() not found in seed migration"
-    stmts = [s for s in upgrade_fn.body if not isinstance(s, ast.Expr | ast.Pass)]
-    # body must be only a docstring (Expr) and/or Pass — no real statements
+    # body must be only a docstring (Expr) and/or Pass - no real statements
     real_stmts = [s for s in upgrade_fn.body if not isinstance(s, (ast.Expr, ast.Pass))]
     assert not real_stmts, f"upgrade() is not a no-op: {real_stmts}"
 

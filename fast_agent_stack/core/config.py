@@ -38,7 +38,7 @@ class BaseSettings(_BaseSettings):
     include_rate_limit: bool = False
 
     # LLM backend (ADR-050)
-    llm_base_url: str | None = None  # None = use SDK default (api.openai.com); set to e.g. http://localhost:11434/v1 for Ollama
+    llm_base_url: str | None = None  # None = SDK default; set to http://localhost:11434/v1 for Ollama
     llm_model: str = "gpt-4o"
     llm_api_key: str | None = None  # None = SDK reads OPENAI_API_KEY; set to "ollama" for Ollama
     llm_timeout: float = 30.0
@@ -127,8 +127,7 @@ class BaseSettings(_BaseSettings):
             raise RuntimeError("secret_key must be set when 'jwt' is in auth_backends")
         if (builtin or self.include_rate_limit) and not self.redis_url:
             raise RuntimeError(
-                "redis_url must be set when auth_backends includes built-in backends "
-                "or include_rate_limit is True"
+                "redis_url must be set when auth_backends includes built-in backends or include_rate_limit is True"
             )
         if self.admin_enabled and not self.secret_key:
             raise RuntimeError("secret_key must be set when admin is enabled")

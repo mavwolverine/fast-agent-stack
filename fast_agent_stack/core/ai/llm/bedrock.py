@@ -62,28 +62,34 @@ class BedrockLLMBackend:
                 continue
             if m.role == "tool" and m.tool_call_id:
                 # Tool result message
-                conv.append({
-                    "role": "user",
-                    "content": [{
-                        "toolResult": {
-                            "toolUseId": m.tool_call_id,
-                            "content": [{"text": m.content}],
-                        }
-                    }],
-                })
+                conv.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "toolResult": {
+                                    "toolUseId": m.tool_call_id,
+                                    "content": [{"text": m.content}],
+                                }
+                            }
+                        ],
+                    }
+                )
             elif m.role == "assistant" and m.tool_calls:
                 # Assistant requesting tool use
                 content: list[dict[str, Any]] = []
                 if m.content:
                     content.append({"text": m.content})
                 for tc in m.tool_calls:
-                    content.append({
-                        "toolUse": {
-                            "toolUseId": tc.id,
-                            "name": tc.name,
-                            "input": tc.arguments,
+                    content.append(
+                        {
+                            "toolUse": {
+                                "toolUseId": tc.id,
+                                "name": tc.name,
+                                "input": tc.arguments,
+                            }
                         }
-                    })
+                    )
                 conv.append({"role": "assistant", "content": content})
             else:
                 conv.append({"role": m.role, "content": [{"text": m.content}]})

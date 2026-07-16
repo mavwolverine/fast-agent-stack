@@ -371,9 +371,7 @@ def test_c14_question_sequence_matches_adr047() -> None:
 
     for i in range(len(ordered_labels) - 1):
         a, b = ordered_labels[i], ordered_labels[i + 1]
-        assert positions[a] < positions[b], (
-            f"ADR-047 sequence violation: {a!r} must appear before {b!r} in new.py"
-        )
+        assert positions[a] < positions[b], f"ADR-047 sequence violation: {a!r} must appear before {b!r} in new.py"
 
 
 def test_f4_second_new_same_dir_succeeds_with_overwrite(tmp_path: Path) -> None:

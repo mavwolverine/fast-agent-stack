@@ -415,9 +415,7 @@ class TestPart3Authentication:
                 if not stripped or stripped.startswith("#"):
                     continue
                 if any(cmd in stripped for cmd in fas_cmds):
-                    assert stripped.startswith("fas"), (
-                        f"CLI line does not use 'fas' entry point: {stripped!r}"
-                    )
+                    assert stripped.startswith("fas"), f"CLI line does not use 'fas' entry point: {stripped!r}"
 
     # 3. Architectural
 
@@ -524,9 +522,7 @@ class TestPart4IngestionAgent:
                 if not stripped or stripped.startswith("#"):
                     continue
                 if any(cmd in stripped for cmd in fas_cmds):
-                    assert stripped.startswith("fas"), (
-                        f"CLI line does not use 'fas' entry point: {stripped!r}"
-                    )
+                    assert stripped.startswith("fas"), f"CLI line does not use 'fas' entry point: {stripped!r}"
 
     # 3. Architectural
 
@@ -641,9 +637,7 @@ class TestPart5ChatAgent:
                 if not stripped or stripped.startswith("#"):
                     continue
                 if any(cmd in stripped for cmd in fas_cmds):
-                    assert stripped.startswith("fas"), (
-                        f"CLI line does not use 'fas' entry point: {stripped!r}"
-                    )
+                    assert stripped.startswith("fas"), f"CLI line does not use 'fas' entry point: {stripped!r}"
 
     # 3. Architectural
 
@@ -738,9 +732,7 @@ class TestPart6ChatUI:
                 if not stripped or stripped.startswith("#"):
                     continue
                 if any(cmd in stripped for cmd in fas_cmds):
-                    assert stripped.startswith("fas"), (
-                        f"CLI line does not use 'fas' entry point: {stripped!r}"
-                    )
+                    assert stripped.startswith("fas"), f"CLI line does not use 'fas' entry point: {stripped!r}"
 
     # 3. Architectural
 
@@ -828,9 +820,7 @@ class TestPart7BackgroundTasks:
                 if not stripped or stripped.startswith("#"):
                     continue
                 if any(stripped.startswith(cmd) or f" {cmd}" in stripped for cmd in fas_cmds):
-                    assert stripped.startswith("fas"), (
-                        f"CLI line does not use 'fas' entry point: {stripped!r}"
-                    )
+                    assert stripped.startswith("fas"), f"CLI line does not use 'fas' entry point: {stripped!r}"
 
     # 3. Architectural
 
@@ -913,9 +903,7 @@ class TestPart8Production:
                 if not stripped or stripped.startswith("#"):
                     continue
                 if any(cmd in stripped for cmd in fas_cmds):
-                    assert stripped.startswith("fas"), (
-                        f"CLI line does not use 'fas' entry point: {stripped!r}"
-                    )
+                    assert stripped.startswith("fas"), f"CLI line does not use 'fas' entry point: {stripped!r}"
 
     # 3. Architectural
 

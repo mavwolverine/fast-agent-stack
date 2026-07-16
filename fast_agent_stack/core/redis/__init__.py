@@ -53,7 +53,8 @@ class FastAPIRedisLifespanHook:
         except (TimeoutError, Exception) as exc:
             await client.aclose()
             raise RuntimeError(
-                f"Cannot connect to Redis at {self._settings.redis_url} — check that redis_url is correct and Redis is running"
+                f"Cannot connect to Redis at {self._settings.redis_url} "
+                "- check that redis_url is correct and Redis is running"
             ) from exc
         await client.aclose()
         return self

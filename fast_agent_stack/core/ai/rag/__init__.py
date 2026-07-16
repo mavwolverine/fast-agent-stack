@@ -183,9 +183,8 @@ class RagService:
             reranked = await self._reranker.rerank(query, documents, top_k=top_k)
         except TimeoutError:
             import logging
-            logging.getLogger(__name__).warning(
-                "Reranker timed out; falling back to vector similarity ordering"
-            )
+
+            logging.getLogger(__name__).warning("Reranker timed out; falling back to vector similarity ordering")
             return _to_chunks(results[:top_k])
         # Reorder results by reranker output; reranked items are already sorted desc by score
         reranked_chunks: list[RagChunk] = []

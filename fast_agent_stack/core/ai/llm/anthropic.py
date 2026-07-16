@@ -51,25 +51,31 @@ class AnthropicLLMBackend:
             if m.role == "system":
                 continue
             if m.role == "tool" and m.tool_call_id:
-                conv.append({
-                    "role": "user",
-                    "content": [{
-                        "type": "tool_result",
-                        "tool_use_id": m.tool_call_id,
-                        "content": m.content,
-                    }],
-                })
+                conv.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": m.tool_call_id,
+                                "content": m.content,
+                            }
+                        ],
+                    }
+                )
             elif m.role == "assistant" and m.tool_calls:
                 content: list[dict[str, Any]] = []
                 if m.content:
                     content.append({"type": "text", "text": m.content})
                 for tc in m.tool_calls:
-                    content.append({
-                        "type": "tool_use",
-                        "id": tc.id,
-                        "name": tc.name,
-                        "input": tc.arguments,
-                    })
+                    content.append(
+                        {
+                            "type": "tool_use",
+                            "id": tc.id,
+                            "name": tc.name,
+                            "input": tc.arguments,
+                        }
+                    )
                 conv.append({"role": "assistant", "content": content})
             else:
                 conv.append({"role": m.role, "content": m.content})
@@ -80,11 +86,13 @@ class AnthropicLLMBackend:
         result = []
         for t in tools:
             func = t.get("function", t)
-            result.append({
-                "name": func["name"],
-                "description": func.get("description", ""),
-                "input_schema": func.get("parameters", {}),
-            })
+            result.append(
+                {
+                    "name": func["name"],
+                    "description": func.get("description", ""),
+                    "input_schema": func.get("parameters", {}),
+                }
+            )
         return result
 
     async def complete(

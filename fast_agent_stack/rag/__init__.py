@@ -8,7 +8,7 @@ from fast_agent_stack.core.ai.rag import (
     RagService,
     UnsupportedFileTypeError,
 )
-from fast_agent_stack.core.ai.reranker import RerankResult, RerankerProtocol, get_reranker
+from fast_agent_stack.core.ai.reranker import RerankerProtocol, RerankResult, get_reranker
 from fast_agent_stack.core.vector import (
     CollectionNotFoundError,
     VectorSearchResult,

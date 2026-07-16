@@ -1,4 +1,5 @@
 """Tests for FastAgentStack.frontend() static SPA serving (ADR-024)."""
+
 from __future__ import annotations
 
 import pytest
@@ -85,12 +86,14 @@ def test_c2_returns_none(tmp_path):
 
 def test_c3_path_kwarg_defaults_to_root(tmp_path):
     import inspect
+
     sig = inspect.signature(FastAgentStack.frontend)
     assert sig.parameters["path"].default == "/"
 
 
 def test_c4_path_is_keyword_only(tmp_path):
     import inspect
+
     sig = inspect.signature(FastAgentStack.frontend)
     assert sig.parameters["path"].kind == inspect.Parameter.KEYWORD_ONLY
 
@@ -110,6 +113,7 @@ def test_a1_no_extras_required(tmp_path):
 def test_a2_frontend_is_on_public_class():
     # frontend() is accessed via FastAgentStack (public), not via core internals
     import fast_agent_stack as public_module
+
     stack = public_module.FastAgentStack()
     assert hasattr(stack, "frontend")
 
