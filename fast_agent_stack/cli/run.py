@@ -12,7 +12,8 @@ def _resolve(app_path: str) -> str:
     if ":" in app_path:
         try:
             return get_import_data_from_import_string(
-                app_path, from_pyproject=False  # type: ignore[call-arg]
+                app_path,
+                from_pyproject=False,  # type: ignore[call-arg]
             ).import_string
         except TypeError:
             return get_import_data_from_import_string(app_path).import_string
