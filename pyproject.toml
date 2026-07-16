@@ -183,6 +183,8 @@ module = [
     "litellm.*",
     "qdrant_client",
     "qdrant_client.*",
+    "yaml",
+    "opentelemetry.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"

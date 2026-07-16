@@ -35,7 +35,8 @@ class Tool:
     schema: dict[str, Any]
 
     async def __call__(self, **kwargs: Any) -> str:
-        return await self.fn(**kwargs)
+        result = await self.fn(**kwargs)
+        return str(result)
 
 
 def tool(
@@ -107,10 +108,11 @@ async def agent_loop(
     for _ in range(max_iterations):
         tool_call_result: ToolCallResult | None = None
 
-        async for chunk in backend.stream(
+        stream = backend.stream(
             current_messages,
             tools=tool_schemas if tool_schemas else None,
-        ):
+        )
+        async for chunk in stream:  # type: ignore[attr-defined]
             if isinstance(chunk, ToolCallResult):
                 tool_call_result = chunk
                 break

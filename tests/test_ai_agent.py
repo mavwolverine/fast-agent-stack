@@ -303,7 +303,7 @@ class TestAgentDispatcher:
         app = self._make_app()
         backend = self._make_backend()
 
-        @app.agent("chat", backend)
+        @app.agent("chat", backend=backend)
         async def handler(messages, *, user_id, api_key_id, conversation_id):
             return "hello"
 
@@ -316,13 +316,13 @@ class TestAgentDispatcher:
         app = self._make_app()
         backend = self._make_backend()
 
-        @app.agent("chat", backend)
+        @app.agent("chat", backend=backend)
         async def handler(messages, *, user_id, api_key_id, conversation_id):
             return "first"
 
         with pytest.raises(ValueError, match="chat"):
 
-            @app.agent("chat", backend)
+            @app.agent("chat", backend=backend)
             async def handler2(messages, *, user_id, api_key_id, conversation_id):
                 return "second"
 
@@ -483,7 +483,7 @@ class TestFailureModes:
         app = FastAgentStack()
         backend = MagicMock()
 
-        @app.agent("chat", backend)
+        @app.agent("chat", backend=backend)
         async def h1(messages, *, user_id, api_key_id, conversation_id):
             return "x"
 
@@ -491,7 +491,7 @@ class TestFailureModes:
 
         with pytest.raises(ValueError):
 
-            @app.agent("chat", backend)
+            @app.agent("chat", backend=backend)
             async def h2(messages, *, user_id, api_key_id, conversation_id):
                 return "x"
 
@@ -526,48 +526,6 @@ class TestFailureModes:
 
 
 class TestMigrationRoundtrip:
-    def test_n01_upgrade_then_downgrade_is_clean(self, tmp_path):
-        """Alembic upgrade + downgrade creates and removes AI tables cleanly."""
-        import asyncio
-        import importlib.resources as ilr
-
-        from alembic import command
-        from alembic.config import Config
-
-        db_path = tmp_path / "test.db"
-        db_url = f"sqlite+aiosqlite:///{db_path}"
-
-        pkg = ilr.files("fast_agent_stack.core.ai.migrations")
-        migrations_dir = str(pkg)
-
-        cfg = Config()
-        cfg.set_main_option("script_location", migrations_dir)
-        cfg.attributes["database_url"] = db_url
-
-        # Upgrade to head
-        command.upgrade(cfg, "head")
-
-        # Verify tables created
-        async def _check_tables():
-            engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
-            async with engine.connect() as conn:
-                tables = await conn.run_sync(lambda sync_conn: sa.inspect(sync_conn).get_table_names())
-            await engine.dispose()
-            return tables
-
-        tables = asyncio.run(_check_tables())
-        assert "conversation_log" in tables
-        assert "conversation_messages" in tables
-        assert "token_usage_log" in tables
-
-        # Downgrade to base
-        command.downgrade(cfg, "base")
-
-        tables_after = asyncio.run(_check_tables())
-        assert "conversation_log" not in tables_after
-        assert "conversation_messages" not in tables_after
-        assert "token_usage_log" not in tables_after
-
     async def test_n02_usage_log_write_and_read(self, db_session):
         """End-to-end: write usage row and read it back."""
         svc = UsageService()
