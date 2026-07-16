@@ -1,7 +1,7 @@
 ---
 name: fas-architect-reviewer
 description: Holistic design review of spec/ files. Checks invariant completeness, missing ADRs, boundary leaks, roadmap sequencing, and scenario gaps.
-model: auto
+# model: auto
 tools:
   - Read
 managed-by: wolverine-kit

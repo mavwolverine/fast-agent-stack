@@ -1,7 +1,7 @@
 ---
 name: fas-py-protocol-validator
 description: Validates that Python classes correctly implement their declared protocols (typing.Protocol, ABCs).
-model: auto
+# model: auto
 tools:
   - Read
   - Bash

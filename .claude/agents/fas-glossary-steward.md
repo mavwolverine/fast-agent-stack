@@ -1,7 +1,7 @@
 ---
 name: fas-glossary-steward
 description: Maintains canonical terminology in spec/GLOSSARY.md. Detects variant usage across docs and enforces naming consistency.
-model: auto
+# model: auto
 tools:
   - Read
   - Write

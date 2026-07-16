@@ -1,7 +1,7 @@
 ---
 name: fas-spec-synthesizer
 description: Produces self-contained implementation briefs for a module after passing the gatekeeper gate.
-model: auto
+# model: auto
 tools:
   - Read
 managed-by: wolverine-kit

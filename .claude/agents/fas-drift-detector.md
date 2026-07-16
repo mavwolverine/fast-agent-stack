@@ -1,7 +1,7 @@
 ---
 name: fas-drift-detector
 description: Scans the implementation for drift after spec/ changes. Identifies misaligned code, templates, or configs.
-model: auto
+# model: auto
 tools:
   - Read
   - Bash

@@ -1,7 +1,7 @@
 ---
 name: fas-dependency-auditor
 description: Checks project dependencies for available upgrades, runs test suites against new versions, and reports compatibility.
-model: auto
+# model: auto
 tools:
   - Read
   - Bash
