@@ -493,15 +493,15 @@ async def delete_post(id: int): ...
 **Flow:**
 
 1. Client POSTs `{"messages": [...]}` to `/agents/chat`
-2. Handler calls `agent_loop(backend, messages, tools, max_iterations=10)`
-3. `agent_loop` calls `backend.complete(messages, tools=tool_schemas)`
-4. Backend returns `ToolCallResult(tool_calls=[ToolCall(id="tc_1", name="search_docs", arguments=...)])`
+2. Handler calls `async for chunk in agent_loop(backend, messages, tools, max_iterations=10)`
+3. `agent_loop` calls `backend.stream(messages, tools=tool_schemas)`
+4. Backend yields a `ToolCallResult(tool_calls=[ToolCall(id="tc_1", name="search_docs", arguments=...)])` — no text chunks emitted
 5. `agent_loop` dispatches: finds the `@tool`-decorated function named `search_docs`, calls it
 6. Result appended as `Message(role="tool", content=result_str, tool_call_id="tc_1")`
-7. `agent_loop` calls `backend.complete(messages + [tool_msg], tools=tool_schemas)` again
-8. Backend returns `CompletionResult(content="Based on the document...")` — no more tool calls
-9. `agent_loop` returns the final `CompletionResult`
-10. Handler streams or returns the response to the client
+7. `agent_loop` calls `backend.stream(messages + [tool_msg], tools=tool_schemas)` again
+8. Backend yields text chunks (`str`) followed by a trailing `CompletionResult` sentinel — no more tool calls
+9. `agent_loop` yields each text chunk (forwarded to SSE) then yields the `CompletionResult` sentinel and returns
+10. Handler streams text chunks to the client; `stream_sse` intercepts the sentinel for usage logging
 
 **Failure modes:**
 

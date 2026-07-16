@@ -16,15 +16,17 @@ fastagentstack run   # production: multi-worker, 0.0.0.0
 
 ```python
 from fast_agent_stack import FastAgentStack
-from fast_agent_stack.core.ai.llm import get_llm_backend
+from fast_agent_stack.ai import Message, get_llm
+from fast_agent_stack.config import BaseSettings
 
+settings = BaseSettings()
 app = FastAgentStack()
-backend = get_llm_backend()
+backend = get_llm(settings)
 
 @app.agent(name="assistant", backend=backend)
-async def assistant(message: str, history: list):
-    # your agent logic
-    return response
+async def assistant(messages: list[Message], *, user_id, **kw):
+    result = await backend.complete(messages)
+    return result.content
 
 @app.get("/hello")
 async def hello():

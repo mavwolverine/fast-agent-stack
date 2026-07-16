@@ -161,6 +161,7 @@ and accessing fast-agent-stack's infra (DB, vector store, storage, Redis) from w
   - Project structure: `agentic_ai/agents/`, `agentic_ai/tools/`, `agentic_ai/prompts/`
   - Wiring Strands to FastAPI: `@router.post` → `agent.stream_async()` → `StreamingResponse`
   - Using fast-agent-stack infra from Strands tools (DB sessions, vector store, storage, Redis)
+    - Redis/Valkey: module-level singleton client (not per-call instantiation) using `settings.redis_url`
   - Multi-agent patterns: `GraphBuilder` (parallel DAGs), `Swarm` (handoffs)
   - Conversation persistence: Strands SDK's `ValkeySessionManager` pointed at fast-agent-stack's Redis/Valkey URL
   - Background processing: Strands agents inside Dramatiq tasks

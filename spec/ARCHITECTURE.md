@@ -402,7 +402,12 @@ fast_agent_stack/
 └── core/
     ├── app.py
     ├── config.py
-    ├── database.py
+    ├── database/
+    │   ├── __init__.py       # Public re-export: get_async_session, configure_engine, Base
+    │   ├── base.py           # Declarative Base + mixins (id, created_at, updated_at)
+    │   ├── session.py        # Engine factory, async sessionmaker, get_async_session dependency
+    │   ├── lifespan.py       # DatabaseLifespanHook (I9)
+    │   └── health.py         # DB connectivity check for /health/ready
     ├── middleware.py
     ├── protocols.py          # AppModule, LifespanHook
     ├── auth/
@@ -418,6 +423,8 @@ fast_agent_stack/
     ├── tasks/
     ├── ratelimit/
     ├── observability/
+    ├── email/                # Email delivery (smtp.py); EmailProtocol, get_email_backend
+    ├── redis/                # FastAPIRedis integration, AsyncRedisDep (ADR-037)
     ├── ai/
     │   ├── llm/              # LLMBackend Protocol, CompletionResult, ToolCall, ToolCallResult, Message
     │   ├── tools/            # @tool decorator, agent_loop, Tool class (ADR-046)

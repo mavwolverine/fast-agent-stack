@@ -335,8 +335,8 @@ Settings by family:
 `count_tokens` heuristics, local fastembed inference via `run_in_executor`) are exempt — they
 cannot block the event loop for a meaningful duration.
 
-**Applies to:** all backends under `core/ai/llm/`, `core/ai/embedding/`, `core/vector/`,
-`core/storage/` that perform network calls
+**Applies to:** all backends under `core/ai/llm/`, `core/ai/embedding/`, `core/ai/reranker/`,
+`core/vector/`, `core/storage/` that perform network calls
 
 **Rationale:** A hung backend with no timeout keeps an async worker occupied indefinitely,
 eventually exhausting the worker pool and degrading the entire application. Timeouts convert
