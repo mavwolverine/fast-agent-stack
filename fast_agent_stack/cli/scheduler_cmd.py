@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import typer
 
 
@@ -11,7 +13,7 @@ def scheduler(
 ) -> None:
     """Start the Periodiq scheduler for periodic background tasks."""
     try:
-        import periodiq.__main__  # noqa: F401
+        from periodiq import entrypoint
     except ImportError:
         typer.echo(
             "periodiq is not installed. Run: pip install fast-agent-stack[scheduler]",
@@ -19,11 +21,8 @@ def scheduler(
         )
         raise typer.Exit(1)
 
-    import subprocess
-    import sys
-
-    cmd = [sys.executable, "-m", "periodiq", module]
+    sys.argv = ["periodiq", module]
     if verbose:
-        cmd.append("--verbose")
+        sys.argv.append("--verbose")
 
-    raise SystemExit(subprocess.call(cmd))
+    entrypoint()

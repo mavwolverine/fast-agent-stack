@@ -108,7 +108,7 @@ class FastAgentStack:
         return decorator
 
     def frontend(self, directory: str, *, path: str = "/") -> None:
-        """Mount a static SPA build directory (ADR-024).
+        """Mount a static directory as a drop target for compiled SPA output (ADR-024).
 
         Delegates to FastAPI's native frontend() (>=0.138.0). API routes take
         priority; unmatched paths fall back to index.html for SPA routing.

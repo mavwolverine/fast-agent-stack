@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import typer
 
 
@@ -18,7 +20,7 @@ def worker(
 ) -> None:
     """Start a Dramatiq worker for background task processing."""
     try:
-        import dramatiq.__main__ as _dm_main  # noqa: F401
+        from dramatiq.cli import main as dramatiq_main
     except ImportError:
         typer.echo(
             "dramatiq is not installed. Run: pip install fast-agent-stack[tasks]",
@@ -26,12 +28,12 @@ def worker(
         )
         raise typer.Exit(1)
 
-    import subprocess
-    import sys
+    if broker_url:
+        import os
 
-    cmd = [
-        sys.executable,
-        "-m",
+        os.environ["TASKS_BROKER_URL"] = broker_url
+
+    sys.argv = [
         "dramatiq",
         module,
         "--processes",
@@ -39,9 +41,5 @@ def worker(
         "--threads",
         str(threads),
     ]
-    if broker_url:
-        import os
 
-        os.environ["TASKS_BROKER_URL"] = broker_url
-
-    raise SystemExit(subprocess.call(cmd))
+    dramatiq_main()

@@ -23,7 +23,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "fastapi[standard]>=0.138.0",   # ADR-019; NFR floor; app.frontend() static file serving
+    "fastapi[standard]>=0.138.0",   # ADR-019; NFR floor; _stack.frontend() static file serving
     "pydantic>=2.0",              # ADR-003
     "pydantic-settings>=2.0",     # ADR-003
     "sqlalchemy[asyncio]>=2.0",   # ADR-002

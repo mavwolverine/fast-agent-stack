@@ -585,7 +585,7 @@ A few things to notice:
 
 - **Alpine.js**: a 3KB reactive framework loaded via CDN script tag. No build step, no npm. It provides `x-model`, `x-if`, `x-for`, and event bindings that keep the UI in sync with state.
 - **Wizard flow**: the login screen shows first. After authentication, it transitions to the app view with a top bar, document list, chat area, and upload modal.
-- **Why `fetch()` + `getReader()`**: the browser's built-in `EventSource` only supports GET requests. `POST /agents/chat` is a POST endpoint, so you must use the Fetch Streams API (`response.body.getReader()`) to consume the SSE response body.
+- **Why `fetch()` + `getReader()`**: the browser's built-in SSE helper only supports GET requests. `POST /agents/chat` is a POST endpoint, so you must use the Fetch Streams API (`response.body.getReader()`) to consume the SSE response body.
 - **SSE format**: each line from the server starts with `data: ` followed by a JSON-encoded string token. `JSON.parse(line.slice(6))` decodes it, and the result is appended to the chat bubble.
 - **Same origin**: because the HTML page is served by the same FastAPI process at the same port, there is no CORS configuration needed between the UI and the API.
 
