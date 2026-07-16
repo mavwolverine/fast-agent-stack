@@ -77,8 +77,8 @@ class FastAgentStack:
     def agent(
         self,
         name: str,
-        backend: Any,
         *,
+        backend: Any = None,
         tools: list[Any] | None = None,
         dependencies: list[Any] | None = None,
         path: str | None = None,

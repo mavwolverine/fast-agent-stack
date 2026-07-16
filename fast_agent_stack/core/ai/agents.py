@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from fast_agent_stack.core.ai.llm import CompletionResult, LLMBackend, Message
+from fast_agent_stack.core.ai.llm import CompletionResult, Message
 from fast_agent_stack.core.ai.streaming import stream_sse
 from fast_agent_stack.core.ai.usage import UsageService
 from fast_agent_stack.core.database import get_async_session
@@ -33,7 +33,7 @@ class AgentRequest(BaseModel):
 
 async def dispatch(
     handler: Callable[..., Any],
-    backend: LLMBackend,
+    backend: Any,
     messages: list[Message],
     *,
     user_id: UUID | None,
@@ -65,25 +65,28 @@ async def dispatch(
             api_key_id=api_key_id,
             conversation_id=conversation_id,
         )
-        result: CompletionResult = await backend.complete([Message(role="user", content=text)])
-        try:
-            await _usage_service.log_usage(
-                result,
-                user_id=user_id,
-                api_key_id=api_key_id,
-                agent_name=agent_name,
-                conversation_id=conversation_id,
-                db=db,
-            )
-        except Exception:
-            logger.warning("dispatch: log_usage raised (swallowed — usage write must not abort response)", exc_info=True)
-        return JSONResponse({"content": result.content, "model": result.model})
+        if backend is not None:
+            result: CompletionResult = await backend.complete([Message(role="user", content=text)])
+            try:
+                await _usage_service.log_usage(
+                    result,
+                    user_id=user_id,
+                    api_key_id=api_key_id,
+                    agent_name=agent_name,
+                    conversation_id=conversation_id,
+                    db=db,
+                )
+            except Exception:
+                logger.warning("dispatch: log_usage raised (swallowed)", exc_info=True)
+            return JSONResponse({"content": result.content, "model": result.model})
+        else:
+            return JSONResponse({"content": text})
 
 
 def make_agent_route_func(
     name: str,
     handler: Callable[..., Any],
-    backend: LLMBackend,
+    backend: Any = None,
     *,
     tools: list[Any] | None = None,
 ) -> Callable[..., Any]:

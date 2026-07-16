@@ -12,7 +12,7 @@ Build a **Document Q&A Assistant** step by step - from a bare scaffold to a prod
 | [Part 5 - Chat Agent with Tools](05-chat-agent-tools.md) | `agent_loop`, tool calling, streaming | Agentic Q&A |
 | [Part 6 - Chat UI](06-chat-ui.md) | Vanilla JS SSE page, `_stack.frontend()` | Browser interface |
 | [Part 7 - Background Tasks](07-background-tasks.md) | Dramatiq workers, periodiq scheduler | Async processing |
-| [Part 8 - Production](08-production.md) | Rate limiting, Jaeger tracing, Docker Compose, K8s | Deployment |
+| [Part 8 - Production](08-production.md) | Rate limiting, Jaeger tracing, Docker Compose | Deployment |
 
 ## What you're building
 
