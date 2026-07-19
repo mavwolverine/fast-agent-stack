@@ -497,27 +497,31 @@ class TestFailureModes:
 
         assert len(app.fastapi_app.routes) == route_count
 
-    def test_f05_agents_py_jinja_respects_llm_provider_none(self):
-        """agents.py template uses copier filename-conditional AND wraps content guard."""
+    def test_f05_ai_package_dir_respects_llm_provider_none(self):
+        """ai/ package uses a copier directory-name conditional gated on llm_provider (ADR replaces the
+        old single-file agents.py.jinja content-guard with a directory-name guard)."""
         from fast_agent_stack.cli.new import TEMPLATE_DIR
 
         project_dir = TEMPLATE_DIR / "{{project_name}}"
-        matches = list(project_dir.glob("*agents.py*endif*.jinja"))
-        assert matches, "agents.py conditional template not found in template/{{project_name}}/"
-        template = matches[0].read_text()
-        assert '{% if llm_provider != "none" %}' in template or "{% if llm_provider != 'none' %}" in template
-        assert "{% endif %}" in template
+        matches = [d for d in project_dir.iterdir() if d.is_dir() and "ai" in d.name and "endif" in d.name]
+        assert matches, "ai/ conditional directory not found in template/{{project_name}}/"
+        dirname = matches[0].name
+        assert '{% if llm_provider != "none" %}' in dirname or "{% if llm_provider != 'none' %}" in dirname
+        assert "{% endif %}" in dirname
 
-    def test_f06_agents_py_jinja_covers_all_providers(self):
-        """agents.py.jinja must have a branch for each llm_provider choice (I7)."""
+    def test_f06_ai_agents_jinja_delegates_to_get_llm_factory(self):
+        """ai/agents/__init__.py.jinja must delegate provider selection to get_llm(), not hardcode a
+        provider-specific branch (I7) - get_llm() itself covers all four providers, tested in
+        test_llm_backends.py::TestGetLLMFactory."""
         from fast_agent_stack.cli.new import TEMPLATE_DIR
 
         project_dir = TEMPLATE_DIR / "{{project_name}}"
-        matches = list(project_dir.glob("*agents.py*endif*.jinja"))
-        assert matches, "agents.py conditional template not found in template/{{project_name}}/"
-        template = matches[0].read_text()
-        for provider in ("anthropic", "openai", "bedrock", "litellm"):
-            assert provider in template, f"Missing provider branch: {provider}"
+        matches = [d for d in project_dir.iterdir() if d.is_dir() and "ai" in d.name and "endif" in d.name]
+        assert matches, "ai/ conditional directory not found in template/{{project_name}}/"
+        agents_init = matches[0] / "agents" / "__init__.py.jinja"
+        assert agents_init.exists(), f"Missing: {agents_init}"
+        template = agents_init.read_text()
+        assert "get_llm(" in template, "ai/agents/__init__.py.jinja must call get_llm() to resolve the configured provider"
 
 
 # ===========================================================================

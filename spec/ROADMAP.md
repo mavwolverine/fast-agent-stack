@@ -155,7 +155,7 @@ and accessing fast-agent-stack's infra (DB, vector store, storage, Redis) from w
 
 ### 11.1: Strands Agents Guide
 
-- [ ] `docs/guides/strands-agents.md` — Building agentic apps with Strands + fast-agent-stack
+- [x] `docs/guides/framework-integration/strands-agents.md` — Building agentic apps with Strands + fast-agent-stack
   - Positioning: fast-agent-stack = production infrastructure, Strands = agentic AI runtime
   - When to use `@app.agent()` (simple single-agent) vs. Strands (multi-agent, graphs, swarms)
   - Project structure: `agentic_ai/agents/`, `agentic_ai/tools/`, `agentic_ai/prompts/`
