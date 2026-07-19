@@ -6,4 +6,4 @@ docs_dir = "docs"
 
 [project.theme]
 palette = { primary = "indigo", accent = "blue" }
-features = ["navigation.sections", "navigation.expand", "search.highlight", "content.code.copy"]
+features = ["navigation.expand", "navigation.indexes", "search.highlight", "content.code.copy"]

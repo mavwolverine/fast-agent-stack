@@ -368,6 +368,7 @@ Then create `frontend/index.html` with the following content:
                 <template x-if="documents.length > 0">
                   <div style="text-align:left;">
                     <strong style="font-size:0.85rem; color:var(--text);">Your documents</strong>
+                    <button class="btn btn-sm btn-outline" @click="loadDocuments()" style="margin-left:8px; font-size:0.7rem; padding:2px 8px;">↻</button>
                     <ul style="list-style:none; margin-top:8px;">
                       <template x-for="doc in documents" :key="doc.id">
                         <li style="padding:4px 0; font-size:0.85rem; display:flex; align-items:center; gap:8px;">
@@ -413,8 +414,10 @@ Then create `frontend/index.html` with the following content:
             <div class="success-msg" x-show="upload_msg" x-text="upload_msg"></div>
             <div class="error-msg" x-show="upload_error" x-text="upload_error"></div>
             <div class="modal-actions">
-              <button class="btn btn-outline" @click="show_upload = false">Cancel</button>
+              <button class="btn btn-outline" @click="show_upload = false; upload_msg = ''"
+                x-text="upload_msg ? 'Done' : 'Cancel'"></button>
               <button class="btn" @click="uploadPdf()" :disabled="uploading"
+                x-show="!upload_msg"
                 x-text="uploading ? 'Uploading...' : 'Upload'"></button>
             </div>
           </div>
@@ -437,6 +440,7 @@ Then create `frontend/index.html` with the following content:
         messages: [],
         question: "",
         asking: false,
+        conversation_id: crypto.randomUUID(),
 
         // Documents state
         documents: [],
@@ -485,6 +489,10 @@ Then create `frontend/index.html` with the following content:
             });
             if (resp.ok) {
               this.documents = await resp.json();
+              // Auto-refresh while any document is still indexing
+              if (this.documents.some(d => d.status === "pending")) {
+                setTimeout(() => this.loadDocuments(), 3000);
+              }
             }
           } catch (_) {}
         },
@@ -543,6 +551,7 @@ Then create `frontend/index.html` with the following content:
               },
               body: JSON.stringify({
                 messages: [{ role: "user", content: q }],
+                conversation_id: this.conversation_id,
               }),
             });
 

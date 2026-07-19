@@ -1,14 +1,28 @@
-# Part 5 - Chat Agent with Tools
+# Part 5 - Chat Agent
 
 > **Series:** [Tutorial index](index.md) · [Part 4](04-ingestion-agent.md) · **You are here:** Part 5 · [Part 6](06-chat-ui.md)
 
-In Part 4 you ingested PDFs into Qdrant. In Part 5 you'll build the chat endpoint: the user sends a question, the agent decides to search Qdrant for relevant chunks, and the LLM synthesizes a streaming answer.
-
-**By the end of this part** `POST /agents/chat` accepts a question, retrieves document chunks, and streams the answer back as SSE events.
+In Part 4 you ingested PDFs into Qdrant. Now you'll build the chat endpoint: the user sends a question, the agent retrieves relevant chunks from the vector store, and the LLM synthesizes a streaming answer.
 
 ---
 
-## Prerequisites
+## Choose your agent approach
+
+| Approach | What it is | Pick this when |
+|----------|-----------|----------------|
+| **Built-in** (below) | fast-agent-stack's `@app.agent()`, `agent_loop`, `@tool` | Simple single-agent, no extra deps, quick to wire up |
+| [Strands Agents](../guides/framework-integration/strands-agents.md) | AWS Strands SDK with multi-agent graphs and swarms | Multi-agent orchestration, parallel pipelines, runtime handoffs |
+| Pydantic AI *(planned)* | — | Structured output, typed dependency injection |
+
+If you're using Strands or Pydantic AI, follow the linked guide and then skip to [Part 6 - Chat UI](06-chat-ui.md) when done. Otherwise, continue below.
+
+---
+
+## Built-in: `@app.agent()` with tool calling
+
+**By the end of this section** `POST /agents/chat` accepts a question, retrieves document chunks, and streams the answer back as SSE events.
+
+### Prerequisites
 
 - Part 4 complete (documents indexed in Qdrant)
 - `.env` has `DOCQA_LLM_BASE_URL`, `DOCQA_LLM_MODEL`, and `DOCQA_LLM_API_KEY` set (configured in Part 0)
@@ -16,7 +30,7 @@ In Part 4 you ingested PDFs into Qdrant. In Part 5 you'll build the chat endpoin
 
 ---
 
-## 1. Create the chat module
+### 1. Create the chat module
 
 Create `docqa/chat.py`. This file defines the search tool and the agent handler:
 
@@ -27,7 +41,7 @@ from fast_agent_stack.ai import Message, agent_loop, tool
 from fast_agent_stack.ai.llm import OpenAILLMBackend
 from fast_agent_stack.rag import RagService, get_embedding_provider, get_vector_store
 
-from .ingestion import COLLECTION
+from .ai.tools.ingestion import COLLECTION
 from .settings import get_settings
 
 _settings = get_settings()
@@ -69,9 +83,9 @@ A few things to notice:
 
 ---
 
-## 2. Register the agent
+### 2. Register the agent
 
-The scaffold already generated `docqa/agents.py` with a `register_agents` function and an echo stub. Replace the entire file with the real chat agent:
+The scaffold already generated `docqa/ai/agents/__init__.py` with a `register_agents` function and an echo stub. Replace its contents with the real chat agent:
 
 ```python
 from fastapi import Depends
@@ -105,7 +119,7 @@ def register_agents(app):
 Then open `docqa/app.py` and add these two lines after `app.include_router(router)`:
 
 ```python
-from .agents import register_agents
+from .ai.agents import register_agents
 
 register_agents(_stack)
 ```
@@ -114,7 +128,7 @@ register_agents(_stack)
 
 ---
 
-## 3. Test the flow
+### 3. Test the flow
 
 Restart the dev server:
 

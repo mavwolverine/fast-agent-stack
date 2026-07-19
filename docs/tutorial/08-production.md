@@ -51,7 +51,7 @@ The `agent` preset was scaffolded with `tracing: none`, so `TracingLifespanHook`
 ### Install the extras
 
 ```bash
-uv pip install "fast-agent-stack[tracing]" opentelemetry-instrumentation-httpx
+uv add "fast-agent-stack[tracing]" opentelemetry-instrumentation-httpx
 ```
 
 The `tracing` extra brings OpenTelemetry SDK and the OTLP exporter. `opentelemetry-instrumentation-httpx` traces outgoing HTTP calls (including LLM requests to Ollama).

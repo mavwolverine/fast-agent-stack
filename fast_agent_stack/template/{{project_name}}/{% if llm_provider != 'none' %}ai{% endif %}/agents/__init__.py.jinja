@@ -1,0 +1,28 @@
+"""Agent definitions for {{ project_name }}.
+
+Register each agent with ``@app.agent(name, backend=backend)`` and decorate an
+async handler. Return a string for non-streaming, or use ``async def … yield``
+for streaming.
+"""
+
+from fast_agent_stack.ai import Message, get_llm
+
+from ...settings import get_settings
+
+_settings = get_settings()
+_backend = get_llm(_settings)
+
+
+def register_agents(app):  # type: ignore[type-arg]
+    """Mount all agent routes on *app* (call from main.py after app creation)."""
+
+    @app.agent("chat", backend=_backend)
+    async def chat_agent(
+        messages: list[Message],
+        *,
+        user_id,
+        api_key_id,
+        conversation_id,
+    ) -> str:
+        user_message = messages[-1].content if messages else ""
+        return f"Echo: {user_message}"
