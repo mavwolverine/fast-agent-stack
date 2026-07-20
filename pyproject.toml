@@ -32,6 +32,12 @@ dependencies = [
     "copier>=9.0",                # ADR-010
 ]
 
+[project.urls]
+Homepage = "https://github.com/vkanwade/fast-agent-stack"
+Repository = "https://github.com/vkanwade/fast-agent-stack"
+Documentation = "https://fast-agent-stack.readthedocs.io"
+Changelog = "https://github.com/vkanwade/fast-agent-stack/blob/main/CHANGELOG.md"
+
 [project.scripts]
 fastagentstack = "fast_agent_stack.cli.main:app"
 fas = "fast_agent_stack.cli.main:app"

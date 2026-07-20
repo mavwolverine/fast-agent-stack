@@ -7,6 +7,29 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0a1] — 2026-07-19
+
+### Added
+
+- **Phase 8** — Redis SDK migration (`fastapi-redis-sdk`), response caching
+- **Phase 9** — Documentation site, README, all reference guides
+- **Phase 10** — Progressive tutorial (Parts 0-8), `@tool` decorator, `agent_loop`, tool calling on all LLM backends, reranker backends, public facades (`fast_agent_stack.ai`, `fast_agent_stack.rag`)
+- **Phase 11** — Framework integration guides (Strands Agents, Pydantic AI), `ai/` scaffolder package layout
+- `get_llm(settings)` factory for one-line LLM backend resolution
+- `llm_provider` setting field
+- `fast_agent_stack.storage` public facade
+- Tutorial Part 5 branch-point (choose built-in, Strands, or Pydantic AI)
+- `createsuperuser --force` flag for updating existing users
+- Frontend: conversation_id support, auto-refresh for indexing status, upload modal UX fix
+
+### Fixed
+
+- S18 scenario description now matches actual `agent_loop` implementation (async generator, `backend.stream()`)
+- DX.md minimal app example uses real `get_llm()` import
+- ARCHITECTURE.md package tree: `core/database/` subpackage, `core/email/`, `core/redis/`
+- I22 "Applies to" includes `core/ai/reranker/`
+- Tutorial import paths updated for `ai/` package layout
+
 ## [0.1.0] — 2026-07-06
 
 ### Added
