@@ -12,7 +12,7 @@ In Part 4 you ingested PDFs into Qdrant. Now you'll build the chat endpoint: the
 |----------|-----------|----------------|
 | **Built-in** (below) | fast-agent-stack's `@app.agent()`, `agent_loop`, `@tool` | Simple single-agent, no extra deps, quick to wire up |
 | [Strands Agents](../guides/framework-integration/strands-agents.md) | AWS Strands SDK with multi-agent graphs and swarms | Multi-agent orchestration, parallel pipelines, runtime handoffs |
-| Pydantic AI *(planned)* | - | Structured output, typed dependency injection |
+| [Pydantic AI](../guides/framework-integration/pydantic-ai.md) | Pydantic AI SDK with typed dependency injection | Typed `deps`/`RunContext`, agent delegation, programmatic hand-off |
 
 If you're using Strands or Pydantic AI, follow the linked guide and then skip to [Part 6 - Chat UI](06-chat-ui.md) when done. Otherwise, continue below.
 

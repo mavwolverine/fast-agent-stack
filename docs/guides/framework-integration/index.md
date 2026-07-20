@@ -54,7 +54,7 @@ A dedicated agent framework's code lives in these same directories - there's no 
 | Guide | Framework | Covers |
 |---|---|---|
 | [Strands Agents](strands-agents.md) | [AWS Strands Agents](https://strandsagents.com) | Multi-agent graphs (`GraphBuilder`), swarms with handoffs (`Swarm`), Valkey-backed sessions |
-| Pydantic AI *(planned)* | [Pydantic AI](https://ai.pydantic.dev) | Structured output, typed dependency injection |
+| [Pydantic AI](pydantic-ai.md) | [Pydantic AI](https://ai.pydantic.dev) | Typed dependency injection (`RunContext`/`deps_type`), agent delegation, programmatic hand-off |
 
 Each guide covers: project structure, wiring the framework to a FastAPI route, using fast-agent-stack's infra (DB sessions, vector store, storage, Redis) from inside the framework's tools, and where the framework's own session/persistence layer fits alongside fast-agent-stack's.
 
