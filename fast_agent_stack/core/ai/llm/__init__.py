@@ -71,19 +71,19 @@ def get_llm(settings: Any) -> LLMBackend:
     if provider == "openai":
         from fast_agent_stack.core.ai.llm.openai import OpenAILLMBackend
 
-        return OpenAILLMBackend(model_id=settings.llm_model, settings=settings)
+        return OpenAILLMBackend(model_id=settings.llm_model, settings=settings)  # type: ignore[return-value]
     if provider == "anthropic":
         from fast_agent_stack.core.ai.llm.anthropic import AnthropicLLMBackend
 
-        return AnthropicLLMBackend(model_id=settings.llm_model, settings=settings)
+        return AnthropicLLMBackend(model_id=settings.llm_model, settings=settings)  # type: ignore[return-value]
     if provider == "bedrock":
         from fast_agent_stack.core.ai.llm.bedrock import BedrockLLMBackend
 
-        return BedrockLLMBackend(model_id=settings.llm_model, settings=settings)
+        return BedrockLLMBackend(model_id=settings.llm_model, settings=settings)  # type: ignore[return-value]
     if provider == "litellm":
         from fast_agent_stack.core.ai.llm.litellm import LiteLLMLLMBackend
 
-        return LiteLLMLLMBackend(model_id=settings.llm_model, settings=settings)
+        return LiteLLMLLMBackend(model_id=settings.llm_model, settings=settings)  # type: ignore[return-value]
     # ADR-012 dotted-path custom backend
     module_path, _, class_name = provider.rpartition(".")
     mod = importlib.import_module(module_path)

@@ -178,9 +178,7 @@ class TestPydanticAiGuide:
                             and isinstance(inner.func, ast.Name)
                             and inner.func.id in {"configure_broker", "configure_engine"}
                         ):
-                            pytest.fail(
-                                f"{inner.func.id}() must be called at module level, not inside {node.name}()"
-                            )
+                            pytest.fail(f"{inner.func.id}() must be called at module level, not inside {node.name}()")
 
     # 4. NFR
 

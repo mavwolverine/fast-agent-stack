@@ -521,7 +521,9 @@ class TestFailureModes:
         agents_init = matches[0] / "agents" / "__init__.py.jinja"
         assert agents_init.exists(), f"Missing: {agents_init}"
         template = agents_init.read_text()
-        assert "get_llm(" in template, "ai/agents/__init__.py.jinja must call get_llm() to resolve the configured provider"
+        assert "get_llm(" in template, (
+            "ai/agents/__init__.py.jinja must call get_llm() to resolve the configured provider"
+        )
 
 
 # ===========================================================================
