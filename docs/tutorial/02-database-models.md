@@ -20,7 +20,7 @@ In Part 1 you scaffolded the `docqa` project and hit a live dev server. In Part 
 Open `docqa/models.py` and replace its contents:
 
 ```python
-from sqlalchemy import String, Text
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from fast_agent_stack.database import BaseModel
@@ -30,7 +30,6 @@ class Document(BaseModel):
     __tablename__ = "documents"
 
     title: Mapped[str] = mapped_column(String(500))
-    content: Mapped[str | None] = mapped_column(Text, nullable=True)
     file_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 ```
 
@@ -50,7 +49,6 @@ from pydantic import BaseModel
 
 class DocumentCreate(BaseModel):
     title: str
-    content: str | None = None
 
 
 class DocumentResponse(BaseModel):
@@ -58,7 +56,6 @@ class DocumentResponse(BaseModel):
 
     id: uuid.UUID
     title: str
-    content: str | None
 ```
 
 `DocumentCreate` is the request body. `DocumentResponse` is what the API returns, including `id` assigned by the database. `from_attributes = True` lets Pydantic build a `DocumentResponse` directly from a SQLAlchemy `Document` object.
@@ -152,7 +149,7 @@ In a second terminal, create a document and confirm it's stored:
 ```bash
 curl -X POST http://127.0.0.1:8000/documents \
      -H "Content-Type: application/json" \
-     -d '{"title": "Introduction to RAG", "content": "Retrieval-Augmented Generation combines a retrieval step with an LLM."}'
+     -d '{"title": "Introduction to RAG"}'
 
 curl http://127.0.0.1:8000/documents
 ```
@@ -163,7 +160,7 @@ Or using Python with `httpx`:
 import httpx
 
 base = "http://127.0.0.1:8000"
-resp = httpx.post(f"{base}/documents", json={"title": "Test doc", "content": "Hello"})
+resp = httpx.post(f"{base}/documents", json={"title": "Test doc"})
 print(resp.json())
 doc_id = resp.json()["id"]
 print(httpx.get(f"{base}/documents/{doc_id}").json())

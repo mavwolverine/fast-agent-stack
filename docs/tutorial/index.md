@@ -9,7 +9,7 @@ Build a **Document Q&A Assistant** step by step - from a bare scaffold to a prod
 | [Part 2 - Database & Models](02-database-models.md) | SQLAlchemy, Alembic, CRUD routes | Document model + persistence |
 | [Part 3 - Authentication](03-authentication.md) | JWT auth, users, protected endpoints | Auth system |
 | [Part 4 - Ingestion Agent](04-ingestion-agent.md) | PDF upload → extract → embed → vector store | RAG data pipeline |
-| [Part 5 - Chat Agent with Tools](05-chat-agent-tools.md) | `agent_loop`, tool calling, streaming | Agentic Q&A |
+| [Part 5 - Chat Agent](05-chat-agent.md) | Choose: built-in, Strands, or Pydantic AI | Agentic Q&A |
 | [Part 6 - Chat UI](06-chat-ui.md) | Vanilla JS SSE page, `_stack.frontend()` | Browser interface |
 | [Part 7 - Background Tasks](07-background-tasks.md) | Dramatiq workers, periodiq scheduler | Async processing |
 | [Part 8 - Production](08-production.md) | Rate limiting, Jaeger tracing, Docker Compose | Deployment |

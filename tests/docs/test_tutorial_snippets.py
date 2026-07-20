@@ -139,9 +139,9 @@ class TestPart1Scaffold:
             "Part 1 must scaffold with --preset agent (ROADMAP Phase 10.1)"
         )
 
-    def test_shows_agents_py(self):
-        """Part 1 must explain the generated agents.py file."""
-        assert "agents.py" in self.part.read_text()
+    def test_shows_ai_agents_package(self):
+        """Part 1 must explain the generated ai/agents/ package."""
+        assert "ai/agents/__init__.py" in self.part.read_text()
 
     def test_links_to_part0(self):
         """Part 1 must reference Part 0 (services must be running)."""
@@ -614,10 +614,10 @@ class TestPart5ChatAgent:
     def test_shows_app_agent_registration(self):
         assert "app.agent" in self.part.read_text()
 
-    def test_agent_registration_targets_agents_py(self):
-        """Tutorial must instruct the user to edit agents.py, not app.py directly."""
+    def test_agent_registration_targets_ai_agents_package(self):
+        """Tutorial must instruct the user to edit ai/agents/__init__.py, not app.py directly."""
         text = self.part.read_text()
-        assert "agents.py" in text
+        assert "ai/agents/__init__.py" in text
         assert "register_agents" in text
 
     def test_agent_endpoint_requires_auth(self):

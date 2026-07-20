@@ -204,7 +204,7 @@ TOKEN="eyJhbGci..."   # paste your access_token from step 5
 curl -s -X POST http://127.0.0.1:8000/documents \
      -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{"title": "Protected doc", "content": "Only logged-in users see this."}'
+     -d '{"title": "Protected doc"}'
 
 # Authenticated GET - should return your documents
 curl -s http://127.0.0.1:8000/documents -H "Authorization: Bearer $TOKEN"

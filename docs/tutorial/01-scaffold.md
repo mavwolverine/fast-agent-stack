@@ -72,7 +72,14 @@ The scaffolder creates:
 ├── Dockerfile
 ├── docqa
 │   ├── __init__.py
-│   ├── agents.py        <- LLM agent definitions
+│   ├── ai/              <- AI module (agents, tools, prompts)
+│   │   ├── __init__.py
+│   │   ├── agents/
+│   │   │   └── __init__.py
+│   │   ├── tools/
+│   │   │   └── __init__.py
+│   │   └── prompts/
+│   │       └── __init__.py
 │   ├── app.py
 │   ├── models.py
 │   ├── routes.py
@@ -88,7 +95,9 @@ The scaffolder creates:
 
 A few files worth noting:
 
-- `agents.py` wires LLM backends to the framework's agent dispatcher. In Part 5 you'll extend it with `agent_loop` and tool calling.
+- `ai/agents/` is where you define your agent handlers. The scaffolder provides a stub in `ai/agents/__init__.py` using the built-in `@app.agent()` decorator. In Part 5 you'll either extend it or replace it with an external agent framework.
+- `ai/tools/` is where you put tool functions your agents can call.
+- `ai/prompts/` is for system prompts and few-shot examples.
 - `tasks.py` contains background task stubs. You'll implement async document ingestion in Part 7.
 - `docker-compose.yml` and `Dockerfile` are ready for Part 8 when you containerise the app.
 
@@ -218,7 +227,7 @@ The `/health/live` endpoint returns `{"status": "ok"}` as long as the process is
 
 - A scaffolded project using the `agent` preset: PostgreSQL, Redis, Qdrant, and JWT all configured
 - A `settings.py` subclass with `DOCQA_` env-var namespacing and a `postgresql+asyncpg` database URL
-- A generated `agents.py` wired to an LLM backend (you'll extend it in Part 5)
+- A generated `ai/agents/` module wired to an LLM backend (you'll extend it in Part 5)
 - A `/status` route that returns app metadata using the public `fast_agent_stack` API
 - A running dev server at `http://127.0.0.1:8000` with auto-reload
 

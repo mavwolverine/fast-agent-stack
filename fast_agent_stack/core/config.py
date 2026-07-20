@@ -38,6 +38,7 @@ class BaseSettings(_BaseSettings):
     include_rate_limit: bool = False
 
     # LLM backend (ADR-050)
+    llm_provider: str = "openai"  # "openai" | "anthropic" | "bedrock" | "litellm" | dotted path
     llm_base_url: str | None = None  # None = SDK default; set to http://localhost:11434/v1 for Ollama
     llm_model: str = "gpt-4o"
     llm_api_key: str | None = None  # None = SDK reads OPENAI_API_KEY; set to "ollama" for Ollama

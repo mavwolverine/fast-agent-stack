@@ -7,6 +7,7 @@ any optional SDK dependencies.
 from __future__ import annotations
 
 import sys
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 # ---------------------------------------------------------------------------
@@ -38,7 +39,7 @@ for _name, _mock in [
 # Now import backends (they will use the mocks above)
 import pytest  # noqa: E402
 
-from fast_agent_stack.core.ai.llm import CompletionResult, LLMBackend, Message  # noqa: E402
+from fast_agent_stack.core.ai.llm import CompletionResult, LLMBackend, Message, get_llm  # noqa: E402
 from fast_agent_stack.core.ai.llm.anthropic import AnthropicLLMBackend  # noqa: E402
 from fast_agent_stack.core.ai.llm.bedrock import BedrockLLMBackend  # noqa: E402
 from fast_agent_stack.core.ai.llm.litellm import LiteLLMLLMBackend  # noqa: E402
@@ -454,3 +455,65 @@ class TestLiteLLMLLMBackend:
 
         with pytest.raises(ImportError, match=r"fast-agent-stack\[litellm\]"):
             importlib.import_module("fast_agent_stack.core.ai.llm.litellm")
+
+
+# ---------------------------------------------------------------------------
+# get_llm() factory (ADR-012 alias + dotted-path dispatch; backs the scaffolded
+# ai/agents/__init__.py.jinja template - see test_ai_agent.py::test_f06)
+# ---------------------------------------------------------------------------
+
+
+def _make_settings(provider: str) -> MagicMock:
+    settings = MagicMock()
+    settings.llm_provider = provider
+    settings.llm_model = "test-model"
+    settings.llm_timeout = 30.0
+    settings.llm_base_url = None
+    settings.llm_api_key = None
+    return settings
+
+
+class TestGetLLMFactory:
+    def test_b1_openai_alias(self):
+        backend = get_llm(_make_settings("openai"))
+        assert isinstance(backend, OpenAILLMBackend)
+        assert backend.model_id == "test-model"
+
+    def test_b2_anthropic_alias(self):
+        backend = get_llm(_make_settings("anthropic"))
+        assert isinstance(backend, AnthropicLLMBackend)
+        assert backend.model_id == "test-model"
+
+    def test_b3_bedrock_alias(self):
+        backend = get_llm(_make_settings("bedrock"))
+        assert isinstance(backend, BedrockLLMBackend)
+        assert backend.model_id == "test-model"
+
+    def test_b4_litellm_alias(self):
+        backend = get_llm(_make_settings("litellm"))
+        assert isinstance(backend, LiteLLMLLMBackend)
+        assert backend.model_id == "test-model"
+
+    def test_c1_covers_all_copier_choices(self):
+        """Every llm_provider alias in copier.yml must resolve to a real backend (I7)."""
+        for provider, cls in (
+            ("openai", OpenAILLMBackend),
+            ("anthropic", AnthropicLLMBackend),
+            ("bedrock", BedrockLLMBackend),
+            ("litellm", LiteLLMLLMBackend),
+        ):
+            assert isinstance(get_llm(_make_settings(provider)), cls)
+
+    def test_b5_dotted_path_custom_backend(self):
+        """ADR-012: an unrecognized alias containing '.' is imported and instantiated with settings=."""
+        settings = _make_settings("tests.test_llm_backends._DummyCustomBackend")
+        backend = get_llm(settings)
+        assert isinstance(backend, _DummyCustomBackend)
+        assert backend.settings is settings
+
+
+class _DummyCustomBackend:
+    """ADR-012 dotted-path fixture: receives the full Settings object at construction."""
+
+    def __init__(self, settings: Any) -> None:
+        self.settings = settings

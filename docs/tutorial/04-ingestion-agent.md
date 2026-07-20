@@ -21,7 +21,7 @@ In Part 3 you protected the document routes with JWT auth. In Part 4 you'll add 
 The `agent` preset already includes the LLM, embedding, and vector store extras. You only need to add PDF extraction:
 
 ```bash
-uv pip install "fast-agent-stack[extract-pdf]"
+uv add "fast-agent-stack[extract-pdf]"
 ```
 
 This installs `pymupdf` for text extraction from uploaded PDF files.
@@ -33,7 +33,7 @@ This installs `pymupdf` for text extraction from uploaded PDF files.
 Open `docqa/models.py`. Add `status` and `vector_doc_id` fields:
 
 ```python
-from sqlalchemy import String, Text
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from fast_agent_stack.database import BaseModel
@@ -43,7 +43,6 @@ class Document(BaseModel):
     __tablename__ = "documents"
 
     title: Mapped[str] = mapped_column(String(500))
-    content: Mapped[str | None] = mapped_column(Text, nullable=True)
     file_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending", server_default="pending")
     vector_doc_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
@@ -65,7 +64,6 @@ from pydantic import BaseModel
 
 class DocumentCreate(BaseModel):
     title: str
-    content: str | None = None
 
 
 class DocumentResponse(BaseModel):
@@ -92,13 +90,13 @@ This generates an Alembic revision that adds `status` (with a `server_default` s
 
 ## 5. Wire the RagService
 
-Create `docqa/ingestion.py`. This file constructs the `RagService` - combining a local embedding model with the Qdrant vector store - and exposes it as a FastAPI dependency:
+Create `docqa/ai/tools/ingestion.py`. This file constructs the `RagService` - combining a local embedding model with the Qdrant vector store - and exposes it as a FastAPI dependency:
 
 ```python
 from fastapi import Depends
 from fast_agent_stack.rag import RagService, get_embedding_provider, get_vector_store
 
-from .settings import Settings, get_settings
+from ...settings import Settings, get_settings
 
 COLLECTION = "docqa-documents"
 
@@ -131,7 +129,7 @@ from fast_agent_stack.auth import User, get_current_user
 from fast_agent_stack.database import get_async_session
 from fast_agent_stack.rag import RagService
 
-from .ingestion import COLLECTION, get_rag_service
+from .ai.tools.ingestion import COLLECTION, get_rag_service
 from .models import Document
 from .schemas import DocumentCreate, DocumentResponse
 from .settings import Settings, get_settings
@@ -294,7 +292,7 @@ If you see `"status": "failed"`, check the dev server log - the error will be pr
 ## What you built
 
 - `status` and `vector_doc_id` columns on `Document`, with an Alembic migration to add them
-- `docqa/ingestion.py` wiring `RagService` with local fastembed embeddings and Qdrant as a FastAPI dependency
+- `docqa/ai/tools/ingestion.py` wiring `RagService` with local fastembed embeddings and Qdrant as a FastAPI dependency
 - `POST /documents/upload` accepting PDF files (multipart), protected with JWT, returning 202 immediately
 - An `_ingest` background task that extracts text, chunks, embeds, and stores vectors in Qdrant - then writes `"ingested"` or `"failed"` back to the database
 - A polling pattern via `GET /documents/{id}` to track ingestion status

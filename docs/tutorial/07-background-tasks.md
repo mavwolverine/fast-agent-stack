@@ -20,7 +20,7 @@ In Part 4 you wired PDF ingestion into a FastAPI `BackgroundTask`. That runs in 
 The `agent` preset already includes `fast-agent-stack[tasks]` (Dramatiq) in the generated `pyproject.toml`, so it was installed when you ran `uv pip install -r pyproject.toml` in Part 1. You only need to add `periodiq` for the scheduler:
 
 ```bash
-uv pip install "fast-agent-stack[scheduler]"
+uv add "fast-agent-stack[scheduler]"
 ```
 
 ---
@@ -42,7 +42,7 @@ from fast_agent_stack.database import configure_engine, get_async_session
 from fast_agent_stack.rag import RagService, get_embedding_provider, get_vector_store
 from fast_agent_stack.tasks import configure_broker
 
-from .ingestion import COLLECTION
+from .ai.tools.ingestion import COLLECTION
 from .models import Document
 from .settings import get_settings
 

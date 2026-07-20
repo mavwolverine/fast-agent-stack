@@ -97,12 +97,12 @@ def test_preset_specific_files_exist(scaffolded, preset, files):
 
 
 @pytest.mark.integration
-def test_agent_preset_has_agents_file(scaffolded):
-    """The agent preset must generate an agents.py."""
+def test_agent_preset_has_ai_agents_file(scaffolded):
+    """The agent preset must generate an ai/agents/__init__.py."""
     project_dir = scaffolded["agent"]
     package_dir = project_dir / "test_agent"
-    agents = package_dir / "agents.py"
-    assert agents.exists(), "agent preset must generate agents.py in the package directory"
+    agents = package_dir / "ai" / "agents" / "__init__.py"
+    assert agents.exists(), "agent preset must generate ai/agents/__init__.py in the package directory"
 
 
 @pytest.mark.integration

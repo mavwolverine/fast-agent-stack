@@ -37,6 +37,8 @@ def _discover_database_url() -> str | None:
 
 
 async def _do_createsuperuser(email: str, password: str) -> None:
+    from sqlalchemy.exc import IntegrityError
+
     from fast_agent_stack.core.auth.models import User
     from fast_agent_stack.core.auth.password import hash_password
     from fast_agent_stack.core.database import configure_engine, get_async_session
@@ -61,7 +63,11 @@ async def _do_createsuperuser(email: str, password: str) -> None:
             is_superuser=True,
         )
         session.add(user)
-        await session.commit()
+        try:
+            await session.commit()
+        except IntegrityError:
+            typer.echo(f"Error: A user with email '{email}' already exists.", err=True)
+            raise typer.Exit(1)
         typer.echo(f"Superuser '{email}' created.")
         break
 
